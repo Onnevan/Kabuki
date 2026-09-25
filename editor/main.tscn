@@ -182,7 +182,7 @@ size_flags_vertical=3
 layout_mode=2
 horizontal_scroll_mode=0
 vertical_scroll_mode=1
-[node name="Inspector" type="VBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/InspectorScroll"]
+[node name="Inspector" type="VBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll"]
 layout_mode=2
 size_flags_horizontal=3
 [node name="InspectorTabs" type="HBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
