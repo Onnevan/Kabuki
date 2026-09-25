@@ -32,6 +32,7 @@ var workspace := "scene"
 var render_preview := false
 var drag_offset := Vector3.ZERO
 var last_mouse := Vector2.ZERO
+var scene_nodes: Dictionary = {}
 
 func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
@@ -42,6 +43,8 @@ func _ready() -> void:
 	for label in ["Constant", "Linear", "Bezier", "Quadratic In", "Quadratic Out", "Quadratic In-Out", "Cubic In-Out", "Back", "Bounce", "Elastic"]:
 		interpolation.add_item(label)
 	interpolation.select(1)
+	_setup_shading_menu()
+	_setup_add_object_menu()
 	camera_rig.setup(camera)
 	gizmo.set_mode(active_tool)
 	_setup_workspace_tabs()
@@ -56,6 +59,81 @@ func _process(delta: float) -> void:
 		if accumulator >= 1.0 / ProjectStore.fps:
 			accumulator = 0.0
 			ProjectStore.set_frame((ProjectStore.current_frame + 1) % (ProjectStore.duration_frames + 1))
+
+func _setup_shading_menu() -> void:
+	%ShadingMode.clear()
+	%ShadingMode.add_item("Solid")
+	%ShadingMode.add_item("Wireframe")
+	%ShadingMode.select(0)
+	%ShadingMode.item_selected.connect(_on_shading_mode_selected)
+
+func _on_shading_mode_selected(index: int) -> void:
+	viewport.debug_draw = Viewport.DEBUG_DRAW_WIREFRAME if index == 1 else Viewport.DEBUG_DRAW_DISABLED
+	status.text = "Wireframe viewport" if index == 1 else "Solid viewport"
+
+func _setup_add_object_menu() -> void:
+	var popup := %AddObj.get_popup()
+	for label in ["Plane", "Sound", "Camera", "Light", "Drawing"]:
+		popup.add_item(label)
+	popup.id_pressed.connect(_on_add_object_type)
+
+func _register_scene_object(obj: MotionObject, node: Node3D) -> void:
+	ProjectStore.add_object(obj)
+	scene_nodes[obj.id] = node
+	node.name = obj.name
+	object_list.add_item(obj.name)
+	object_list.set_item_metadata(object_list.item_count - 1, obj.id)
+
+func _on_add_object_type(id: int) -> void:
+	match id:
+		0: _create_plane()
+		1: _create_sound()
+		2: _create_camera()
+		3: _create_light()
+		4: _create_drawing()
+
+func _create_plane() -> void:
+	var obj := MotionObject.new("Plane", "plane", "prop")
+	var runtime := RuntimeObject.new()
+	world_root.add_child(runtime)
+	runtime.setup_plane(obj)
+	_register_scene_object(obj, runtime)
+	runtime_objects.append(runtime)
+	_select(runtime)
+	status.text = "Plane created"
+
+func _create_sound() -> void:
+	var obj := MotionObject.new("Sound", "audio_clip", "audio")
+	var anchor := Node3D.new()
+	world_root.add_child(anchor)
+	_register_scene_object(obj, anchor)
+	status.text = "Sound object created · audio asset loading comes next"
+
+func _create_camera() -> void:
+	var obj := MotionObject.new("Camera", "camera", "camera")
+	var cam := Camera3D.new()
+	cam.current = false
+	cam.position = camera.global_position
+	cam.rotation = camera.global_rotation
+	world_root.add_child(cam)
+	_register_scene_object(obj, cam)
+	status.text = "Camera created · scene camera switching is not active yet"
+
+func _create_light() -> void:
+	var obj := MotionObject.new("Light", "light", "light")
+	var light := DirectionalLight3D.new()
+	light.rotation_degrees = Vector3(-45.0, -30.0, 0.0)
+	light.light_energy = 1.0
+	world_root.add_child(light)
+	_register_scene_object(obj, light)
+	status.text = "Directional light created"
+
+func _create_drawing() -> void:
+	var obj := MotionObject.new("Drawing", "drawing", "prop")
+	var anchor := Node3D.new()
+	world_root.add_child(anchor)
+	_register_scene_object(obj, anchor)
+	status.text = "Drawing object created · stroke engine comes in Drawing workspace"
 
 func _on_import_pressed() -> void: %FileDialog.popup_centered_ratio(0.7)
 
