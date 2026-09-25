@@ -6,8 +6,12 @@ static func build() -> Theme:
 	t.set_stylebox("panel","PanelContainer",panel)
 	var btn:=StyleBoxFlat.new();btn.bg_color=Color("#202731");btn.corner_radius_top_left=6;btn.corner_radius_top_right=6;btn.corner_radius_bottom_left=6;btn.corner_radius_bottom_right=6;btn.content_margin_left=10;btn.content_margin_right=10;btn.content_margin_top=7;btn.content_margin_bottom=7
 	t.set_stylebox("normal","Button",btn)
-	var hover:=btn.duplicate();hover.bg_color=Color("#2b3542");t.set_stylebox("hover","Button",hover)
-	var pressed:=btn.duplicate();pressed.bg_color=Color("#1677e8");t.set_stylebox("pressed","Button",pressed)
+	var hover: StyleBoxFlat = btn.duplicate() as StyleBoxFlat
+	hover.bg_color=Color("#2b3542")
+	t.set_stylebox("hover","Button",hover)
+	var pressed: StyleBoxFlat = btn.duplicate() as StyleBoxFlat
+	pressed.bg_color=Color("#1677e8")
+	t.set_stylebox("pressed","Button",pressed)
 	t.set_color("font_color","Button",Color("#e7edf5"));t.set_color("font_hover_color","Button",Color.WHITE)
 	t.set_color("font_color","Label",Color("#d9e1eb"))
 	t.set_color("font_color","CheckButton",Color("#d9e1eb"))
