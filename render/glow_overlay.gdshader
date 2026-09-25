@@ -30,5 +30,5 @@ void fragment() {
 		}
 	}
 	bloom /= max(weight_sum, 0.0001);
-	COLOR = vec4(bloom * strength, 0.0);
+	COLOR = vec4(bloom * strength, 1.0);
 }
