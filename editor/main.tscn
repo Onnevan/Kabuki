@@ -1,9 +1,10 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource path="res://editor/main.gd" type="Script" id="1"]
 [ext_resource path="res://editor/editor_camera_rig.gd" type="Script" id="2"]
 [ext_resource path="res://editor/transform_gizmo.gd" type="Script" id="3"]
 [ext_resource path="res://editor/world_grid.gd" type="Script" id="4"]
+[ext_resource path="res://editor/frame_timeline.gd" type="Script" id="5"]
 
 [node name="Main" type="Control"]
 layout_mode=3
@@ -19,195 +20,265 @@ layout_mode=1
 anchors_preset=15
 anchor_right=1.0
 anchor_bottom=1.0
-color=Color(0.025,0.028,0.034,1)
+color=Color(0.035,0.047,0.061,1)
 
 [node name="TopBar" type="HBoxContainer" parent="."]
-offset_left=18.0
-offset_top=12.0
-offset_right=1348.0
+offset_left=12.0
+offset_top=8.0
+offset_right=1354.0
 offset_bottom=58.0
-theme_override_constants/separation=12
+theme_override_constants/separation=5
 [node name="Brand" type="Label" parent="TopBar"]
+custom_minimum_size=Vector2(145,44)
 text="KABUKI"
-theme_override_font_sizes/font_size=22
+theme_override_font_sizes/font_size=24
+vertical_alignment=1
 [node name="WorkspaceTabs" type="TabBar" parent="TopBar"]
 unique_name_in_owner=true
-owner=NodePath("../..")
-custom_minimum_size=Vector2(430,38)
-[node name="PreviewMode" type="CheckButton" parent="TopBar"]
-unique_name_in_owner=true
-text="PREVIEW"
+custom_minimum_size=Vector2(520,44)
+[node name="TopSpacer" type="Control" parent="TopBar"]
+size_flags_horizontal=3
+[node name="ProjectName" type="Label" parent="TopBar"]
+text="Project Demo"
+vertical_alignment=1
 [node name="Import" type="Button" parent="TopBar"]
 text="＋  IMPORT"
-[node name="MoveTool" type="Button" parent="TopBar"]
-text="↔  MOVE"
-[node name="RotateTool" type="Button" parent="TopBar"]
-text="◯  ROTATE"
-[node name="ScaleTool" type="Button" parent="TopBar"]
-text="□  SCALE"
-[node name="FrameSelected" type="Button" parent="TopBar"]
-text="⌖  FRAME"
+[node name="PreviewMode" type="CheckButton" parent="TopBar"]
+unique_name_in_owner=true
+text="◐  PREVIEW"
 [node name="GridToggle" type="CheckButton" parent="TopBar"]
 unique_name_in_owner=true
-text="▦  GRID"
+text="▦"
 button_pressed=true
-[node name="Status" type="Label" parent="TopBar"]
-unique_name_in_owner=true
-text="Drag objects directly. Wheel: zoom. Middle drag: pan."
 
 [node name="LeftPanel" type="VBoxContainer" parent="."]
-offset_left=16.0
-offset_top=72.0
-offset_right=232.0
-offset_bottom=748.0
+offset_left=8.0
+offset_top=66.0
+offset_right=286.0
+offset_bottom=650.0
 theme_override_constants/separation=8
-[node name="Title" type="Label" parent="LeftPanel"]
-unique_name_in_owner=true
-text="OBJECTS"
-[node name="ObjectList" type="ItemList" parent="LeftPanel"]
-unique_name_in_owner=true
-custom_minimum_size=Vector2(200,500)
+[node name="ScenePanel" type="PanelContainer" parent="LeftPanel"]
 size_flags_vertical=3
-[node name="SelectionLabel" type="Label" parent="LeftPanel"]
+[node name="SceneBox" type="VBoxContainer" parent="LeftPanel/ScenePanel"]
+theme_override_constants/separation=5
+[node name="SceneHead" type="HBoxContainer" parent="LeftPanel/ScenePanel/SceneBox"]
+[node name="Title" type="Label" parent="LeftPanel/ScenePanel/SceneBox/SceneHead"]
+unique_name_in_owner=true
+text="Scene"
+theme_override_font_sizes/font_size=16
+[node name="SceneGrow" type="Control" parent="LeftPanel/ScenePanel/SceneBox/SceneHead"]
+size_flags_horizontal=3
+[node name="AddObj" type="Button" parent="LeftPanel/ScenePanel/SceneBox/SceneHead"]
+text="＋"
+[node name="ObjectList" type="ItemList" parent="LeftPanel/ScenePanel/SceneBox"]
+unique_name_in_owner=true
+size_flags_vertical=3
+[node name="SelectionLabel" type="Label" parent="LeftPanel/ScenePanel/SceneBox"]
 unique_name_in_owner=true
 text="Nothing selected"
-clip_text=true
-[node name="Actions" type="HBoxContainer" parent="LeftPanel"]
-[node name="Duplicate" type="Button" parent="LeftPanel/Actions"]
-text="DUP"
-[node name="Delete" type="Button" parent="LeftPanel/Actions"]
-text="DELETE"
+[node name="Actions" type="HBoxContainer" parent="LeftPanel/ScenePanel/SceneBox"]
+[node name="Duplicate" type="Button" parent="LeftPanel/ScenePanel/SceneBox/Actions"]
+text="Duplicate"
+[node name="Delete" type="Button" parent="LeftPanel/ScenePanel/SceneBox/Actions"]
+text="Delete"
+[node name="AssetsPanel" type="PanelContainer" parent="LeftPanel"]
+custom_minimum_size=Vector2(0,180)
+[node name="Assets" type="VBoxContainer" parent="LeftPanel/AssetsPanel"]
+[node name="AssetsTitle" type="Label" parent="LeftPanel/AssetsPanel/Assets"]
+text="Assets"
+theme_override_font_sizes/font_size=16
+[node name="AssetsHint" type="Label" parent="LeftPanel/AssetsPanel/Assets"]
+text="Images · Models · Drawings"
+[node name="AssetImport" type="Button" parent="LeftPanel/AssetsPanel/Assets"]
+text="＋  Import asset"
 
-[node name="ViewportContainer" type="SubViewportContainer" parent="."]
+[node name="ViewportFrame" type="PanelContainer" parent="."]
+offset_left=294.0
+offset_top=66.0
+offset_right=1046.0
+offset_bottom=650.0
+[node name="ViewportContainer" type="SubViewportContainer" parent="ViewportFrame"]
 unique_name_in_owner=true
-offset_left=246.0
-offset_top=72.0
-offset_right=1088.0
-offset_bottom=748.0
+layout_mode=2
 stretch=true
 mouse_filter=0
-[node name="SceneViewport" type="SubViewport" parent="ViewportContainer"]
+[node name="SceneViewport" type="SubViewport" parent="ViewportFrame/ViewportContainer"]
 unique_name_in_owner=true
 handle_input_locally=false
-size=Vector2i(1116,676)
+size=Vector2i(752,584)
 render_target_update_mode=4
-[node name="WorldRoot" type="Node3D" parent="ViewportContainer/SceneViewport"]
+[node name="WorldRoot" type="Node3D" parent="ViewportFrame/ViewportContainer/SceneViewport"]
 unique_name_in_owner=true
-[node name="WorldGrid" type="MeshInstance3D" parent="ViewportContainer/SceneViewport"]
+[node name="WorldGrid" type="MeshInstance3D" parent="ViewportFrame/ViewportContainer/SceneViewport"]
 unique_name_in_owner=true
 script=ExtResource("4")
-[node name="EditorCameraRig" type="Node3D" parent="ViewportContainer/SceneViewport"]
+[node name="EditorCameraRig" type="Node3D" parent="ViewportFrame/ViewportContainer/SceneViewport"]
 unique_name_in_owner=true
 script=ExtResource("2")
-[node name="TransformGizmo" type="Node3D" parent="ViewportContainer/SceneViewport"]
+[node name="TransformGizmo" type="Node3D" parent="ViewportFrame/ViewportContainer/SceneViewport"]
 unique_name_in_owner=true
 script=ExtResource("3")
-[node name="Camera3D" type="Camera3D" parent="ViewportContainer/SceneViewport"]
+[node name="Camera3D" type="Camera3D" parent="ViewportFrame/ViewportContainer/SceneViewport"]
 unique_name_in_owner=true
 position=Vector3(0,0,3)
 current=true
 
+[node name="ViewportTop" type="HBoxContainer" parent="."]
+offset_left=306.0
+offset_top=76.0
+offset_right=1034.0
+offset_bottom=116.0
+mouse_filter=1
+[node name="Perspective" type="Button" parent="ViewportTop"]
+text="Perspective⌄"
+[node name="Global" type="Button" parent="ViewportTop"]
+text="◉ Global⌄"
+[node name="ViewportGrow" type="Control" parent="ViewportTop"]
+size_flags_horizontal=3
+[node name="PreviewChip" type="Label" parent="ViewportTop"]
+text="PREVIEW"
+
+[node name="ToolRail" type="VBoxContainer" parent="."]
+offset_left=306.0
+offset_top=126.0
+offset_right=352.0
+offset_bottom=350.0
+theme_override_constants/separation=5
+[node name="SelectTool" type="Button" parent="ToolRail"]
+text="➤"
+[node name="MoveTool" type="Button" parent="ToolRail"]
+text="✣"
+[node name="RotateTool" type="Button" parent="ToolRail"]
+text="◯"
+[node name="ScaleTool" type="Button" parent="ToolRail"]
+text="□"
+[node name="FrameSelected" type="Button" parent="ToolRail"]
+text="⌖"
+
 [node name="RightPanel" type="VBoxContainer" parent="."]
 unique_name_in_owner=true
-offset_left=1102.0
-offset_top=72.0
-offset_right=1348.0
-offset_bottom=748.0
-theme_override_constants/separation=7
-[node name="Properties" type="Label" parent="RightPanel"]
-text="PROPERTIES"
+offset_left=1054.0
+offset_top=66.0
+offset_right=1358.0
+offset_bottom=650.0
+theme_override_constants/separation=8
+[node name="InspectorPanel" type="PanelContainer" parent="RightPanel"]
+size_flags_vertical=3
+[node name="Inspector" type="VBoxContainer" parent="RightPanel/InspectorPanel"]
+[node name="InspectorTabs" type="HBoxContainer" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="Properties" type="Label" parent="RightPanel/InspectorPanel/Inspector/InspectorTabs"]
+text="Properties"
 theme_override_font_sizes/font_size=17
-[node name="ObjectSection" type="Label" parent="RightPanel"]
+[node name="MaterialTab" type="Label" parent="RightPanel/InspectorPanel/Inspector/InspectorTabs"]
+text="     Material"
+[node name="ObjectSection" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
 text="▣  TRANSFORM"
-[node name="PosLabel" type="Label" parent="RightPanel"]
+[node name="PosLabel" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
 text="Position"
-[node name="PosValue" type="Label" parent="RightPanel"]
+[node name="PosValue" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
 unique_name_in_owner=true
-text="X 0.00   Y 0.00   Z 0.00"
-[node name="RotLabel" type="Label" parent="RightPanel"]
+text="X 0.00    Y 0.00    Z 0.00"
+[node name="RotLabel" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
 text="Rotation"
-[node name="RotValue" type="Label" parent="RightPanel"]
+[node name="RotValue" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
 unique_name_in_owner=true
-text="X 0.0   Y 0.0   Z 0.0"
-[node name="ScaleLabel" type="Label" parent="RightPanel"]
+text="X 0.0     Y 0.0     Z 0.0"
+[node name="ScaleLabel" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
 text="Scale"
-[node name="ScaleValue" type="Label" parent="RightPanel"]
+[node name="ScaleValue" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
 unique_name_in_owner=true
-text="X 1.00   Y 1.00   Z 1.00"
-[node name="Divider" type="HSeparator" parent="RightPanel"]
-[node name="LookTitle" type="Label" parent="RightPanel"]
-text="◈  LOOK / FILTERS"
+text="X 1.00    Y 1.00    Z 1.00"
+[node name="Sep1" type="HSeparator" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="LookTitle" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
+text="◇  LOOK / FILTERS"
 theme_override_font_sizes/font_size=16
-[node name="Hint" type="Label" parent="RightPanel"]
-text="NON-DESTRUCTIVE"
-[node name="BlurText" type="Label" parent="RightPanel"]
+[node name="BlurText" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
 text="Blur"
-[node name="Blur" type="HSlider" parent="RightPanel"]
+[node name="Blur" type="HSlider" parent="RightPanel/InspectorPanel/Inspector"]
 unique_name_in_owner=true
 max_value=8.0
 step=0.1
-[node name="GlowText" type="Label" parent="RightPanel"]
+[node name="GlowText" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
 text="Glow"
-[node name="Glow" type="HSlider" parent="RightPanel"]
+[node name="Glow" type="HSlider" parent="RightPanel/InspectorPanel/Inspector"]
 unique_name_in_owner=true
 max_value=3.0
 step=0.05
-[node name="ExposureText" type="Label" parent="RightPanel"]
+[node name="ExposureText" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
 text="Exposure"
-[node name="Exposure" type="HSlider" parent="RightPanel"]
+[node name="Exposure" type="HSlider" parent="RightPanel/InspectorPanel/Inspector"]
 unique_name_in_owner=true
 min_value=-3.0
 max_value=3.0
 step=0.05
-[node name="SaturationText" type="Label" parent="RightPanel"]
+[node name="SaturationText" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
 text="Saturation"
-[node name="Saturation" type="HSlider" parent="RightPanel"]
+[node name="Saturation" type="HSlider" parent="RightPanel/InspectorPanel/Inspector"]
 unique_name_in_owner=true
 max_value=2.0
 step=0.05
 value=1.0
-[node name="ResetFilters" type="Button" parent="RightPanel"]
-text="↺  RESET LOOK"
-[node name="Spacer" type="Control" parent="RightPanel"]
-custom_minimum_size=Vector2(0,20)
-[node name="NavTitle" type="Label" parent="RightPanel"]
-text="VIEWPORT"
-[node name="NavHelp" type="Label" parent="RightPanel"]
-text="MMB  Orbit\nShift + MMB  Pan\nWheel  Zoom\nFRAME  Focus selection"
+[node name="ResetFilters" type="Button" parent="RightPanel/InspectorPanel/Inspector"]
+text="Reset"
 
 [node name="Bottom" type="VBoxContainer" parent="."]
-offset_left=18.0
-offset_top=762.0
-offset_right=1348.0
-offset_bottom=890.0
-theme_override_constants/separation=6
-[node name="Transport" type="HBoxContainer" parent="Bottom"]
-theme_override_constants/separation=8
-[node name="Prev" type="Button" parent="Bottom/Transport"]
-text="◀"
-[node name="PlayButton" type="Button" parent="Bottom/Transport"]
+offset_left=8.0
+offset_top=658.0
+offset_right=1358.0
+offset_bottom=878.0
+theme_override_constants/separation=4
+[node name="TransportPanel" type="PanelContainer" parent="Bottom"]
+[node name="Transport" type="HBoxContainer" parent="Bottom/TransportPanel"]
+[node name="AnimTitle" type="Label" parent="Bottom/TransportPanel/Transport"]
+text="Animation"
+theme_override_font_sizes/font_size=17
+custom_minimum_size=Vector2(125,0)
+[node name="AutoKey" type="CheckButton" parent="Bottom/TransportPanel/Transport"]
+unique_name_in_owner=true
+text="●"
+[node name="Prev" type="Button" parent="Bottom/TransportPanel/Transport"]
+text="◀◀"
+[node name="PlayButton" type="Button" parent="Bottom/TransportPanel/Transport"]
 unique_name_in_owner=true
 text="▶"
-[node name="Next" type="Button" parent="Bottom/Transport"]
-text="▶"
-[node name="FrameText" type="Label" parent="Bottom/Transport"]
+[node name="Next" type="Button" parent="Bottom/TransportPanel/Transport"]
+text="▶▶"
+[node name="FPS" type="Button" parent="Bottom/TransportPanel/Transport"]
+text="24⌄"
+[node name="TransportGrow" type="Control" parent="Bottom/TransportPanel/Transport"]
+size_flags_horizontal=3
+[node name="FrameText" type="Label" parent="Bottom/TransportPanel/Transport"]
 text="FRAME"
-[node name="FrameLabel" type="Label" parent="Bottom/Transport"]
+[node name="FrameLabel" type="Label" parent="Bottom/TransportPanel/Transport"]
 unique_name_in_owner=true
 text="000"
-[node name="Key" type="Button" parent="Bottom/Transport"]
-text="◆  KEY"
-[node name="AutoKey" type="CheckButton" parent="Bottom/Transport"]
+[node name="Key" type="Button" parent="Bottom/TransportPanel/Transport"]
 unique_name_in_owner=true
-text="●  AUTO KEY"
-[node name="InterpText" type="Label" parent="Bottom/Transport"]
-text="INTERPOLATION"
-[node name="Interpolation" type="OptionButton" parent="Bottom/Transport"]
+text="◆"
+[node name="Interpolation" type="OptionButton" parent="Bottom/TransportPanel/Transport"]
 unique_name_in_owner=true
+[node name="Timeline" type="Control" parent="Bottom"]
+unique_name_in_owner=true
+script=ExtResource("5")
+size_flags_vertical=3
 [node name="FrameSlider" type="HSlider" parent="Bottom"]
 unique_name_in_owner=true
+visible=false
 max_value=120.0
 step=1.0
+
+[node name="StatusBar" type="HBoxContainer" parent="."]
+offset_left=12.0
+offset_top=882.0
+offset_right=1354.0
+offset_bottom=898.0
+[node name="Status" type="Label" parent="StatusBar"]
+unique_name_in_owner=true
+text="Ready"
+[node name="StatusGrow" type="Control" parent="StatusBar"]
+size_flags_horizontal=3
+[node name="SceneInfo" type="Label" parent="StatusBar"]
+text="24 fps   ·   Frame 0 / 60"
 
 [node name="FileDialog" type="FileDialog" parent="."]
 unique_name_in_owner=true
@@ -218,25 +289,24 @@ filters=PackedStringArray("*.png ; PNG Images")
 [connection signal="tab_changed" from="TopBar/WorkspaceTabs" to="." method="_on_workspace_tab_changed"]
 [connection signal="toggled" from="TopBar/PreviewMode" to="." method="_on_preview_mode_toggled"]
 [connection signal="pressed" from="TopBar/Import" to="." method="_on_import_pressed"]
-[connection signal="pressed" from="TopBar/MoveTool" to="." method="_on_tool_move_pressed"]
-[connection signal="pressed" from="TopBar/RotateTool" to="." method="_on_tool_rotate_pressed"]
-[connection signal="pressed" from="TopBar/ScaleTool" to="." method="_on_tool_scale_pressed"]
-[connection signal="pressed" from="TopBar/FrameSelected" to="." method="_on_frame_selected_pressed"]
 [connection signal="toggled" from="TopBar/GridToggle" to="." method="_on_grid_toggled"]
+[connection signal="pressed" from="LeftPanel/AssetsPanel/Assets/AssetImport" to="." method="_on_import_pressed"]
 [connection signal="file_selected" from="FileDialog" to="." method="_on_file_selected"]
-[connection signal="item_selected" from="LeftPanel/ObjectList" to="." method="_on_object_selected"]
-[connection signal="pressed" from="LeftPanel/Actions/Duplicate" to="." method="_on_duplicate_pressed"]
-[connection signal="pressed" from="LeftPanel/Actions/Delete" to="." method="_on_delete_pressed"]
-[connection signal="gui_input" from="ViewportContainer" to="." method="_on_canvas_gui_input"]
-[connection signal="pressed" from="Bottom/Transport/Prev" to="." method="_on_prev_pressed"]
-[connection signal="pressed" from="Bottom/Transport/PlayButton" to="." method="_on_play_pressed"]
-[connection signal="pressed" from="Bottom/Transport/Next" to="." method="_on_next_pressed"]
-[connection signal="toggled" from="Bottom/Transport/AutoKey" to="." method="_on_auto_key_toggled"]
-[connection signal="pressed" from="Bottom/Transport/Key" to="." method="_on_key_pressed"]
-[connection signal="value_changed" from="Bottom/FrameSlider" to="." method="_on_frame_slider_value_changed"]
-
-[connection signal="value_changed" from="RightPanel/Blur" to="." method="_on_filter_changed"]
-[connection signal="value_changed" from="RightPanel/Glow" to="." method="_on_filter_changed"]
-[connection signal="value_changed" from="RightPanel/Exposure" to="." method="_on_filter_changed"]
-[connection signal="value_changed" from="RightPanel/Saturation" to="." method="_on_filter_changed"]
-[connection signal="pressed" from="RightPanel/ResetFilters" to="." method="_on_reset_filters_pressed"]
+[connection signal="item_selected" from="LeftPanel/ScenePanel/SceneBox/ObjectList" to="." method="_on_object_selected"]
+[connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/Actions/Duplicate" to="." method="_on_duplicate_pressed"]
+[connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/Actions/Delete" to="." method="_on_delete_pressed"]
+[connection signal="gui_input" from="ViewportFrame/ViewportContainer" to="." method="_on_canvas_gui_input"]
+[connection signal="pressed" from="ToolRail/MoveTool" to="." method="_on_tool_move_pressed"]
+[connection signal="pressed" from="ToolRail/RotateTool" to="." method="_on_tool_rotate_pressed"]
+[connection signal="pressed" from="ToolRail/ScaleTool" to="." method="_on_tool_scale_pressed"]
+[connection signal="pressed" from="ToolRail/FrameSelected" to="." method="_on_frame_selected_pressed"]
+[connection signal="pressed" from="Bottom/TransportPanel/Transport/Prev" to="." method="_on_prev_pressed"]
+[connection signal="pressed" from="Bottom/TransportPanel/Transport/PlayButton" to="." method="_on_play_pressed"]
+[connection signal="pressed" from="Bottom/TransportPanel/Transport/Next" to="." method="_on_next_pressed"]
+[connection signal="toggled" from="Bottom/TransportPanel/Transport/AutoKey" to="." method="_on_auto_key_toggled"]
+[connection signal="pressed" from="Bottom/TransportPanel/Transport/Key" to="." method="_on_key_pressed"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/Inspector/Blur" to="." method="_on_filter_changed"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/Inspector/Glow" to="." method="_on_filter_changed"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/Inspector/Exposure" to="." method="_on_filter_changed"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/Inspector/Saturation" to="." method="_on_filter_changed"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/ResetFilters" to="." method="_on_reset_filters_pressed"]
