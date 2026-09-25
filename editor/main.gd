@@ -35,6 +35,7 @@ var last_mouse := Vector2.ZERO
 func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
 	ProjectStore.frame_changed.connect(_on_frame_changed)
+	ProjectStore.key_changed.connect(timeline.refresh_keys)
 	interpolation.add_item("Hold"); interpolation.add_item("Linear"); interpolation.add_item("Ease"); interpolation.select(1)
 	camera_rig.setup(camera)
 	gizmo.set_mode(active_tool)
@@ -77,6 +78,7 @@ func _select(obj: RuntimeObject) -> void:
 	%RotValue.text = "X %.1f   Y %.1f   Z %.1f" % [rad_to_deg(obj.rotation.x),rad_to_deg(obj.rotation.y),rad_to_deg(obj.rotation.z)]
 	%ScaleValue.text = "X %.2f   Y %.2f   Z %.2f" % [obj.scale.x,obj.scale.y,obj.scale.z]
 	gizmo.attach(obj)
+	timeline.set_object(obj.model.id)
 
 func _on_object_selected(index: int) -> void:
 	var id = object_list.get_item_metadata(index)
@@ -88,7 +90,7 @@ func _on_delete_pressed() -> void:
 	var idx := runtime_objects.find(selected)
 	if idx >= 0:
 		runtime_objects.remove_at(idx); object_list.remove_item(idx)
-	selected.queue_free(); selected = null; gizmo.attach(null); %SelectionLabel.text = "Nothing selected"
+	selected.queue_free(); selected = null; gizmo.attach(null); timeline.set_object(""); %SelectionLabel.text = "Nothing selected"
 
 func _on_duplicate_pressed() -> void:
 	status.text = "Duplicate is reserved for the next pass"
@@ -120,7 +122,7 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 				else:
 					selected = null; gizmo.attach(null)
 					for r in runtime_objects: r.set_selected(false)
-					object_list.deselect_all(); %SelectionLabel.text = "Nothing selected"
+					object_list.deselect_all(); timeline.set_object(""); %SelectionLabel.text = "Nothing selected"
 			else:
 				if dragging and auto_key.button_pressed: _key_transform()
 				dragging = false; gizmo_axis = TransformGizmo.Axis.NONE
@@ -265,6 +267,8 @@ func _update_preview_mode() -> void:
 
 func _on_auto_key_toggled(enabled: bool) -> void:
 	%AutoKey.text = "●" if enabled else "○"
+	%AutoKey.add_theme_color_override("font_color", Color("#ff3b3b") if enabled else Color("#dce5ef"))
+	%AutoKey.add_theme_color_override("font_hover_color", Color("#ff5a5a") if enabled else Color.WHITE)
 
 func _flash_key_button() -> void:
 	%Key.text = "● KEY"
