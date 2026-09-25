@@ -9,6 +9,8 @@ var expanded := [false, false, false]
 var selected_key_path := ""
 var selected_key_frame := -1
 var dragging_key := false
+signal key_selected(path: String, frame: int, interpolation: String)
+signal key_deselected
 const LANE_X := 210.0
 const HEADER_H := 28.0
 const CHANNELS: Array[String] = ["transform.position","transform.rotation","transform.scale"]
@@ -20,7 +22,7 @@ func _ready()->void:
 	mouse_filter=Control.MOUSE_FILTER_PASS
 
 func set_frame(f:int)->void: current_frame=f;queue_redraw()
-func set_object(id:String)->void: object_id=id;selected_key_frame=-1;queue_redraw()
+func set_object(id:String)->void: object_id=id;selected_key_frame=-1;selected_key_path="";key_deselected.emit();queue_redraw()
 func refresh_keys(_a:String="",_b:String="",_c:int=0)->void: queue_redraw()
 
 func _keys(path:String)->Array:
@@ -106,7 +108,9 @@ func _gui_input(e:InputEvent)->void:
 						expanded[row]=not expanded[row];custom_minimum_size.y=170.0+58.0*expanded.count(true);queue_redraw();accept_event();return
 			var hit:=_hit_key(e.position)
 			if not hit.is_empty():
-				selected_key_path=hit.path;selected_key_frame=hit.frame;dragging_key=true;queue_redraw();accept_event();return
+				selected_key_path=hit.path;selected_key_frame=hit.frame;dragging_key=true
+				key_selected.emit(selected_key_path, selected_key_frame, get_selected_interpolation())
+				queue_redraw();accept_event();return
 			if e.position.x>=LANE_X:
 				scrubbing=true;ProjectStore.set_frame(_frame_from_x(e.position.x));accept_event()
 		else:
@@ -120,6 +124,15 @@ func _gui_input(e:InputEvent)->void:
 		elif scrubbing:
 			ProjectStore.set_frame(_frame_from_x(e.position.x));accept_event()
 
+func get_selected_interpolation() -> String:
+	if selected_key_frame < 0 or selected_key_path.is_empty(): return ""
+	for k in _keys(selected_key_path):
+		if int(k.frame) == selected_key_frame:
+			return String(k.interpolation)
+	return ""
+
 func set_selected_interpolation(name:String)->void:
 	if selected_key_frame>=0 and not selected_key_path.is_empty():
 		ProjectStore.set_key_interpolation(object_id,selected_key_path,selected_key_frame,name)
+		key_selected.emit(selected_key_path, selected_key_frame, name)
+		queue_redraw()
