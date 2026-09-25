@@ -45,9 +45,53 @@ func evaluate(object_id: String, property_path: String, frame: int, fallback: Va
 		if k.frame <= frame: left = k
 		if k.frame >= frame: right = k; break
 	if left.frame == right.frame or left.interpolation == "hold": return left.value
-	var t := float(frame - left.frame) / float(right.frame - left.frame)
-	if left.interpolation == "ease": t = t * t * (3.0 - 2.0 * t)
+	var t: float = float(frame - left.frame) / float(right.frame - left.frame)
+	t = _apply_interpolation(t, String(left.interpolation))
 	return _lerp_variant(left.value, right.value, t)
+
+func _apply_interpolation(t: float, mode: String) -> float:
+	t = clampf(t, 0.0, 1.0)
+	match mode:
+		"constant", "hold":
+			return 0.0
+		"linear":
+			return t
+		"bezier", "ease":
+			return t * t * (3.0 - 2.0 * t)
+		"quadratic_in":
+			return t * t
+		"quadratic_out":
+			return 1.0 - (1.0 - t) * (1.0 - t)
+		"quadratic_in_out":
+			return 2.0 * t * t if t < 0.5 else 1.0 - pow(-2.0 * t + 2.0, 2.0) / 2.0
+		"cubic_in_out":
+			return 4.0 * t * t * t if t < 0.5 else 1.0 - pow(-2.0 * t + 2.0, 3.0) / 2.0
+		"back":
+			var c1: float = 1.70158
+			var c3: float = c1 + 1.0
+			return c3 * t * t * t - c1 * t * t
+		"bounce":
+			return _bounce_out(t)
+		"elastic":
+			if is_zero_approx(t) or is_equal_approx(t, 1.0): return t
+			var c4: float = (2.0 * PI) / 3.0
+			return pow(2.0, -10.0 * t) * sin((t * 10.0 - 0.75) * c4) + 1.0
+		_:
+			return t
+
+func _bounce_out(t: float) -> float:
+	var n1: float = 7.5625
+	var d1: float = 2.75
+	if t < 1.0 / d1:
+		return n1 * t * t
+	elif t < 2.0 / d1:
+		t -= 1.5 / d1
+		return n1 * t * t + 0.75
+	elif t < 2.5 / d1:
+		t -= 2.25 / d1
+		return n1 * t * t + 0.9375
+	t -= 2.625 / d1
+	return n1 * t * t + 0.984375
 
 func _lerp_variant(a: Variant, b: Variant, t: float) -> Variant:
 	if a is Vector3 and b is Vector3: return a.lerp(b, t)
