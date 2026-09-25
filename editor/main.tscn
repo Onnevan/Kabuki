@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource path="res://editor/main.gd" type="Script" id="1"]
 [ext_resource path="res://editor/editor_camera_rig.gd" type="Script" id="2"]
 [ext_resource path="res://editor/transform_gizmo.gd" type="Script" id="3"]
 [ext_resource path="res://editor/world_grid.gd" type="Script" id="4"]
+[ext_resource path="res://editor/kabuki_theme.gd" type="Script" id="5"]
 
 [node name="Main" type="Control"]
 layout_mode=3
@@ -38,18 +39,18 @@ custom_minimum_size=Vector2(430,38)
 unique_name_in_owner=true
 text="PREVIEW"
 [node name="Import" type="Button" parent="TopBar"]
-text="+  IMPORT"
+text="＋  IMPORT"
 [node name="MoveTool" type="Button" parent="TopBar"]
-text="MOVE"
+text="↔  MOVE"
 [node name="RotateTool" type="Button" parent="TopBar"]
-text="ROTATE"
+text="◯  ROTATE"
 [node name="ScaleTool" type="Button" parent="TopBar"]
-text="SCALE"
+text="□  SCALE"
 [node name="FrameSelected" type="Button" parent="TopBar"]
-text="FRAME"
+text="⌖  FRAME"
 [node name="GridToggle" type="CheckButton" parent="TopBar"]
 unique_name_in_owner=true
-text="GRID"
+text="▦  GRID"
 button_pressed=true
 [node name="Status" type="Label" parent="TopBar"]
 unique_name_in_owner=true
@@ -116,10 +117,31 @@ offset_right=1348.0
 offset_bottom=748.0
 theme_override_constants/separation=7
 [node name="Properties" type="Label" parent="RightPanel"]
-text="LOOK"
+text="PROPERTIES"
+theme_override_font_sizes/font_size=17
+[node name="ObjectSection" type="Label" parent="RightPanel"]
+text="▣  TRANSFORM"
+[node name="PosLabel" type="Label" parent="RightPanel"]
+text="Position"
+[node name="PosValue" type="Label" parent="RightPanel"]
+unique_name_in_owner=true
+text="X 0.00   Y 0.00   Z 0.00"
+[node name="RotLabel" type="Label" parent="RightPanel"]
+text="Rotation"
+[node name="RotValue" type="Label" parent="RightPanel"]
+unique_name_in_owner=true
+text="X 0.0   Y 0.0   Z 0.0"
+[node name="ScaleLabel" type="Label" parent="RightPanel"]
+text="Scale"
+[node name="ScaleValue" type="Label" parent="RightPanel"]
+unique_name_in_owner=true
+text="X 1.00   Y 1.00   Z 1.00"
+[node name="Divider" type="HSeparator" parent="RightPanel"]
+[node name="LookTitle" type="Label" parent="RightPanel"]
+text="◈  LOOK / FILTERS"
 theme_override_font_sizes/font_size=16
 [node name="Hint" type="Label" parent="RightPanel"]
-text="NON-DESTRUCTIVE FILTERS"
+text="NON-DESTRUCTIVE"
 [node name="BlurText" type="Label" parent="RightPanel"]
 text="Blur"
 [node name="Blur" type="HSlider" parent="RightPanel"]
@@ -147,7 +169,7 @@ max_value=2.0
 step=0.05
 value=1.0
 [node name="ResetFilters" type="Button" parent="RightPanel"]
-text="RESET LOOK"
+text="↺  RESET LOOK"
 [node name="Spacer" type="Control" parent="RightPanel"]
 custom_minimum_size=Vector2(0,20)
 [node name="NavTitle" type="Label" parent="RightPanel"]
@@ -167,7 +189,7 @@ theme_override_constants/separation=8
 text="◀"
 [node name="PlayButton" type="Button" parent="Bottom/Transport"]
 unique_name_in_owner=true
-text="PLAY"
+text="▶"
 [node name="Next" type="Button" parent="Bottom/Transport"]
 text="▶"
 [node name="FrameText" type="Label" parent="Bottom/Transport"]
@@ -176,10 +198,10 @@ text="FRAME"
 unique_name_in_owner=true
 text="000"
 [node name="Key" type="Button" parent="Bottom/Transport"]
-text="○ KEY"
+text="◆  KEY"
 [node name="AutoKey" type="CheckButton" parent="Bottom/Transport"]
 unique_name_in_owner=true
-text="○ AUTO KEY"
+text="●  AUTO KEY"
 [node name="InterpText" type="Label" parent="Bottom/Transport"]
 text="INTERPOLATION"
 [node name="Interpolation" type="OptionButton" parent="Bottom/Transport"]
