@@ -33,6 +33,7 @@ var render_preview := false
 var drag_offset := Vector3.ZERO
 var last_mouse := Vector2.ZERO
 var scene_nodes: Dictionary = {}
+var wireframe_overlays: Array[MeshInstance3D] = []
 
 func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
@@ -68,8 +69,64 @@ func _setup_shading_menu() -> void:
 	%ShadingMode.item_selected.connect(_on_shading_mode_selected)
 
 func _on_shading_mode_selected(index: int) -> void:
-	viewport.debug_draw = Viewport.DEBUG_DRAW_WIREFRAME if index == 1 else Viewport.DEBUG_DRAW_DISABLED
-	status.text = "Wireframe viewport" if index == 1 else "Solid viewport"
+	# Use explicit edge geometry instead of Viewport.DEBUG_DRAW_WIREFRAME.
+	# This guarantees that imported PNGs show their actual Delaunay triangulation.
+	_set_wireframe_overlays(index == 1)
+	status.text = "Wireframe · actual mesh topology" if index == 1 else "Solid viewport"
+
+func _set_wireframe_overlays(enabled: bool) -> void:
+	for overlay in wireframe_overlays:
+		if is_instance_valid(overlay): overlay.queue_free()
+	wireframe_overlays.clear()
+	if not enabled: return
+	for runtime in runtime_objects:
+		if runtime.mesh == null: continue
+		var overlay := MeshInstance3D.new()
+		overlay.mesh = _build_wire_mesh(runtime.mesh)
+		if overlay.mesh == null: continue
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.albedo_color = Color(0.04, 0.08, 0.11, 1.0)
+		mat.no_depth_test = true
+		overlay.material_override = mat
+		overlay.position.z = 0.002
+		runtime.add_child(overlay)
+		wireframe_overlays.append(overlay)
+
+func _build_wire_mesh(source: Mesh) -> ArrayMesh:
+	var line_vertices := PackedVector3Array()
+	var seen: Dictionary = {}
+	for surface in range(source.get_surface_count()):
+		var arrays := source.surface_get_arrays(surface)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		if indices.is_empty():
+			for i in range(0, vertices.size() - 2, 3):
+				_add_triangle_edges(line_vertices, seen, vertices, i, i + 1, i + 2)
+		else:
+			for i in range(0, indices.size() - 2, 3):
+				_add_triangle_edges(line_vertices, seen, vertices, indices[i], indices[i + 1], indices[i + 2])
+	if line_vertices.is_empty(): return null
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = line_vertices
+	var result := ArrayMesh.new()
+	result.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, arrays)
+	return result
+
+func _add_triangle_edges(out: PackedVector3Array, seen: Dictionary, vertices: PackedVector3Array, a: int, b: int, c: int) -> void:
+	_add_wire_edge(out, seen, vertices, a, b)
+	_add_wire_edge(out, seen, vertices, b, c)
+	_add_wire_edge(out, seen, vertices, c, a)
+
+func _add_wire_edge(out: PackedVector3Array, seen: Dictionary, vertices: PackedVector3Array, a: int, b: int) -> void:
+	var lo: int = mini(a, b)
+	var hi: int = maxi(a, b)
+	var key := "%d:%d" % [lo, hi]
+	if seen.has(key): return
+	seen[key] = true
+	out.append(vertices[a])
+	out.append(vertices[b])
 
 func _setup_add_object_menu() -> void:
 	var popup: PopupMenu = %AddObj.get_popup()
@@ -101,6 +158,7 @@ func _create_plane() -> void:
 	runtime_objects.append(runtime)
 	_select(runtime)
 	status.text = "Plane created"
+	if %ShadingMode.selected == 1: _set_wireframe_overlays(true)
 
 func _create_sound() -> void:
 	var obj := MotionObject.new("Sound", "audio_clip", "audio")
@@ -151,6 +209,7 @@ func _on_file_selected(path: String) -> void:
 	object_list.set_item_metadata(object_list.item_count - 1, obj.id)
 	_select(runtime)
 	status.text = "Imported %s" % obj.name
+	if %ShadingMode.selected == 1: _set_wireframe_overlays(true)
 
 func _select(obj: RuntimeObject) -> void:
 	selected = obj
