@@ -2,13 +2,21 @@ class_name FrameTimeline
 extends Control
 var frame_count := 60
 var current_frame := 0
-var keys := [5, 18, 24, 30]
+var object_id := ""
 var scrubbing := false
 func _ready() -> void:
 	custom_minimum_size = Vector2(0, 170)
 	mouse_filter = Control.MOUSE_FILTER_PASS
 func set_frame(f:int)->void:
 	current_frame=f;queue_redraw()
+func set_object(id: String) -> void:
+	object_id = id
+	queue_redraw()
+func refresh_keys(_object_id: String = "", _property_path: String = "", _frame: int = 0) -> void:
+	queue_redraw()
+func _channel_frames(path: String) -> Array[int]:
+	if object_id.is_empty(): return []
+	return ProjectStore.get_key_frames(object_id, path)
 func _draw()->void:
 	var bg:=Color("#11171e");draw_rect(Rect2(Vector2.ZERO,size),bg)
 	var header_h:=28.0;var lane_x:=210.0
@@ -27,11 +35,12 @@ func _draw()->void:
 		if i==0: draw_rect(Rect2(0,y-18,lane_x,27),Color("#24374b"))
 		draw_string(get_theme_default_font(),Vector2(16,y),rows[i],HORIZONTAL_ALIGNMENT_LEFT,-1,13,Color("#dbe4ef"))
 		draw_line(Vector2(0,y+9),Vector2(size.x,y+9),Color("#28333f"),1)
-	for k in keys:
-		var x:=lane_x+float(k)*step
-		for row in range(1,4):
+	var paths: Array[String] = ["transform.position", "transform.rotation", "transform.scale"]
+	var key_colors: Array[Color] = [Color("#ff745f"), Color("#b779ff"), Color("#71d67b")]
+	for row in range(1,4):
+		for k in _channel_frames(paths[row - 1]):
+			var x:=lane_x+float(k)*step
 			var y:=header_h+20.0+float(row)*28.0-5
-			var key_colors: Array[Color] = [Color("#ff745f"), Color("#b779ff"), Color("#71d67b")]
 			var c: Color = key_colors[row - 1]
 			var p:=PackedVector2Array([Vector2(x,y-6),Vector2(x+6,y),Vector2(x,y+6),Vector2(x-6,y)])
 			draw_colored_polygon(p,c)
