@@ -72,10 +72,12 @@ func _draw_curve(row:int,top:float,step:float)->void:
 		var pts:=PackedVector2Array()
 		var values:Array[float]=[]
 		for k in ks: values.append(_component(k.value,component))
-		var lo:=values.min();var hi:=values.max();var span:=maxf(0.001,hi-lo)
+		var lo: float = float(values.min())
+		var hi: float = float(values.max())
+		var span: float = maxf(0.001, hi - lo)
 		for i in range(ks.size()):
-			var x:=LANE_X+float(ks[i].frame)*step
-			var yy:=top+44.0-(values[i]-lo)/span*36.0
+			var x: float = LANE_X + float(ks[i].frame) * step
+			var yy: float = top + 44.0 - (values[i] - lo) / span * 36.0
 			pts.append(Vector2(x,yy))
 		if pts.size()>1: draw_polyline(pts,[Color("#ff6257"),Color("#63d17a"),Color("#4a9cff")][component],1.5,true)
 		for p in pts: draw_circle(p,2.5,[Color("#ff6257"),Color("#63d17a"),Color("#4a9cff")][component])
