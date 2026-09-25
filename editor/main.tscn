@@ -251,6 +251,36 @@ step=0.05
 value=1.0
 [node name="ResetFilters" type="Button" parent="RightPanel/InspectorPanel/Inspector"]
 text="Reset"
+[node name="KeyInterpSep" type="HSeparator" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="KeyInterpolationPanel" type="VBoxContainer" parent="RightPanel/InspectorPanel/Inspector"]
+unique_name_in_owner=true
+visible=false
+[node name="Title" type="Label" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+text="◆  KEYFRAME INTERPOLATION"
+theme_override_font_sizes/font_size=16
+[node name="SelectedKeyInfo" type="Label" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+unique_name_in_owner=true
+text="No key selected"
+[node name="Constant" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+text="Constant"
+[node name="Linear" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+text="Linear"
+[node name="Bezier" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+text="Bezier / Smooth"
+[node name="QuadraticIn" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+text="Quadratic In"
+[node name="QuadraticOut" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+text="Quadratic Out"
+[node name="QuadraticInOut" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+text="Quadratic In-Out"
+[node name="CubicInOut" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+text="Cubic In-Out"
+[node name="Back" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+text="Back / Overshoot"
+[node name="Bounce" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+text="Bounce"
+[node name="Elastic" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+text="Elastic"
 
 [node name="Bottom" type="VBoxContainer" parent="."]
 unique_name_in_owner=true
@@ -347,3 +377,14 @@ filters=PackedStringArray("*.png ; PNG Images")
 
 [connection signal="value_changed" from="RightPanel/InspectorPanel/Inspector/GlowThreshold" to="." method="_on_filter_changed"]
 [connection signal="value_changed" from="RightPanel/InspectorPanel/Inspector/GlowRadius" to="." method="_on_filter_changed"]
+
+[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/Constant" to="." method="_on_key_interp_constant"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/Linear" to="." method="_on_key_interp_linear"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/Bezier" to="." method="_on_key_interp_bezier"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/QuadraticIn" to="." method="_on_key_interp_quadratic_in"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/QuadraticOut" to="." method="_on_key_interp_quadratic_out"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/QuadraticInOut" to="." method="_on_key_interp_quadratic_in_out"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/CubicInOut" to="." method="_on_key_interp_cubic_in_out"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/Back" to="." method="_on_key_interp_back"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/Bounce" to="." method="_on_key_interp_bounce"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/Elastic" to="." method="_on_key_interp_elastic"]
