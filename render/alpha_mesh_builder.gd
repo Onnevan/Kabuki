@@ -6,14 +6,14 @@ extends RefCounted
 # This gives deformation-ready geometry without exposing mesh editing to the user.
 static func build(image: Image, alpha_threshold := 0.08, target_samples := 900) -> ArrayMesh:
 	var w := image.get_width(); var h := image.get_height()
-	var area := max(1, w * h)
+	var area: int = maxi(1, w * h)
 	var step := maxi(2, int(sqrt(float(area) / float(target_samples))))
 	var pts := PackedVector2Array()
 	for y in range(0, h, step):
 		for x in range(0, w, step):
 			if image.get_pixel(x, y).a >= alpha_threshold:
 				pts.append(Vector2(x, y))
-	var bstep := maxi(1, step / 2)
+	var bstep: int = maxi(1, int(step / 2))
 	for y in range(0, h, bstep):
 		for x in range(0, w, bstep):
 			if image.get_pixel(x, y).a < alpha_threshold: continue
