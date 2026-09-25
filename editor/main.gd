@@ -21,6 +21,9 @@ var dragging := false
 var panning := false
 var orbiting := false
 var active_tool := TransformGizmo.Mode.MOVE
+var gizmo_axis := TransformGizmo.Axis.NONE
+var transform_start := Transform3D.IDENTITY
+var drag_start_mouse := Vector2.ZERO
 var drag_offset := Vector3.ZERO
 var last_mouse := Vector2.ZERO
 
@@ -94,6 +97,10 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 			else: orbiting = event.pressed
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
+				gizmo_axis = gizmo.pick_axis(event.position, camera) if selected else TransformGizmo.Axis.NONE
+				if gizmo_axis != TransformGizmo.Axis.NONE:
+					dragging = true; transform_start = selected.transform; drag_start_mouse = event.position
+					return
 				var hit := _pick(event.position)
 				if hit != null:
 					_select(hit); dragging = true
@@ -105,7 +112,7 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 					object_list.deselect_all(); %SelectionLabel.text = "Nothing selected"
 			else:
 				if dragging and auto_key.button_pressed: _key_transform()
-				dragging = false
+				dragging = false; gizmo_axis = TransformGizmo.Axis.NONE
 	elif event is InputEventMouseMotion:
 		if orbiting: camera_rig.orbit(event.relative)
 		elif panning: camera_rig.pan(event.relative)
@@ -115,15 +122,27 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 
 func _apply_drag(relative: Vector2, mouse_pos: Vector2) -> void:
 	if selected == null: return
-	if active_tool == TransformGizmo.Mode.MOVE:
+	if gizmo_axis != TransformGizmo.Axis.NONE:
+		var axis := gizmo.axis_vector(gizmo_axis)
+		var total := mouse_pos - drag_start_mouse
+		var amount := (total.x - total.y) * 0.006 * camera_rig.distance
+		if active_tool == TransformGizmo.Mode.MOVE:
+			selected.position = transform_start.origin + axis * amount
+			selected.model.transform.origin = selected.position
+		elif active_tool == TransformGizmo.Mode.ROTATE:
+			selected.transform = transform_start
+			selected.rotate(axis, (total.x - total.y) * 0.012)
+		elif active_tool == TransformGizmo.Mode.SCALE:
+			selected.transform = transform_start
+			var sc := selected.scale
+			var factor := maxf(0.03, 1.0 + (total.x - total.y) * 0.01)
+			if gizmo_axis == 0: sc.x *= factor
+			elif gizmo_axis == 1: sc.y *= factor
+			else: sc.z *= factor
+			selected.scale = sc
+	elif active_tool == TransformGizmo.Mode.MOVE:
 		selected.global_position = _screen_to_view_plane(mouse_pos, selected.global_position) + drag_offset
 		selected.model.transform.origin = selected.position
-	elif active_tool == TransformGizmo.Mode.ROTATE:
-		selected.rotate_y(relative.x * 0.01)
-		selected.rotate_x(relative.y * 0.01)
-	elif active_tool == TransformGizmo.Mode.SCALE:
-		var factor := maxf(0.02, 1.0 + (relative.x - relative.y) * 0.01)
-		selected.scale *= factor
 
 func _screen_to_view_plane(pos: Vector2, point: Vector3) -> Vector3:
 	var origin := camera.project_ray_origin(pos)
@@ -180,3 +199,14 @@ func _on_next_pressed() -> void: ProjectStore.set_frame(ProjectStore.current_fra
 func _on_play_pressed() -> void:
 	playing = not playing; %PlayButton.text = "PAUSE" if playing else "PLAY"
 func _on_key_pressed() -> void: _key_transform()
+
+func _on_filter_changed(_value: float) -> void:
+	if selected == null: return
+	selected.material.set_shader_parameter("blur", %Blur.value)
+	selected.material.set_shader_parameter("glow", %Glow.value)
+	selected.material.set_shader_parameter("exposure", %Exposure.value)
+	selected.material.set_shader_parameter("saturation", %Saturation.value)
+
+func _on_reset_filters_pressed() -> void:
+	%Blur.value=0.0; %Glow.value=0.0; %Exposure.value=0.0; %Saturation.value=1.0
+	_on_filter_changed(0.0)
