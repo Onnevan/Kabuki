@@ -134,8 +134,21 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 func _apply_drag(relative: Vector2, mouse_pos: Vector2) -> void:
 	if selected == null: return
 	if gizmo_axis != TransformGizmo.Axis.NONE:
-		var axis := gizmo.axis_vector(gizmo_axis)
 		var total := mouse_pos - drag_start_mouse
+		if gizmo_axis == TransformGizmo.Axis.ALL:
+			if active_tool == TransformGizmo.Mode.MOVE:
+				selected.global_position = _screen_to_view_plane(mouse_pos, transform_start.origin)
+				selected.model.transform.origin = selected.position
+			elif active_tool == TransformGizmo.Mode.ROTATE:
+				selected.transform = transform_start
+				selected.rotate(camera.global_transform.basis.z.normalized(), total.x * 0.012)
+			elif active_tool == TransformGizmo.Mode.SCALE:
+				selected.transform = transform_start
+				var uniform_factor := maxf(0.03, 1.0 + (total.x - total.y) * 0.01)
+				selected.scale = transform_start.basis.get_scale() * uniform_factor
+			_refresh_transform_readout()
+			return
+		var axis := gizmo.axis_vector(gizmo_axis)
 		var amount := (total.x - total.y) * 0.006 * camera_rig.distance
 		if active_tool == TransformGizmo.Mode.MOVE:
 			selected.position = transform_start.origin + axis * amount
