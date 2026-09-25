@@ -30,8 +30,12 @@ theme_override_constants/separation=12
 [node name="Brand" type="Label" parent="TopBar"]
 text="KABUKI"
 theme_override_font_sizes/font_size=22
-[node name="Version" type="Label" parent="TopBar"]
-text="COMPOSE"
+[node name="WorkspaceTabs" type="TabBar" parent="TopBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(430,38)
+[node name="PreviewMode" type="CheckButton" parent="TopBar"]
+unique_name_in_owner=true
+text="PREVIEW"
 [node name="Import" type="Button" parent="TopBar"]
 text="+  IMPORT"
 [node name="MoveTool" type="Button" parent="TopBar"]
@@ -57,6 +61,8 @@ offset_right=232.0
 offset_bottom=748.0
 theme_override_constants/separation=8
 [node name="Title" type="Label" parent="LeftPanel"]
+unique_name_in_owner=true
+name="ObjectsTitle"
 text="OBJECTS"
 [node name="ObjectList" type="ItemList" parent="LeftPanel"]
 unique_name_in_owner=true
@@ -102,6 +108,7 @@ position=Vector3(0,0,3)
 current=true
 
 [node name="RightPanel" type="VBoxContainer" parent="."]
+unique_name_in_owner=true
 offset_left=1102.0
 offset_top=72.0
 offset_right=1348.0
@@ -168,10 +175,10 @@ text="FRAME"
 unique_name_in_owner=true
 text="000"
 [node name="Key" type="Button" parent="Bottom/Transport"]
-text="◆ KEY"
+text="○ KEY"
 [node name="AutoKey" type="CheckButton" parent="Bottom/Transport"]
 unique_name_in_owner=true
-text="AUTO KEY"
+text="○ AUTO KEY"
 [node name="InterpText" type="Label" parent="Bottom/Transport"]
 text="INTERPOLATION"
 [node name="Interpolation" type="OptionButton" parent="Bottom/Transport"]
@@ -187,6 +194,8 @@ file_mode=0
 access=2
 filters=PackedStringArray("*.png ; PNG Images")
 
+[connection signal="tab_changed" from="TopBar/WorkspaceTabs" to="." method="_on_workspace_tab_changed"]
+[connection signal="toggled" from="TopBar/PreviewMode" to="." method="_on_preview_mode_toggled"]
 [connection signal="pressed" from="TopBar/Import" to="." method="_on_import_pressed"]
 [connection signal="pressed" from="TopBar/MoveTool" to="." method="_on_tool_move_pressed"]
 [connection signal="pressed" from="TopBar/RotateTool" to="." method="_on_tool_rotate_pressed"]
@@ -201,6 +210,7 @@ filters=PackedStringArray("*.png ; PNG Images")
 [connection signal="pressed" from="Bottom/Transport/Prev" to="." method="_on_prev_pressed"]
 [connection signal="pressed" from="Bottom/Transport/PlayButton" to="." method="_on_play_pressed"]
 [connection signal="pressed" from="Bottom/Transport/Next" to="." method="_on_next_pressed"]
+[connection signal="toggled" from="Bottom/Transport/AutoKey" to="." method="_on_auto_key_toggled"]
 [connection signal="pressed" from="Bottom/Transport/Key" to="." method="_on_key_pressed"]
 [connection signal="value_changed" from="Bottom/FrameSlider" to="." method="_on_frame_slider_value_changed"]
 
