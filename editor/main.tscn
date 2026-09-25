@@ -70,7 +70,8 @@ text="Scene"
 theme_override_font_sizes/font_size=16
 [node name="SceneGrow" type="Control" parent="LeftPanel/ScenePanel/SceneBox/SceneHead"]
 size_flags_horizontal=3
-[node name="AddObj" type="Button" parent="LeftPanel/ScenePanel/SceneBox/SceneHead"]
+[node name="AddObj" type="MenuButton" parent="LeftPanel/ScenePanel/SceneBox/SceneHead"]
+unique_name_in_owner=true
 text="＋"
 [node name="ObjectList" type="ItemList" parent="LeftPanel/ScenePanel/SceneBox"]
 unique_name_in_owner=true
@@ -144,6 +145,8 @@ offset_bottom=116.0
 mouse_filter=1
 [node name="Perspective" type="Button" parent="ViewportTop"]
 text="Perspective⌄"
+[node name="ShadingMode" type="OptionButton" parent="ViewportTop"]
+unique_name_in_owner=true
 [node name="Global" type="Button" parent="ViewportTop"]
 text="◉ Global⌄"
 [node name="ViewportGrow" type="Control" parent="ViewportTop"]
