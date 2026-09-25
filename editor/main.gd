@@ -37,6 +37,8 @@ func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
 	ProjectStore.frame_changed.connect(_on_frame_changed)
 	ProjectStore.key_changed.connect(timeline.refresh_keys)
+	timeline.key_selected.connect(_on_timeline_key_selected)
+	timeline.key_deselected.connect(_on_timeline_key_deselected)
 	interpolation.add_item("Hold"); interpolation.add_item("Linear"); interpolation.add_item("Ease"); interpolation.select(1)
 	camera_rig.setup(camera)
 	gizmo.set_mode(active_tool)
@@ -326,3 +328,26 @@ func _responsive_layout() -> void:
 
 	var vp_size := Vector2i(maxi(1, int(%ViewportFrame.size.x)), maxi(1, int(%ViewportFrame.size.y)))
 	%SceneViewport.size = vp_size
+
+func _on_timeline_key_selected(path: String, frame: int, mode: String) -> void:
+	%KeyInterpolationPanel.visible = true
+	%SelectedKeyInfo.text = "%s  ·  Frame %d  ·  %s" % [path.get_slice(".", 1).capitalize(), frame, mode.capitalize()]
+
+func _on_timeline_key_deselected() -> void:
+	%KeyInterpolationPanel.visible = false
+
+func _apply_selected_key_interpolation(mode: String) -> void:
+	timeline.set_selected_interpolation(mode)
+	var label: String = mode.replace("_", " ").capitalize()
+	%SelectedKeyInfo.text = "Selected key  ·  " + label
+
+func _on_key_interp_constant() -> void: _apply_selected_key_interpolation("constant")
+func _on_key_interp_linear() -> void: _apply_selected_key_interpolation("linear")
+func _on_key_interp_bezier() -> void: _apply_selected_key_interpolation("bezier")
+func _on_key_interp_quadratic_in() -> void: _apply_selected_key_interpolation("quadratic_in")
+func _on_key_interp_quadratic_out() -> void: _apply_selected_key_interpolation("quadratic_out")
+func _on_key_interp_quadratic_in_out() -> void: _apply_selected_key_interpolation("quadratic_in_out")
+func _on_key_interp_cubic_in_out() -> void: _apply_selected_key_interpolation("cubic_in_out")
+func _on_key_interp_back() -> void: _apply_selected_key_interpolation("back")
+func _on_key_interp_bounce() -> void: _apply_selected_key_interpolation("bounce")
+func _on_key_interp_elastic() -> void: _apply_selected_key_interpolation("elastic")
