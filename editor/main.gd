@@ -12,6 +12,7 @@ extends Control
 @onready var interpolation: OptionButton = %Interpolation
 @onready var gizmo: TransformGizmo = %TransformGizmo
 @onready var camera_rig: EditorCameraRig = %EditorCameraRig
+@onready var world_grid: WorldGrid = %WorldGrid
 var selected: RuntimeObject
 var runtime_objects: Array[RuntimeObject] = []
 var playing := false
@@ -141,6 +142,9 @@ func _on_tool_scale_pressed() -> void:
 	active_tool = TransformGizmo.Mode.SCALE; gizmo.set_mode(active_tool); status.text = "Scale tool"
 func _on_frame_selected_pressed() -> void:
 	if selected: camera_rig.frame_target(selected.global_position)
+
+func _on_grid_toggled(enabled: bool) -> void:
+	world_grid.visible = enabled
 
 func _key_transform() -> void:
 	if selected == null: return
