@@ -39,7 +39,9 @@ func _ready() -> void:
 	ProjectStore.key_changed.connect(timeline.refresh_keys)
 	timeline.key_selected.connect(_on_timeline_key_selected)
 	timeline.key_deselected.connect(_on_timeline_key_deselected)
-	interpolation.add_item("Hold"); interpolation.add_item("Linear"); interpolation.add_item("Ease"); interpolation.select(1)
+	for label in ["Constant", "Linear", "Bezier", "Quadratic In", "Quadratic Out", "Quadratic In-Out", "Cubic In-Out", "Back", "Bounce", "Elastic"]:
+		interpolation.add_item(label)
+	interpolation.select(1)
 	camera_rig.setup(camera)
 	gizmo.set_mode(active_tool)
 	_setup_workspace_tabs()
@@ -100,7 +102,9 @@ func _on_delete_pressed() -> void:
 func _on_duplicate_pressed() -> void:
 	status.text = "Duplicate is reserved for the next pass"
 
-func _interp_name() -> String: return ["hold","linear","ease"][interpolation.selected]
+func _interp_name() -> String:
+	var modes: Array[String] = ["constant","linear","bezier","quadratic_in","quadratic_out","quadratic_in_out","cubic_in_out","back","bounce","elastic"]
+	return modes[clampi(interpolation.selected, 0, modes.size() - 1)]
 
 func _on_interpolation_item_selected(_index: int) -> void:
 	timeline.set_selected_interpolation(_interp_name())
