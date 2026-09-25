@@ -30,6 +30,7 @@ var drag_offset := Vector3.ZERO
 var last_mouse := Vector2.ZERO
 
 func _ready() -> void:
+	theme = KabukiTheme.build()
 	ProjectStore.frame_changed.connect(_on_frame_changed)
 	interpolation.add_item("Hold"); interpolation.add_item("Linear"); interpolation.add_item("Ease"); interpolation.select(1)
 	camera_rig.setup(camera)
@@ -69,6 +70,9 @@ func _select(obj: RuntimeObject) -> void:
 		if object_list.get_item_metadata(i) == obj.model.id:
 			object_list.select(i); break
 	%SelectionLabel.text = obj.model.name
+	%PosValue.text = "X %.2f   Y %.2f   Z %.2f" % [obj.position.x,obj.position.y,obj.position.z]
+	%RotValue.text = "X %.1f   Y %.1f   Z %.1f" % [rad_to_deg(obj.rotation.x),rad_to_deg(obj.rotation.y),rad_to_deg(obj.rotation.z)]
+	%ScaleValue.text = "X %.2f   Y %.2f   Z %.2f" % [obj.scale.x,obj.scale.y,obj.scale.z]
 	gizmo.attach(obj)
 
 func _on_object_selected(index: int) -> void:
@@ -136,6 +140,7 @@ func _apply_drag(relative: Vector2, mouse_pos: Vector2) -> void:
 		elif active_tool == TransformGizmo.Mode.ROTATE:
 			selected.transform = transform_start
 			selected.rotate(axis, (total.x - total.y) * 0.012)
+			_refresh_transform_readout()
 		elif active_tool == TransformGizmo.Mode.SCALE:
 			selected.transform = transform_start
 			var sc := selected.scale
@@ -144,6 +149,7 @@ func _apply_drag(relative: Vector2, mouse_pos: Vector2) -> void:
 			elif gizmo_axis == 1: sc.y *= factor
 			else: sc.z *= factor
 			selected.scale = sc
+			_refresh_transform_readout()
 	elif active_tool == TransformGizmo.Mode.MOVE:
 		selected.global_position = _screen_to_view_plane(mouse_pos, selected.global_position) + drag_offset
 		selected.model.transform.origin = selected.position
@@ -244,3 +250,9 @@ func _on_auto_key_toggled(enabled: bool) -> void:
 
 func _flash_key_button() -> void:
 	%Key.text = "● KEY"
+
+func _refresh_transform_readout() -> void:
+	if selected == null: return
+	%PosValue.text = "X %.2f   Y %.2f   Z %.2f" % [selected.position.x,selected.position.y,selected.position.z]
+	%RotValue.text = "X %.1f   Y %.1f   Z %.1f" % [rad_to_deg(selected.rotation.x),rad_to_deg(selected.rotation.y),rad_to_deg(selected.rotation.z)]
+	%ScaleValue.text = "X %.2f   Y %.2f   Z %.2f" % [selected.scale.x,selected.scale.y,selected.scale.z]
