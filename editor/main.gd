@@ -43,6 +43,8 @@ func _ready() -> void:
 	_setup_workspace_tabs()
 	_update_preview_mode()
 	_on_frame_changed(0)
+	_responsive_layout()
+	resized.connect(_responsive_layout)
 
 func _process(delta: float) -> void:
 	if playing:
@@ -286,3 +288,41 @@ func _refresh_transform_readout() -> void:
 	%PosValue.text = "X %.2f   Y %.2f   Z %.2f" % [selected.position.x,selected.position.y,selected.position.z]
 	%RotValue.text = "X %.1f   Y %.1f   Z %.1f" % [rad_to_deg(selected.rotation.x),rad_to_deg(selected.rotation.y),rad_to_deg(selected.rotation.z)]
 	%ScaleValue.text = "X %.2f   Y %.2f   Z %.2f" % [selected.scale.x,selected.scale.y,selected.scale.z]
+
+func _responsive_layout() -> void:
+	var w: float = size.x
+	var h: float = size.y
+	if w < 900.0 or h < 600.0: return
+	var margin: float = 8.0
+	var top_h: float = 50.0
+	var status_h: float = 20.0
+	var timeline_h: float = clampf(h * 0.245, 190.0, 300.0)
+	var content_top: float = margin + top_h + 8.0
+	var content_bottom: float = h - status_h - timeline_h - 12.0
+	var content_h: float = maxf(260.0, content_bottom - content_top)
+	var left_w: float = clampf(w * 0.205, 220.0, 330.0)
+	var right_w: float = clampf(w * 0.22, 270.0, 360.0)
+	var center_left: float = margin + left_w + 8.0
+	var center_right: float = w - margin - right_w - 8.0
+
+	%LeftPanel.position = Vector2(margin, content_top)
+	%LeftPanel.size = Vector2(left_w, content_h)
+	%RightPanel.position = Vector2(center_right + 8.0, content_top)
+	%RightPanel.size = Vector2(right_w, content_h)
+
+	%ViewportFrame.position = Vector2(center_left, content_top)
+	%ViewportFrame.size = Vector2(maxf(320.0, center_right - center_left), content_h)
+	%EffectsEngine.position = %ViewportFrame.position
+	%EffectsEngine.size = %ViewportFrame.size
+
+	%ViewportTop.position = %ViewportFrame.position + Vector2(12.0, 10.0)
+	%ViewportTop.size = Vector2(maxf(100.0, %ViewportFrame.size.x - 24.0), 40.0)
+	%ToolRail.position = %ViewportFrame.position + Vector2(12.0, 60.0)
+
+	%Bottom.position = Vector2(margin, content_bottom + 8.0)
+	%Bottom.size = Vector2(w - margin * 2.0, timeline_h)
+	%StatusBar.position = Vector2(12.0, h - status_h)
+	%StatusBar.size = Vector2(w - 24.0, status_h)
+
+	var vp_size := Vector2i(maxi(1, int(%ViewportFrame.size.x)), maxi(1, int(%ViewportFrame.size.y)))
+	%SceneViewport.size = vp_size
