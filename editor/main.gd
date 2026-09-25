@@ -16,6 +16,7 @@ const KabukiThemeBuilder = preload("res://editor/kabuki_theme.gd")
 @onready var gizmo: TransformGizmo = %TransformGizmo
 @onready var camera_rig: EditorCameraRig = %EditorCameraRig
 @onready var world_grid: WorldGrid = %WorldGrid
+@onready var effects_engine: EffectsEngine = %EffectsEngine
 var selected: RuntimeObject
 var runtime_objects: Array[RuntimeObject] = []
 var playing := false
@@ -96,6 +97,9 @@ func _on_duplicate_pressed() -> void:
 	status.text = "Duplicate is reserved for the next pass"
 
 func _interp_name() -> String: return ["hold","linear","ease"][interpolation.selected]
+
+func _on_interpolation_item_selected(_index: int) -> void:
+	timeline.set_selected_interpolation(_interp_name())
 
 func _key_position() -> void:
 	if selected: ProjectStore.set_key(selected.model.id,"transform.position",ProjectStore.current_frame,selected.position,_interp_name())
@@ -232,14 +236,14 @@ func _on_key_pressed() -> void:
 	_flash_key_button()
 
 func _on_filter_changed(_value: float) -> void:
+	effects_engine.set_glow(%Glow.value, %GlowThreshold.value, %GlowRadius.value)
 	if selected == null: return
 	selected.material.set_shader_parameter("blur", %Blur.value)
-	selected.material.set_shader_parameter("glow", %Glow.value)
 	selected.material.set_shader_parameter("exposure", %Exposure.value)
 	selected.material.set_shader_parameter("saturation", %Saturation.value)
 
 func _on_reset_filters_pressed() -> void:
-	%Blur.value=0.0; %Glow.value=0.0; %Exposure.value=0.0; %Saturation.value=1.0
+	%Blur.value=0.0; %Glow.value=0.0; %GlowThreshold.value=0.7; %GlowRadius.value=3.0; %Exposure.value=0.0; %Saturation.value=1.0
 	_on_filter_changed(0.0)
 
 func _setup_workspace_tabs() -> void:
@@ -254,6 +258,10 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	%RightPanel.visible = workspace == "scene" or workspace == "compositor"
 	%Title.text = "OBJECTS" if workspace != "drawing" else "DRAWINGS"
 	%Status.text = workspace.to_upper() + " workspace"
+	if workspace == "compositor":
+		%LookTitle.text = "◇  EFFECT STACK  ·  Scene Output"
+	else:
+		%LookTitle.text = "◇  LOOK / FILTERS"
 
 func _on_preview_mode_toggled(render_mode: bool) -> void:
 	render_preview = render_mode
