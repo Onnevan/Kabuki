@@ -60,3 +60,25 @@ func get_key_frames(object_id: String, property_path: String) -> Array[int]:
 	for k in arr:
 		result.append(int(k.frame))
 	return result
+
+func get_keys(object_id: String, property_path: String) -> Array:
+	return channels.get(channel_key(object_id, property_path), [])
+
+func move_key(object_id: String, property_path: String, old_frame: int, new_frame: int) -> void:
+	var arr: Array = channels.get(channel_key(object_id, property_path), [])
+	for k in arr:
+		if int(k.frame) == old_frame:
+			k.frame = clampi(new_frame, 0, duration_frames)
+			break
+	arr.sort_custom(func(a, b): return a.frame < b.frame)
+	key_changed.emit(object_id, property_path, new_frame)
+	project_changed.emit()
+
+func set_key_interpolation(object_id: String, property_path: String, frame: int, interpolation: String) -> void:
+	var arr: Array = channels.get(channel_key(object_id, property_path), [])
+	for k in arr:
+		if int(k.frame) == frame:
+			k.interpolation = interpolation
+			key_changed.emit(object_id, property_path, frame)
+			project_changed.emit()
+			return
