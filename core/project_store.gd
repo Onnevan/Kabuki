@@ -10,6 +10,7 @@ var channels: Dictionary = {}
 signal frame_changed(frame: int)
 signal object_added(object_id: String)
 signal project_changed
+signal key_changed(object_id: String, property_path: String, frame: int)
 
 func add_object(obj: MotionObject) -> void:
 	objects[obj.id] = obj
@@ -29,9 +30,10 @@ func set_key(object_id: String, property_path: String, frame: int, value: Varian
 	var arr: Array = channels[key]
 	for k in arr:
 		if k.frame == frame:
-			k.value = value; k.interpolation = interpolation; project_changed.emit(); return
+			k.value = value; k.interpolation = interpolation; key_changed.emit(object_id, property_path, frame); project_changed.emit(); return
 	arr.append({"frame": frame, "value": value, "interpolation": interpolation})
 	arr.sort_custom(func(a, b): return a.frame < b.frame)
+	key_changed.emit(object_id, property_path, frame)
 	project_changed.emit()
 
 func evaluate(object_id: String, property_path: String, frame: int, fallback: Variant) -> Variant:
@@ -51,3 +53,10 @@ func _lerp_variant(a: Variant, b: Variant, t: float) -> Variant:
 	if a is Vector3 and b is Vector3: return a.lerp(b, t)
 	if a is float or a is int: return lerpf(float(a), float(b), t)
 	return a
+
+func get_key_frames(object_id: String, property_path: String) -> Array[int]:
+	var result: Array[int] = []
+	var arr: Array = channels.get(channel_key(object_id, property_path), [])
+	for k in arr:
+		result.append(int(k.frame))
+	return result
