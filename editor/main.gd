@@ -9,6 +9,7 @@ const KabukiThemeBuilder = preload("res://editor/kabuki_theme.gd")
 @onready var object_list: ItemList = %ObjectList
 @onready var frame_slider: HSlider = %FrameSlider
 @onready var frame_label: Label = %FrameLabel
+@onready var timeline: FrameTimeline = %Timeline
 @onready var status: Label = %Status
 @onready var auto_key: CheckButton = %AutoKey
 @onready var interpolation: OptionButton = %Interpolation
@@ -203,13 +204,14 @@ func _screen_to_plane(pos: Vector2, z_plane: float) -> Vector3:
 func _on_frame_changed(frame: int) -> void:
 	frame_label.text = "%03d" % frame
 	frame_slider.set_value_no_signal(frame)
+	timeline.set_frame(frame)
 	for r in runtime_objects: r.apply_frame(frame)
 
 func _on_frame_slider_value_changed(value: float) -> void: ProjectStore.set_frame(int(value))
 func _on_prev_pressed() -> void: ProjectStore.set_frame(ProjectStore.current_frame - 1)
 func _on_next_pressed() -> void: ProjectStore.set_frame(ProjectStore.current_frame + 1)
 func _on_play_pressed() -> void:
-	playing = not playing; %PlayButton.text = "PAUSE" if playing else "PLAY"
+	playing = not playing; %PlayButton.text = "❚❚" if playing else "▶"
 func _on_key_pressed() -> void:
 	_key_transform()
 	_flash_key_button()
@@ -243,13 +245,13 @@ func _on_preview_mode_toggled(render_mode: bool) -> void:
 	_update_preview_mode()
 
 func _update_preview_mode() -> void:
-	%PreviewMode.text = "RENDER" if render_preview else "PREVIEW"
+	%PreviewMode.text = "◉  RENDER" if render_preview else "◐  PREVIEW"
 	for r in runtime_objects:
 		if r.material:
 			r.material.set_shader_parameter("render_quality", 1.0 if render_preview else 0.0)
 
 func _on_auto_key_toggled(enabled: bool) -> void:
-	%AutoKey.text = "● AUTO KEY" if enabled else "○ AUTO KEY"
+	%AutoKey.text = "●" if enabled else "○"
 
 func _flash_key_button() -> void:
 	%Key.text = "● KEY"
