@@ -72,11 +72,15 @@ func _on_frame_changed(frame: int) -> void:
 	_sync_controls()
 
 func _sync_controls() -> void:
-	if selected == null: return
-	blur_slider.value = selected.material.get_shader_parameter("blur")
-	glow_slider.value = selected.material.get_shader_parameter("glow")
-	exposure_slider.value = selected.material.get_shader_parameter("exposure")
-	saturation_slider.value = selected.material.get_shader_parameter("saturation")
+	if selected == null or selected.material == null: return
+	var blur_value = selected.material.get_shader_parameter("blur")
+	var glow_value = selected.material.get_shader_parameter("glow")
+	var exposure_value = selected.material.get_shader_parameter("exposure")
+	var saturation_value = selected.material.get_shader_parameter("saturation")
+	blur_slider.value = 0.0 if blur_value == null else float(blur_value)
+	glow_slider.value = 0.0 if glow_value == null else float(glow_value)
+	exposure_slider.value = 0.0 if exposure_value == null else float(exposure_value)
+	saturation_slider.value = 1.0 if saturation_value == null else float(saturation_value)
 
 func _on_frame_slider_value_changed(value: float) -> void: ProjectStore.set_frame(int(value))
 func _on_prev_pressed() -> void: ProjectStore.set_frame(ProjectStore.current_frame-1)
