@@ -4,7 +4,6 @@
 [ext_resource path="res://editor/editor_camera_rig.gd" type="Script" id="2"]
 [ext_resource path="res://editor/transform_gizmo.gd" type="Script" id="3"]
 [ext_resource path="res://editor/world_grid.gd" type="Script" id="4"]
-[ext_resource path="res://editor/kabuki_theme.gd" type="Script" id="5"]
 
 [node name="Main" type="Control"]
 layout_mode=3
@@ -64,7 +63,6 @@ offset_bottom=748.0
 theme_override_constants/separation=8
 [node name="Title" type="Label" parent="LeftPanel"]
 unique_name_in_owner=true
-name="ObjectsTitle"
 text="OBJECTS"
 [node name="ObjectList" type="ItemList" parent="LeftPanel"]
 unique_name_in_owner=true
