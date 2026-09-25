@@ -51,9 +51,9 @@ unique_name_in_owner=true
 text="Drag objects directly. Wheel: zoom. Middle drag: pan."
 
 [node name="LeftPanel" type="VBoxContainer" parent="."]
-offset_left=18.0
+offset_left=16.0
 offset_top=72.0
-offset_right=218.0
+offset_right=232.0
 offset_bottom=748.0
 theme_override_constants/separation=8
 [node name="Title" type="Label" parent="LeftPanel"]
@@ -74,9 +74,9 @@ text="DELETE"
 
 [node name="ViewportContainer" type="SubViewportContainer" parent="."]
 unique_name_in_owner=true
-offset_left=232.0
+offset_left=246.0
 offset_top=72.0
-offset_right=1348.0
+offset_right=1088.0
 offset_bottom=748.0
 stretch=true
 mouse_filter=0
@@ -100,6 +100,52 @@ script=ExtResource("3")
 unique_name_in_owner=true
 position=Vector3(0,0,3)
 current=true
+
+[node name="RightPanel" type="VBoxContainer" parent="."]
+offset_left=1102.0
+offset_top=72.0
+offset_right=1348.0
+offset_bottom=748.0
+theme_override_constants/separation=7
+[node name="Properties" type="Label" parent="RightPanel"]
+text="LOOK"
+theme_override_font_sizes/font_size=16
+[node name="Hint" type="Label" parent="RightPanel"]
+text="NON-DESTRUCTIVE FILTERS"
+[node name="BlurText" type="Label" parent="RightPanel"]
+text="Blur"
+[node name="Blur" type="HSlider" parent="RightPanel"]
+unique_name_in_owner=true
+max_value=8.0
+step=0.1
+[node name="GlowText" type="Label" parent="RightPanel"]
+text="Glow"
+[node name="Glow" type="HSlider" parent="RightPanel"]
+unique_name_in_owner=true
+max_value=3.0
+step=0.05
+[node name="ExposureText" type="Label" parent="RightPanel"]
+text="Exposure"
+[node name="Exposure" type="HSlider" parent="RightPanel"]
+unique_name_in_owner=true
+min_value=-3.0
+max_value=3.0
+step=0.05
+[node name="SaturationText" type="Label" parent="RightPanel"]
+text="Saturation"
+[node name="Saturation" type="HSlider" parent="RightPanel"]
+unique_name_in_owner=true
+max_value=2.0
+step=0.05
+value=1.0
+[node name="ResetFilters" type="Button" parent="RightPanel"]
+text="RESET LOOK"
+[node name="Spacer" type="Control" parent="RightPanel"]
+custom_minimum_size=Vector2(0,20)
+[node name="NavTitle" type="Label" parent="RightPanel"]
+text="VIEWPORT"
+[node name="NavHelp" type="Label" parent="RightPanel"]
+text="MMB  Orbit\nShift + MMB  Pan\nWheel  Zoom\nFRAME  Focus selection"
 
 [node name="Bottom" type="VBoxContainer" parent="."]
 offset_left=18.0
@@ -157,3 +203,9 @@ filters=PackedStringArray("*.png ; PNG Images")
 [connection signal="pressed" from="Bottom/Transport/Next" to="." method="_on_next_pressed"]
 [connection signal="pressed" from="Bottom/Transport/Key" to="." method="_on_key_pressed"]
 [connection signal="value_changed" from="Bottom/FrameSlider" to="." method="_on_frame_slider_value_changed"]
+
+[connection signal="value_changed" from="RightPanel/Blur" to="." method="_on_filter_changed"]
+[connection signal="value_changed" from="RightPanel/Glow" to="." method="_on_filter_changed"]
+[connection signal="value_changed" from="RightPanel/Exposure" to="." method="_on_filter_changed"]
+[connection signal="value_changed" from="RightPanel/Saturation" to="." method="_on_filter_changed"]
+[connection signal="pressed" from="RightPanel/ResetFilters" to="." method="_on_reset_filters_pressed"]
