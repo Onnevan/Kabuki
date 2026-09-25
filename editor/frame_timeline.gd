@@ -30,7 +30,8 @@ func _draw()->void:
 		var x:=lane_x+float(k)*step
 		for row in range(1,4):
 			var y:=header_h+20.0+float(row)*28.0-5
-			var c:=[Color("#ff745f"),Color("#b779ff"),Color("#71d67b")][row-1]
+			var key_colors: Array[Color] = [Color("#ff745f"), Color("#b779ff"), Color("#71d67b")]
+			var c: Color = key_colors[row - 1]
 			var p:=PackedVector2Array([Vector2(x,y-6),Vector2(x+6,y),Vector2(x,y+6),Vector2(x-6,y)])
 			draw_colored_polygon(p,c)
 	var px:=lane_x+float(current_frame)*step
