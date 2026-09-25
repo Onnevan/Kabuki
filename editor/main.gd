@@ -72,7 +72,7 @@ func _on_shading_mode_selected(index: int) -> void:
 	status.text = "Wireframe viewport" if index == 1 else "Solid viewport"
 
 func _setup_add_object_menu() -> void:
-	var popup := %AddObj.get_popup()
+	var popup: PopupMenu = %AddObj.get_popup()
 	for label in ["Plane", "Sound", "Camera", "Light", "Drawing"]:
 		popup.add_item(label)
 	popup.id_pressed.connect(_on_add_object_type)
