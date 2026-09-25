@@ -3,6 +3,7 @@ extends Control
 var frame_count := 60
 var current_frame := 0
 var keys := [5, 18, 24, 30]
+var scrubbing := false
 func _ready() -> void:
 	custom_minimum_size = Vector2(0, 170)
 	mouse_filter = Control.MOUSE_FILTER_PASS
@@ -37,10 +38,24 @@ func _draw()->void:
 	var px:=lane_x+float(current_frame)*step
 	draw_line(Vector2(px,header_h-2),Vector2(px,size.y),Color("#238cff"),3)
 	draw_circle(Vector2(px,header_h-4),7,Color("#238cff"))
-func _gui_input(e:InputEvent)->void:
-	if e is InputEventMouseButton and e.button_index==MOUSE_BUTTON_LEFT and e.pressed:
-		var lane_x:=210.0
-		if e.position.x>=lane_x:
-			var usable:=maxf(1.0,size.x-lane_x-12.0)
-			var f:=clampi(roundi((e.position.x-lane_x)/usable*frame_count),0,frame_count)
-			ProjectStore.set_frame(f)
+func _frame_from_x(x: float) -> int:
+	var lane_x := 210.0
+	var usable := maxf(1.0, size.x - lane_x - 12.0)
+	return clampi(roundi((x - lane_x) / usable * frame_count), 0, frame_count)
+
+func _gui_input(e: InputEvent) -> void:
+	if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
+		if e.pressed and e.position.x >= 210.0:
+			scrubbing = true
+			ProjectStore.set_frame(_frame_from_x(e.position.x))
+			accept_event()
+		elif not e.pressed and scrubbing:
+			scrubbing = false
+			accept_event()
+	elif e is InputEventMouseMotion and scrubbing:
+		ProjectStore.set_frame(_frame_from_x(e.position.x))
+		accept_event()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_MOUSE_EXIT and not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		scrubbing = false
