@@ -235,7 +235,7 @@ func _setup_workspace_tabs() -> void:
 func _on_workspace_tab_changed(tab: int) -> void:
 	workspace = ["scene","animation","drawing","compositor"][tab]
 	%RightPanel.visible = workspace == "scene" or workspace == "compositor"
-	%ObjectsTitle.text = "OBJECTS" if workspace != "drawing" else "DRAWINGS"
+	%Title.text = "OBJECTS" if workspace != "drawing" else "DRAWINGS"
 	%Status.text = workspace.to_upper() + " workspace"
 
 func _on_preview_mode_toggled(render_mode: bool) -> void:
