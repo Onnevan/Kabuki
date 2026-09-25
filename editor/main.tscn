@@ -32,6 +32,7 @@ text="KABUKI"
 theme_override_font_sizes/font_size=22
 [node name="WorkspaceTabs" type="TabBar" parent="TopBar"]
 unique_name_in_owner=true
+owner=NodePath("../..")
 custom_minimum_size=Vector2(430,38)
 [node name="PreviewMode" type="CheckButton" parent="TopBar"]
 unique_name_in_owner=true
