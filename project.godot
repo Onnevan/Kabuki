@@ -1,0 +1,25 @@
+; Motion Canvas prototype v0.1
+config_version=5
+
+[application]
+config/name="Motion Canvas"
+run/main_scene="res://editor/main.tscn"
+
+[display]
+window/size/viewport_width=1366
+window/size/viewport_height=900
+window/size/window_width_override=1366
+window/size/window_height_override=900
+window/stretch/mode="canvas_items"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+
+[autoload]
+ProjectStore="*res://core/project_store.gd"
+
+[input]
+frame_prev={"deadzone":0.5,"events":[Object(InputEventKey,"physical_keycode":4194321)]}
+frame_next={"deadzone":0.5,"events":[Object(InputEventKey,"physical_keycode":4194323)]}

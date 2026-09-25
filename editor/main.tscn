@@ -1,0 +1,159 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource path="res://editor/main.gd" type="Script" id="1"]
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="BG" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.055,0.06,0.075,1)
+
+[node name="Top" type="HBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 12.0
+offset_right = 1350.0
+offset_bottom = 54.0
+theme_override_constants/separation = 12
+[node name="Title" type="Label" parent="Top"]
+text = "KABUKI  v0.1"
+[node name="Import" type="Button" parent="Top"]
+text = "+ Import PNG"
+[node name="Status" type="Label" parent="Top"]
+unique_name_in_owner = true
+text = "Architecture prototype"
+
+[node name="ViewportContainer" type="SubViewportContainer" parent="."]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 64.0
+offset_right = 1030.0
+offset_bottom = 700.0
+stretch = true
+[node name="SceneViewport" type="SubViewport" parent="ViewportContainer"]
+unique_name_in_owner = true
+handle_input_locally = false
+size = Vector2i(1014,636)
+render_target_update_mode = 4
+[node name="WorldRoot" type="Node3D" parent="ViewportContainer/SceneViewport"]
+unique_name_in_owner = true
+[node name="Camera3D" type="Camera3D" parent="ViewportContainer/SceneViewport"]
+position = Vector3(0,0,3)
+current = true
+
+[node name="Inspector" type="VBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 1048.0
+offset_top = 64.0
+offset_right = 1350.0
+offset_bottom = 700.0
+theme_override_constants/separation = 8
+[node name="Header" type="Label" parent="Inspector"]
+text = "OBJECT / EFFECTS"
+[node name="SelectedLabel" type="Label" parent="Inspector"]
+unique_name_in_owner = true
+text = "No object selected"
+[node name="MoveLabel" type="Label" parent="Inspector"]
+text = "Transform (prototype nudge)"
+[node name="MoveRow" type="HBoxContainer" parent="Inspector"]
+[node name="Left" type="Button" parent="Inspector/MoveRow"]
+text = "X-"
+[node name="Right" type="Button" parent="Inspector/MoveRow"]
+text = "X+"
+[node name="Up" type="Button" parent="Inspector/MoveRow"]
+text = "Y+"
+[node name="Down" type="Button" parent="Inspector/MoveRow"]
+text = "Y-"
+[node name="KeyPosition" type="Button" parent="Inspector"]
+text = "Key Position"
+[node name="InterpLabel" type="Label" parent="Inspector"]
+text = "Interpolation"
+[node name="Interpolation" type="OptionButton" parent="Inspector"]
+unique_name_in_owner = true
+[node name="BlurLabel" type="Label" parent="Inspector"]
+text = "Blur"
+[node name="BlurSlider" type="HSlider" parent="Inspector"]
+unique_name_in_owner = true
+max_value = 8.0
+step = 0.1
+[node name="GlowLabel" type="Label" parent="Inspector"]
+text = "Glow / Emission"
+[node name="GlowSlider" type="HSlider" parent="Inspector"]
+unique_name_in_owner = true
+max_value = 3.0
+step = 0.05
+[node name="ExposureLabel" type="Label" parent="Inspector"]
+text = "Exposure"
+[node name="ExposureSlider" type="HSlider" parent="Inspector"]
+unique_name_in_owner = true
+min_value = -3.0
+max_value = 3.0
+step = 0.05
+[node name="SaturationLabel" type="Label" parent="Inspector"]
+text = "Saturation"
+[node name="SaturationSlider" type="HSlider" parent="Inspector"]
+unique_name_in_owner = true
+max_value = 2.0
+step = 0.05
+value = 1.0
+[node name="KeyEffects" type="Button" parent="Inspector"]
+text = "Key Effects"
+[node name="Future" type="Label" parent="Inspector"]
+text = "Reserved components:\nHierarchy / Character\nPaint / Stroke3D\nDeform / Surface Bindings\nAudio / Scene FX"
+
+[node name="Timeline" type="VBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 716.0
+offset_right = 1350.0
+offset_bottom = 884.0
+[node name="FrameLabel" type="Label" parent="Timeline"]
+unique_name_in_owner = true
+text = "Frame"
+[node name="FrameSlider" type="HSlider" parent="Timeline"]
+unique_name_in_owner = true
+max_value = 120.0
+step = 1.0
+[node name="Controls" type="HBoxContainer" parent="Timeline"]
+[node name="Prev" type="Button" parent="Timeline/Controls"]
+text = "<"
+[node name="PlayButton" type="Button" parent="Timeline/Controls"]
+unique_name_in_owner = true
+text = "Play"
+[node name="Next" type="Button" parent="Timeline/Controls"]
+text = ">"
+[node name="Hint" type="Label" parent="Timeline/Controls"]
+text = "   Import a transparent PNG, move it, key position/effects, change frame, repeat."
+
+[node name="FileDialog" type="FileDialog" parent="."]
+unique_name_in_owner = true
+file_mode = 0
+access = 2
+filters = PackedStringArray("*.png ; PNG Images")
+
+[connection signal="pressed" from="Top/Import" to="." method="_on_import_pressed"]
+[connection signal="file_selected" from="FileDialog" to="." method="_on_file_selected"]
+[connection signal="pressed" from="Inspector/MoveRow/Left" to="." method="_on_nudge_pressed" binds=[Vector3(-1,0,0)]]
+[connection signal="pressed" from="Inspector/MoveRow/Right" to="." method="_on_nudge_pressed" binds=[Vector3(1,0,0)]]
+[connection signal="pressed" from="Inspector/MoveRow/Up" to="." method="_on_nudge_pressed" binds=[Vector3(0,1,0)]]
+[connection signal="pressed" from="Inspector/MoveRow/Down" to="." method="_on_nudge_pressed" binds=[Vector3(0,-1,0)]]
+[connection signal="pressed" from="Inspector/KeyPosition" to="." method="_on_key_position_pressed"]
+[connection signal="value_changed" from="Inspector/BlurSlider" to="." method="_on_effect_changed" binds=["effects.blur"]]
+[connection signal="value_changed" from="Inspector/GlowSlider" to="." method="_on_effect_changed" binds=["effects.glow"]]
+[connection signal="value_changed" from="Inspector/ExposureSlider" to="." method="_on_effect_changed" binds=["effects.exposure"]]
+[connection signal="value_changed" from="Inspector/SaturationSlider" to="." method="_on_effect_changed" binds=["effects.saturation"]]
+[connection signal="pressed" from="Inspector/KeyEffects" to="." method="_on_key_effects_pressed"]
+[connection signal="value_changed" from="Timeline/FrameSlider" to="." method="_on_frame_slider_value_changed"]
+[connection signal="pressed" from="Timeline/Controls/Prev" to="." method="_on_prev_pressed"]
+[connection signal="pressed" from="Timeline/Controls/PlayButton" to="." method="_on_play_pressed"]
+[connection signal="pressed" from="Timeline/Controls/Next" to="." method="_on_next_pressed"]
