@@ -1,5 +1,7 @@
 extends Control
 
+const KabukiThemeBuilder = preload("res://editor/kabuki_theme.gd")
+
 @onready var viewport: SubViewport = %SceneViewport
 @onready var world_root: Node3D = %WorldRoot
 @onready var camera: Camera3D = %Camera3D
@@ -30,7 +32,7 @@ var drag_offset := Vector3.ZERO
 var last_mouse := Vector2.ZERO
 
 func _ready() -> void:
-	theme = KabukiTheme.build()
+	theme = KabukiThemeBuilder.build()
 	ProjectStore.frame_changed.connect(_on_frame_changed)
 	interpolation.add_item("Hold"); interpolation.add_item("Linear"); interpolation.add_item("Ease"); interpolation.select(1)
 	camera_rig.setup(camera)
@@ -224,7 +226,8 @@ func _on_reset_filters_pressed() -> void:
 	_on_filter_changed(0.0)
 
 func _setup_workspace_tabs() -> void:
-	%WorkspaceTabs.clear()
+	while %WorkspaceTabs.tab_count > 0:
+		%WorkspaceTabs.remove_tab(0)
 	for label in ["SCENE", "ANIMATION", "DRAWING", "COMPOSITOR"]:
 		%WorkspaceTabs.add_tab(label)
 	%WorkspaceTabs.current_tab = 0
