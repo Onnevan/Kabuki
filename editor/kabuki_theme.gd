@@ -1,4 +1,3 @@
-class_name KabukiTheme
 extends RefCounted
 static func build() -> Theme:
 	var t:=Theme.new()
