@@ -2,7 +2,7 @@ class_name TransformGizmo
 extends Node3D
 
 enum Mode { MOVE, ROTATE, SCALE }
-enum Axis { NONE=-1, X=0, Y=1, Z=2 }
+enum Axis { NONE=-1, X=0, Y=1, Z=2, ALL=3 }
 var mode := Mode.MOVE
 var target: Node3D
 var parts: Array[Node3D] = []
@@ -30,6 +30,8 @@ func _rebuild()->void:
 	elif mode==Mode.SCALE:_build_scale()
 	else:_build_rotate()
 func _build_move()->void:
+	var center:=SphereMesh.new();center.radius=.075;center.height=.15
+	_mesh(center,_mat(Color("#e8edf3")),Axis.ALL)
 	for a in 3:
 		var sh:=CylinderMesh.new();sh.top_radius=.014;sh.bottom_radius=.014;sh.height=.68
 		var s:=_mesh(sh,mats[a],a);_orient(a,s)
@@ -39,6 +41,8 @@ func _build_move()->void:
 		elif a==1:s.position.y=.34;h.position.y=.77
 		else:s.position.z=.34;h.position.z=.77
 func _build_scale()->void:
+	var center:=BoxMesh.new();center.size=Vector3(.14,.14,.14)
+	_mesh(center,_mat(Color("#e8edf3")),Axis.ALL)
 	for a in 3:
 		var sh:=CylinderMesh.new();sh.top_radius=.014;sh.bottom_radius=.014;sh.height=.68
 		var s:=_mesh(sh,mats[a],a);_orient(a,s)
@@ -48,6 +52,8 @@ func _build_scale()->void:
 		elif a==1:s.position.y=.34;h.position.y=.76
 		else:s.position.z=.34;h.position.z=.76
 func _build_rotate()->void:
+	var center:=SphereMesh.new();center.radius=.07;center.height=.14
+	_mesh(center,_mat(Color("#e8edf3")),Axis.ALL)
 	for a in 3:
 		var t:=TorusMesh.new();t.inner_radius=.47;t.outer_radius=.505;t.rings=64;t.ring_segments=8
 		var r:=_mesh(t,mats[a],a)
@@ -62,6 +68,9 @@ func axis_vector(a:int)->Vector3:
 func pick_axis(mouse:Vector2,camera:Camera3D)->int:
 	if target==null:return Axis.NONE
 	var origin:=camera.unproject_position(global_position)
+	if origin.distance_to(mouse) < 12.0:
+		active_axis=Axis.ALL
+		return Axis.ALL
 	var best:=Axis.NONE;var best_d:=18.0
 	if mode==Mode.ROTATE:
 		var radius_world:=.5*scale.x
