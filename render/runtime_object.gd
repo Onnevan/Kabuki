@@ -5,6 +5,7 @@ var model: MotionObject
 var texture: ImageTexture
 var material: ShaderMaterial
 var selected := false
+var supports_effects := true
 
 func setup(obj: MotionObject, img: Image) -> void:
 	model = obj
@@ -16,9 +17,22 @@ func setup(obj: MotionObject, img: Image) -> void:
 	material_override = material
 	name = obj.name
 
+func setup_plane(obj: MotionObject) -> void:
+	model = obj
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(1.6, 1.0)
+	mesh = plane
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.72, 0.76, 0.82, 1.0)
+	mat.roughness = 0.8
+	material_override = mat
+	supports_effects = false
+	name = obj.name
+
 func set_selected(value: bool) -> void:
 	selected = value
-	material.set_shader_parameter("selected", 1.0 if value else 0.0)
+	if material:
+		material.set_shader_parameter("selected", 1.0 if value else 0.0)
 
 func screen_radius(camera: Camera3D, viewport_size: Vector2i) -> float:
 	if mesh == null: return 30.0
@@ -31,6 +45,7 @@ func apply_frame(frame: int) -> void:
 	position = ProjectStore.evaluate(model.id, "transform.position", frame, model.transform.origin)
 	rotation = ProjectStore.evaluate(model.id, "transform.rotation", frame, rotation)
 	scale = ProjectStore.evaluate(model.id, "transform.scale", frame, scale)
+	if material == null or not supports_effects: return
 	material.set_shader_parameter("opacity", ProjectStore.evaluate(model.id,"effects.opacity",frame,1.0))
 	material.set_shader_parameter("blur", ProjectStore.evaluate(model.id,"effects.blur",frame,0.0))
 	material.set_shader_parameter("glow", ProjectStore.evaluate(model.id,"effects.glow",frame,0.0))
