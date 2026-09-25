@@ -178,108 +178,114 @@ offset_bottom=650.0
 theme_override_constants/separation=8
 [node name="InspectorPanel" type="PanelContainer" parent="RightPanel"]
 size_flags_vertical=3
-[node name="Inspector" type="VBoxContainer" parent="RightPanel/InspectorPanel"]
-[node name="InspectorTabs" type="HBoxContainer" parent="RightPanel/InspectorPanel/Inspector"]
-[node name="Properties" type="Label" parent="RightPanel/InspectorPanel/Inspector/InspectorTabs"]
+[node name="InspectorScroll" type="ScrollContainer" parent="RightPanel/InspectorPanel"]
+layout_mode=2
+horizontal_scroll_mode=0
+vertical_scroll_mode=1
+[node name="Inspector" type="VBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/InspectorScroll"]
+layout_mode=2
+size_flags_horizontal=3
+[node name="InspectorTabs" type="HBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+[node name="Properties" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/InspectorTabs"]
 text="Properties"
 theme_override_font_sizes/font_size=17
-[node name="MaterialTab" type="Label" parent="RightPanel/InspectorPanel/Inspector/InspectorTabs"]
+[node name="MaterialTab" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/InspectorTabs"]
 text="     Material"
-[node name="ObjectSection" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="ObjectSection" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 text="▣  TRANSFORM"
-[node name="PosLabel" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="PosLabel" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 text="Position"
-[node name="PosValue" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="PosValue" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
 text="X 0.00    Y 0.00    Z 0.00"
-[node name="RotLabel" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="RotLabel" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 text="Rotation"
-[node name="RotValue" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="RotValue" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
 text="X 0.0     Y 0.0     Z 0.0"
-[node name="ScaleLabel" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="ScaleLabel" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 text="Scale"
-[node name="ScaleValue" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="ScaleValue" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
 text="X 1.00    Y 1.00    Z 1.00"
-[node name="Sep1" type="HSeparator" parent="RightPanel/InspectorPanel/Inspector"]
-[node name="LookTitle" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="Sep1" type="HSeparator" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+[node name="LookTitle" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
 text="◇  LOOK / FILTERS"
 theme_override_font_sizes/font_size=16
-[node name="BlurText" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="BlurText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 text="Blur"
-[node name="Blur" type="HSlider" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="Blur" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
 max_value=8.0
 step=0.1
-[node name="GlowText" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="GlowText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 text="Glow"
-[node name="Glow" type="HSlider" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="Glow" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
 max_value=3.0
 step=0.05
-[node name="GlowThresholdText" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="GlowThresholdText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 text="Glow Threshold"
-[node name="GlowThreshold" type="HSlider" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="GlowThreshold" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
 min_value=0.0
 max_value=1.5
 step=0.01
 value=0.7
-[node name="GlowRadiusText" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="GlowRadiusText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 text="Glow Radius"
-[node name="GlowRadius" type="HSlider" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="GlowRadius" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
 min_value=0.5
 max_value=12.0
 step=0.25
 value=3.0
-[node name="ExposureText" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="ExposureText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 text="Exposure"
-[node name="Exposure" type="HSlider" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="Exposure" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
 min_value=-3.0
 max_value=3.0
 step=0.05
-[node name="SaturationText" type="Label" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="SaturationText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 text="Saturation"
-[node name="Saturation" type="HSlider" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="Saturation" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
 max_value=2.0
 step=0.05
 value=1.0
-[node name="ResetFilters" type="Button" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="ResetFilters" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 text="Reset"
-[node name="KeyInterpSep" type="HSeparator" parent="RightPanel/InspectorPanel/Inspector"]
-[node name="KeyInterpolationPanel" type="VBoxContainer" parent="RightPanel/InspectorPanel/Inspector"]
+[node name="KeyInterpSep" type="HSeparator" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+[node name="KeyInterpolationPanel" type="VBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
 visible=false
-[node name="Title" type="Label" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+[node name="Title" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
 text="◆  KEYFRAME INTERPOLATION"
 theme_override_font_sizes/font_size=16
-[node name="SelectedKeyInfo" type="Label" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+[node name="SelectedKeyInfo" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
 unique_name_in_owner=true
 text="No key selected"
-[node name="Constant" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+[node name="Constant" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
 text="Constant"
-[node name="Linear" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+[node name="Linear" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
 text="Linear"
-[node name="Bezier" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+[node name="Bezier" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
 text="Bezier / Smooth"
-[node name="QuadraticIn" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+[node name="QuadraticIn" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
 text="Quadratic In"
-[node name="QuadraticOut" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+[node name="QuadraticOut" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
 text="Quadratic Out"
-[node name="QuadraticInOut" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+[node name="QuadraticInOut" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
 text="Quadratic In-Out"
-[node name="CubicInOut" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+[node name="CubicInOut" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
 text="Cubic In-Out"
-[node name="Back" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+[node name="Back" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
 text="Back / Overshoot"
-[node name="Bounce" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+[node name="Bounce" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
 text="Bounce"
-[node name="Elastic" type="Button" parent="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel"]
+[node name="Elastic" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
 text="Elastic"
 
 [node name="Bottom" type="VBoxContainer" parent="."]
@@ -369,22 +375,22 @@ filters=PackedStringArray("*.png ; PNG Images")
 [connection signal="toggled" from="Bottom/TransportPanel/Transport/AutoKey" to="." method="_on_auto_key_toggled"]
 [connection signal="pressed" from="Bottom/TransportPanel/Transport/Key" to="." method="_on_key_pressed"]
 [connection signal="item_selected" from="Bottom/TransportPanel/Transport/Interpolation" to="." method="_on_interpolation_item_selected"]
-[connection signal="value_changed" from="RightPanel/InspectorPanel/Inspector/Blur" to="." method="_on_filter_changed"]
-[connection signal="value_changed" from="RightPanel/InspectorPanel/Inspector/Glow" to="." method="_on_filter_changed"]
-[connection signal="value_changed" from="RightPanel/InspectorPanel/Inspector/Exposure" to="." method="_on_filter_changed"]
-[connection signal="value_changed" from="RightPanel/InspectorPanel/Inspector/Saturation" to="." method="_on_filter_changed"]
-[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/ResetFilters" to="." method="_on_reset_filters_pressed"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/Blur" to="." method="_on_filter_changed"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/Glow" to="." method="_on_filter_changed"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/Exposure" to="." method="_on_filter_changed"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/Saturation" to="." method="_on_filter_changed"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/ResetFilters" to="." method="_on_reset_filters_pressed"]
 
-[connection signal="value_changed" from="RightPanel/InspectorPanel/Inspector/GlowThreshold" to="." method="_on_filter_changed"]
-[connection signal="value_changed" from="RightPanel/InspectorPanel/Inspector/GlowRadius" to="." method="_on_filter_changed"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/GlowThreshold" to="." method="_on_filter_changed"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/GlowRadius" to="." method="_on_filter_changed"]
 
-[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/Constant" to="." method="_on_key_interp_constant"]
-[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/Linear" to="." method="_on_key_interp_linear"]
-[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/Bezier" to="." method="_on_key_interp_bezier"]
-[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/QuadraticIn" to="." method="_on_key_interp_quadratic_in"]
-[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/QuadraticOut" to="." method="_on_key_interp_quadratic_out"]
-[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/QuadraticInOut" to="." method="_on_key_interp_quadratic_in_out"]
-[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/CubicInOut" to="." method="_on_key_interp_cubic_in_out"]
-[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/Back" to="." method="_on_key_interp_back"]
-[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/Bounce" to="." method="_on_key_interp_bounce"]
-[connection signal="pressed" from="RightPanel/InspectorPanel/Inspector/KeyInterpolationPanel/Elastic" to="." method="_on_key_interp_elastic"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/Constant" to="." method="_on_key_interp_constant"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/Linear" to="." method="_on_key_interp_linear"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/Bezier" to="." method="_on_key_interp_bezier"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/QuadraticIn" to="." method="_on_key_interp_quadratic_in"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/QuadraticOut" to="." method="_on_key_interp_quadratic_out"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/QuadraticInOut" to="." method="_on_key_interp_quadratic_in_out"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/CubicInOut" to="." method="_on_key_interp_cubic_in_out"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/Back" to="." method="_on_key_interp_back"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/Bounce" to="." method="_on_key_interp_bounce"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/Elastic" to="." method="_on_key_interp_elastic"]
