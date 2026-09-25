@@ -24,6 +24,8 @@ var active_tool := TransformGizmo.Mode.MOVE
 var gizmo_axis := TransformGizmo.Axis.NONE
 var transform_start := Transform3D.IDENTITY
 var drag_start_mouse := Vector2.ZERO
+var workspace := "scene"
+var render_preview := false
 var drag_offset := Vector3.ZERO
 var last_mouse := Vector2.ZERO
 
@@ -32,6 +34,8 @@ func _ready() -> void:
 	interpolation.add_item("Hold"); interpolation.add_item("Linear"); interpolation.add_item("Ease"); interpolation.select(1)
 	camera_rig.setup(camera)
 	gizmo.set_mode(active_tool)
+	_setup_workspace_tabs()
+	_update_preview_mode()
 	_on_frame_changed(0)
 
 func _process(delta: float) -> void:
@@ -198,7 +202,9 @@ func _on_prev_pressed() -> void: ProjectStore.set_frame(ProjectStore.current_fra
 func _on_next_pressed() -> void: ProjectStore.set_frame(ProjectStore.current_frame + 1)
 func _on_play_pressed() -> void:
 	playing = not playing; %PlayButton.text = "PAUSE" if playing else "PLAY"
-func _on_key_pressed() -> void: _key_transform()
+func _on_key_pressed() -> void:
+	_key_transform()
+	_flash_key_button()
 
 func _on_filter_changed(_value: float) -> void:
 	if selected == null: return
@@ -210,3 +216,31 @@ func _on_filter_changed(_value: float) -> void:
 func _on_reset_filters_pressed() -> void:
 	%Blur.value=0.0; %Glow.value=0.0; %Exposure.value=0.0; %Saturation.value=1.0
 	_on_filter_changed(0.0)
+
+func _setup_workspace_tabs() -> void:
+	%WorkspaceTabs.clear()
+	for label in ["SCENE", "ANIMATION", "DRAWING", "COMPOSITOR"]:
+		%WorkspaceTabs.add_tab(label)
+	%WorkspaceTabs.current_tab = 0
+
+func _on_workspace_tab_changed(tab: int) -> void:
+	workspace = ["scene","animation","drawing","compositor"][tab]
+	%RightPanel.visible = workspace == "scene" or workspace == "compositor"
+	%ObjectsTitle.text = "OBJECTS" if workspace != "drawing" else "DRAWINGS"
+	%Status.text = workspace.to_upper() + " workspace"
+
+func _on_preview_mode_toggled(render_mode: bool) -> void:
+	render_preview = render_mode
+	_update_preview_mode()
+
+func _update_preview_mode() -> void:
+	%PreviewMode.text = "RENDER" if render_preview else "PREVIEW"
+	for r in runtime_objects:
+		if r.material:
+			r.material.set_shader_parameter("render_quality", 1.0 if render_preview else 0.0)
+
+func _on_auto_key_toggled(enabled: bool) -> void:
+	%AutoKey.text = "● AUTO KEY" if enabled else "○ AUTO KEY"
+
+func _flash_key_button() -> void:
+	%Key.text = "● KEY"
