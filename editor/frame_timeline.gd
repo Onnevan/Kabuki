@@ -66,23 +66,75 @@ func _component(v:Variant,index:int)->float:
 	if v is Vector3: return [v.x,v.y,v.z][index]
 	return float(v) if v is float or v is int else 0.0
 
+func _curve_t(t: float, mode: String) -> float:
+	t = clampf(t, 0.0, 1.0)
+	match mode:
+		"constant", "hold": return 0.0
+		"linear": return t
+		"bezier", "ease": return t * t * (3.0 - 2.0 * t)
+		"quadratic_in": return t * t
+		"quadratic_out": return 1.0 - (1.0 - t) * (1.0 - t)
+		"quadratic_in_out": return 2.0*t*t if t < 0.5 else 1.0 - pow(-2.0*t+2.0,2.0)/2.0
+		"cubic_in_out": return 4.0*t*t*t if t < 0.5 else 1.0 - pow(-2.0*t+2.0,3.0)/2.0
+		"back":
+			var c1: float = 1.70158
+			var c3: float = c1 + 1.0
+			return c3*t*t*t-c1*t*t
+		"bounce": return _curve_bounce_out(t)
+		"elastic":
+			if is_zero_approx(t) or is_equal_approx(t,1.0): return t
+			var c4: float = (2.0*PI)/3.0
+			return pow(2.0,-10.0*t)*sin((t*10.0-0.75)*c4)+1.0
+	return t
+
+func _curve_bounce_out(t: float) -> float:
+	var n1: float=7.5625
+	var d1: float=2.75
+	if t < 1.0/d1: return n1*t*t
+	if t < 2.0/d1:
+		t-=1.5/d1
+		return n1*t*t+0.75
+	if t < 2.5/d1:
+		t-=2.25/d1
+		return n1*t*t+0.9375
+	t-=2.625/d1
+	return n1*t*t+0.984375
+
 func _draw_curve(row:int,top:float,step:float)->void:
 	var ks:=_keys(CHANNELS[row])
 	draw_rect(Rect2(LANE_X,top,size.x-LANE_X,54),Color("#0d1319"))
-	if ks.size()<1:return
+	if ks.is_empty(): return
+	var component_colors: Array[Color] = [Color("#ff6257"),Color("#63d17a"),Color("#4a9cff")]
 	for component in range(3):
-		var pts:=PackedVector2Array()
 		var values:Array[float]=[]
 		for k in ks: values.append(_component(k.value,component))
-		var lo: float = float(values.min())
-		var hi: float = float(values.max())
-		var span: float = maxf(0.001, hi - lo)
-		for i in range(ks.size()):
-			var x: float = LANE_X + float(ks[i].frame) * step
-			var yy: float = top + 44.0 - (values[i] - lo) / span * 36.0
-			pts.append(Vector2(x,yy))
-		if pts.size()>1: draw_polyline(pts,[Color("#ff6257"),Color("#63d17a"),Color("#4a9cff")][component],1.5,true)
-		for p in pts: draw_circle(p,2.5,[Color("#ff6257"),Color("#63d17a"),Color("#4a9cff")][component])
+		var lo:float=float(values.min())
+		var hi:float=float(values.max())
+		var span:float=maxf(0.001,hi-lo)
+		var pts:=PackedVector2Array()
+		if ks.size()==1:
+			var sx:float=LANE_X+float(ks[0].frame)*step
+			var sy:float=top+44.0-(values[0]-lo)/span*36.0
+			pts.append(Vector2(sx,sy))
+		else:
+			for seg in range(ks.size()-1):
+				var a=ks[seg]
+				var b=ks[seg+1]
+				var samples:int=maxi(2,int(b.frame)-int(a.frame))
+				for sample in range(samples+1):
+					if seg>0 and sample==0: continue
+					var t:float=float(sample)/float(samples)
+					var eased:float=_curve_t(t,String(a.interpolation))
+					var frame_f:float=lerpf(float(a.frame),float(b.frame),t)
+					var value_f:float=lerpf(_component(a.value,component),_component(b.value,component),eased)
+					var x:float=LANE_X+frame_f*step
+					var yy:float=top+44.0-(value_f-lo)/span*36.0
+					pts.append(Vector2(x,yy))
+		if pts.size()>1: draw_polyline(pts,component_colors[component],1.5,true)
+		for k in ks:
+			var kx:float=LANE_X+float(k.frame)*step
+			var ky:float=top+44.0-(_component(k.value,component)-lo)/span*36.0
+			draw_circle(Vector2(kx,ky),2.5,component_colors[component])
 	draw_string(get_theme_default_font(),Vector2(16,top+34),"X   Y   Z   · curve",HORIZONTAL_ALIGNMENT_LEFT,-1,11,Color("#8291a3"))
 
 func _frame_from_x(x:float)->int:
