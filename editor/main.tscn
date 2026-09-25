@@ -331,6 +331,7 @@ filters=PackedStringArray("*.png ; PNG Images")
 [connection signal="pressed" from="Bottom/TransportPanel/Transport/Next" to="." method="_on_next_pressed"]
 [connection signal="toggled" from="Bottom/TransportPanel/Transport/AutoKey" to="." method="_on_auto_key_toggled"]
 [connection signal="pressed" from="Bottom/TransportPanel/Transport/Key" to="." method="_on_key_pressed"]
+[connection signal="item_selected" from="Bottom/TransportPanel/Transport/Interpolation" to="." method="_on_interpolation_item_selected"]
 [connection signal="value_changed" from="RightPanel/InspectorPanel/Inspector/Blur" to="." method="_on_filter_changed"]
 [connection signal="value_changed" from="RightPanel/InspectorPanel/Inspector/Glow" to="." method="_on_filter_changed"]
 [connection signal="value_changed" from="RightPanel/InspectorPanel/Inspector/Exposure" to="." method="_on_filter_changed"]
