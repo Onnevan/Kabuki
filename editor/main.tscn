@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource path="res://editor/main.gd" type="Script" id="1"]
 [ext_resource path="res://editor/editor_camera_rig.gd" type="Script" id="2"]
 [ext_resource path="res://editor/transform_gizmo.gd" type="Script" id="3"]
+[ext_resource path="res://editor/world_grid.gd" type="Script" id="4"]
 
 [node name="Main" type="Control"]
 layout_mode=3
@@ -18,7 +19,7 @@ layout_mode=1
 anchors_preset=15
 anchor_right=1.0
 anchor_bottom=1.0
-color=Color(0.035,0.039,0.048,1)
+color=Color(0.025,0.028,0.034,1)
 
 [node name="TopBar" type="HBoxContainer" parent="."]
 offset_left=18.0
@@ -30,7 +31,7 @@ theme_override_constants/separation=12
 text="KABUKI"
 theme_override_font_sizes/font_size=22
 [node name="Version" type="Label" parent="TopBar"]
-text="0.2  /  COMPOSE"
+text="COMPOSE"
 [node name="Import" type="Button" parent="TopBar"]
 text="+  IMPORT"
 [node name="MoveTool" type="Button" parent="TopBar"]
@@ -41,6 +42,10 @@ text="ROTATE"
 text="SCALE"
 [node name="FrameSelected" type="Button" parent="TopBar"]
 text="FRAME"
+[node name="GridToggle" type="CheckButton" parent="TopBar"]
+unique_name_in_owner=true
+text="GRID"
+button_pressed=true
 [node name="Status" type="Label" parent="TopBar"]
 unique_name_in_owner=true
 text="Drag objects directly. Wheel: zoom. Middle drag: pan."
@@ -82,6 +87,9 @@ size=Vector2i(1116,676)
 render_target_update_mode=4
 [node name="WorldRoot" type="Node3D" parent="ViewportContainer/SceneViewport"]
 unique_name_in_owner=true
+[node name="WorldGrid" type="MeshInstance3D" parent="ViewportContainer/SceneViewport"]
+unique_name_in_owner=true
+script=ExtResource("4")
 [node name="EditorCameraRig" type="Node3D" parent="ViewportContainer/SceneViewport"]
 unique_name_in_owner=true
 script=ExtResource("2")
@@ -138,6 +146,7 @@ filters=PackedStringArray("*.png ; PNG Images")
 [connection signal="pressed" from="TopBar/RotateTool" to="." method="_on_tool_rotate_pressed"]
 [connection signal="pressed" from="TopBar/ScaleTool" to="." method="_on_tool_scale_pressed"]
 [connection signal="pressed" from="TopBar/FrameSelected" to="." method="_on_frame_selected_pressed"]
+[connection signal="toggled" from="TopBar/GridToggle" to="." method="_on_grid_toggled"]
 [connection signal="file_selected" from="FileDialog" to="." method="_on_file_selected"]
 [connection signal="item_selected" from="LeftPanel/ObjectList" to="." method="_on_object_selected"]
 [connection signal="pressed" from="LeftPanel/Actions/Duplicate" to="." method="_on_duplicate_pressed"]
