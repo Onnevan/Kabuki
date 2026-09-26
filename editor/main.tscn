@@ -161,6 +161,9 @@ text="BITMAP"
 visible=false
 unique_name_in_owner=true
 text="SCULPT"
+[node name="SculptMode" type="OptionButton" parent="DrawingBar"]
+unique_name_in_owner=true
+tooltip_text="Sculpt subtool: Push, Move, Pinch, Smooth or Inflate"
 [node name="SculptStrength" type="HSlider" parent="DrawingBar"]
 unique_name_in_owner=true
 custom_minimum_size=Vector2(90,0)
@@ -640,3 +643,6 @@ filters=PackedStringArray("*.png ; PNG Images")
 [connection signal="pressed" from="DrawingAnimBar/HoldCel" to="." method="_on_drawing_hold_cel"]
 [connection signal="pressed" from="DrawingAnimBar/MorphCel" to="." method="_on_drawing_morph_cel"]
 [connection signal="toggled" from="DrawingAnimBar/OnionSkin" to="." method="_on_onion_skin_toggled"]
+
+[connection signal="item_selected" from="DrawingBar/SculptMode" to="." method="_on_sculpt_mode_selected"]
+[connection signal="color_changed" from="DrawingBar/FillColor" to="." method="_on_fill_color_changed"]
