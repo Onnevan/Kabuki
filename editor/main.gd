@@ -49,6 +49,7 @@ func _ready() -> void:
 	_setup_shading_menu()
 	_setup_add_object_menu()
 	_setup_property_panels()
+	_on_auto_key_toggled(auto_key.button_pressed)
 	camera_rig.setup(camera)
 	gizmo.set_mode(active_tool)
 	_setup_workspace_tabs()
@@ -514,9 +515,11 @@ func _update_preview_mode() -> void:
 			r.material.set_shader_parameter("render_quality", 1.0 if render_preview else 0.0)
 
 func _on_auto_key_toggled(enabled: bool) -> void:
-	%AutoKey.text = "●" if enabled else "○"
-	%AutoKey.add_theme_color_override("font_color", Color("#ff3b3b") if enabled else Color("#dce5ef"))
-	%AutoKey.add_theme_color_override("font_hover_color", Color("#ff5a5a") if enabled else Color.WHITE)
+	%AutoKey.text = "● AUTO" if enabled else "○ AUTO"
+	%AutoKey.add_theme_color_override("font_color", Color("#ff3030") if enabled else Color("#dce5ef"))
+	%AutoKey.add_theme_color_override("font_hover_color", Color("#ff3030") if enabled else Color.WHITE)
+	%AutoKey.add_theme_color_override("font_pressed_color", Color("#ff3030") if enabled else Color.WHITE)
+	%AutoKey.add_theme_color_override("font_focus_color", Color("#ff3030") if enabled else Color("#dce5ef"))
 
 func _flash_key_button() -> void:
 	%Key.text = "● KEY"
