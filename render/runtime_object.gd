@@ -4,6 +4,7 @@ extends MeshInstance3D
 var model: MotionObject
 var texture: ImageTexture
 var material: ShaderMaterial
+var standard_material: StandardMaterial3D
 var selected := false
 var supports_effects := true
 
@@ -22,10 +23,11 @@ func setup_plane(obj: MotionObject) -> void:
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(1.6, 1.0)
 	mesh = plane
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.72, 0.76, 0.82, 1.0)
-	mat.roughness = 0.8
-	material_override = mat
+	standard_material = StandardMaterial3D.new()
+	standard_material.albedo_color = Color(0.72, 0.76, 0.82, 1.0)
+	standard_material.roughness = 0.8
+	standard_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material_override = standard_material
 	supports_effects = false
 	name = obj.name
 
@@ -33,6 +35,39 @@ func set_selected(value: bool) -> void:
 	selected = value
 	if material:
 		material.set_shader_parameter("selected", 1.0 if value else 0.0)
+
+func set_material_color(value: Color) -> void:
+	if material: material.set_shader_parameter("tint", value)
+	elif standard_material: standard_material.albedo_color = value
+
+func set_material_roughness(value: float) -> void:
+	if material: material.set_shader_parameter("roughness", value)
+	elif standard_material: standard_material.roughness = value
+
+func set_material_metallic(value: float) -> void:
+	if material: material.set_shader_parameter("metallic", value)
+	elif standard_material: standard_material.metallic = value
+
+func set_material_two_sided(enabled: bool) -> void:
+	if material:
+		material.set_shader_parameter("two_sided", enabled)
+	elif standard_material:
+		standard_material.cull_mode = BaseMaterial3D.CULL_DISABLED if enabled else BaseMaterial3D.CULL_BACK
+
+func get_material_color() -> Color:
+	if material: return material.get_shader_parameter("tint")
+	if standard_material: return standard_material.albedo_color
+	return Color.WHITE
+
+func get_material_roughness() -> float:
+	if material: return float(material.get_shader_parameter("roughness"))
+	if standard_material: return standard_material.roughness
+	return 0.8
+
+func get_material_metallic() -> float:
+	if material: return float(material.get_shader_parameter("metallic"))
+	if standard_material: return standard_material.metallic
+	return 0.0
 
 func screen_radius(camera: Camera3D, viewport_size: Vector2i) -> float:
 	if mesh == null: return 30.0
