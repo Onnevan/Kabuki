@@ -110,17 +110,22 @@ func rebuild() -> void:
 	var result := st.commit()
 	mesh = result
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = stroke_color
+	# Vertex colors carry the actual line/fill colors. A white material avoids
+	# multiplying the fill by the line color.
+	mat.albedo_color = Color.WHITE
 	mat.vertex_color_use_as_albedo = true
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.roughness = 0.8
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	material_override = mat
 
 func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
 	var n := (b - a).cross(c - a).normalized()
-	st.set_normal(n); st.add_vertex(a)
-	st.set_normal(n); st.add_vertex(b)
-	st.set_normal(n); st.add_vertex(c)
+	# SurfaceTool keeps vertex attributes as state. Set the line color explicitly
+	# for every line triangle so it can never inherit the fill color.
+	st.set_color(stroke_color); st.set_normal(n); st.add_vertex(a)
+	st.set_color(stroke_color); st.set_normal(n); st.add_vertex(b)
+	st.set_color(stroke_color); st.set_normal(n); st.add_vertex(c)
 
 func _add_fill(st: SurfaceTool) -> void:
 	var flat := PackedVector2Array()
