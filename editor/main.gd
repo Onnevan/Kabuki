@@ -471,7 +471,7 @@ func _apply_drawing_frame(frame: int) -> void:
 	for object_id in drawing_data_by_object.keys():
 		if not scene_nodes.has(object_id): continue
 		var group: Node3D = scene_nodes[object_id]
-		var data: DrawingData = drawing_data_by_object[object_id]
+		var data: RefCounted = drawing_data_by_object[object_id]
 		var pose := data.evaluate_pose(frame)
 		for child in group.get_children():
 			if not child is Stroke3D: continue
@@ -481,16 +481,17 @@ func _apply_drawing_frame(frame: int) -> void:
 			stroke.visible = bool(state.get("visible", true))
 			stroke.set_points(state.get("points", stroke.points))
 
-func _active_drawing_data() -> DrawingData:
+func _active_drawing_data() -> RefCounted:
 	if active_drawing_id.is_empty() or not drawing_data_by_object.has(active_drawing_id): return null
 	return drawing_data_by_object[active_drawing_id]
 
 func _refresh_drawing_timeline() -> void:
-	var data := _active_drawing_data()
-	timeline.set_drawing_exposures(data.exposure_frames() if data else [])
+	var data: RefCounted = _active_drawing_data()
+	var frames: Array[int] = data.exposure_frames() if data != null else []
+	timeline.set_drawing_exposures(frames)
 
 func _on_drawing_new_cel() -> void:
-	var data := _active_drawing_data()
+	var data: RefCounted = _active_drawing_data()
 	if data == null: return
 	var empty_pose: Dictionary = {}
 	for stroke_id in data.stroke_order:
@@ -501,7 +502,7 @@ func _on_drawing_new_cel() -> void:
 	status.text = "Empty drawing cel · frame %d" % ProjectStore.current_frame
 
 func _on_drawing_duplicate_cel() -> void:
-	var data := _active_drawing_data()
+	var data: RefCounted = _active_drawing_data()
 	if data == null: return
 	if data.duplicate_previous_exposure(ProjectStore.current_frame):
 		_apply_drawing_frame(ProjectStore.current_frame)
@@ -509,7 +510,7 @@ func _on_drawing_duplicate_cel() -> void:
 		status.text = "Drawing cel duplicated · frame %d" % ProjectStore.current_frame
 
 func _on_drawing_delete_cel() -> void:
-	var data := _active_drawing_data()
+	var data: RefCounted = _active_drawing_data()
 	if data == null: return
 	data.remove_exposure(ProjectStore.current_frame)
 	_apply_drawing_frame(ProjectStore.current_frame)
@@ -517,7 +518,7 @@ func _on_drawing_delete_cel() -> void:
 	status.text = "Drawing cel deleted · frame %d" % ProjectStore.current_frame
 
 func _on_drawing_hold_cel() -> void:
-	var data := _active_drawing_data()
+	var data: RefCounted = _active_drawing_data()
 	if data == null: return
 	if not data.has_exposure(ProjectStore.current_frame):
 		data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), "hold")
@@ -526,7 +527,7 @@ func _on_drawing_hold_cel() -> void:
 	status.text = "Cel interpolation · HOLD"
 
 func _on_drawing_morph_cel() -> void:
-	var data := _active_drawing_data()
+	var data: RefCounted = _active_drawing_data()
 	if data == null: return
 	if not data.has_exposure(ProjectStore.current_frame):
 		data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), "linear")
@@ -539,7 +540,7 @@ func _on_onion_skin_toggled(enabled: bool) -> void:
 
 func key_active_drawing_pose(interpolation := "hold") -> void:
 	if active_drawing_id.is_empty() or not drawing_data_by_object.has(active_drawing_id): return
-	var data: DrawingData = drawing_data_by_object[active_drawing_id]
+	var data: RefCounted = drawing_data_by_object[active_drawing_id]
 	data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), interpolation)
 	status.text = "Drawing pose keyed at frame %d" % ProjectStore.current_frame
 
@@ -657,7 +658,7 @@ func _sculpt_drawing(pos: Vector2) -> void:
 		if child is Stroke3D:
 			var stroke := child as Stroke3D
 			if stroke.sculpt(center, camera_forward, radius_world, strength):
-				var data: DrawingData = drawing_data_by_object.get(active_drawing_id)
+				var data: RefCounted = drawing_data_by_object.get(active_drawing_id)
 				if data and not stroke.stroke_id.is_empty():
 					data.update_stroke_points(stroke.stroke_id, stroke.points)
 					if auto_key.button_pressed:
@@ -722,7 +723,7 @@ func _extend_3d_stroke(pos: Vector2) -> void:
 func _finish_3d_stroke() -> void:
 	if active_stroke_3d == null: return
 	active_stroke_3d.name = "Stroke %02d" % active_drawing_group.get_child_count()
-	var data: DrawingData = drawing_data_by_object.get(active_drawing_id)
+	var data: RefCounted = drawing_data_by_object.get(active_drawing_id)
 	if data:
 		active_stroke_3d.stroke_id = data.add_stroke(active_stroke_3d.points, active_stroke_3d.style_dict())
 		if data.exposures.is_empty():
