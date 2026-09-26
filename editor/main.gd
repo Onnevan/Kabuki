@@ -571,7 +571,7 @@ func _sculpt_drawing(pos: Vector2) -> void:
 	var center := _screen_to_view_plane(pos, active_drawing_group.global_position)
 	var camera_forward := -camera.global_transform.basis.z.normalized()
 	var radius_world := maxf(0.02, %BrushSize.value * 0.006)
-	var strength := %SculptStrength.value
+	var strength: float = float(%SculptStrength.value)
 	for child in active_drawing_group.get_children():
 		if child is Stroke3D:
 			(child as Stroke3D).sculpt(center, camera_forward, radius_world, strength)
