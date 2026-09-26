@@ -34,6 +34,8 @@ var drag_offset := Vector3.ZERO
 var last_mouse := Vector2.ZERO
 var scene_nodes: Dictionary = {}
 var wireframe_overlays: Array[MeshInstance3D] = []
+var selected_scene_node: Node3D
+var selected_object_id := ""
 
 func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
@@ -46,6 +48,7 @@ func _ready() -> void:
 	interpolation.select(1)
 	_setup_shading_menu()
 	_setup_add_object_menu()
+	_setup_property_panels()
 	camera_rig.setup(camera)
 	gizmo.set_mode(active_tool)
 	_setup_workspace_tabs()
@@ -134,6 +137,13 @@ func _setup_add_object_menu() -> void:
 		popup.add_item(label)
 	popup.id_pressed.connect(_on_add_object_type)
 
+func _setup_property_panels() -> void:
+	%LightType.clear()
+	for label in ["Directional", "Point", "Spot"]:
+		%LightType.add_item(label)
+	%ObjectProperties.visible = false
+	%LightProperties.visible = false
+
 func _register_scene_object(obj: MotionObject, node: Node3D) -> void:
 	ProjectStore.add_object(obj)
 	scene_nodes[obj.id] = node
@@ -184,6 +194,7 @@ func _create_light() -> void:
 	light.light_energy = 1.0
 	world_root.add_child(light)
 	_register_scene_object(obj, light)
+	_select_scene_node(obj.id, light)
 	status.text = "Directional light created"
 
 func _create_drawing() -> void:
@@ -213,21 +224,54 @@ func _on_file_selected(path: String) -> void:
 
 func _select(obj: RuntimeObject) -> void:
 	selected = obj
+	selected_scene_node = obj
+	selected_object_id = obj.model.id
 	for r in runtime_objects: r.set_selected(r == selected)
 	for i in object_list.item_count:
 		if object_list.get_item_metadata(i) == obj.model.id:
 			object_list.select(i); break
 	%SelectionLabel.text = obj.model.name
-	%PosValue.text = "X %.2f   Y %.2f   Z %.2f" % [obj.position.x,obj.position.y,obj.position.z]
-	%RotValue.text = "X %.1f   Y %.1f   Z %.1f" % [rad_to_deg(obj.rotation.x),rad_to_deg(obj.rotation.y),rad_to_deg(obj.rotation.z)]
-	%ScaleValue.text = "X %.2f   Y %.2f   Z %.2f" % [obj.scale.x,obj.scale.y,obj.scale.z]
+	_show_transform(obj)
+	%ObjectProperties.visible = true
+	%LightProperties.visible = false
+	%MaterialColor.color = obj.get_material_color()
+	%MaterialRoughness.value = obj.get_material_roughness()
+	%MaterialMetallic.value = obj.get_material_metallic()
 	gizmo.attach(obj)
 	timeline.set_object(obj.model.id)
 
+func _select_scene_node(id: String, node: Node3D) -> void:
+	selected = null
+	selected_scene_node = node
+	selected_object_id = id
+	for r in runtime_objects: r.set_selected(false)
+	for i in object_list.item_count:
+		if object_list.get_item_metadata(i) == id:
+			object_list.select(i); break
+	%SelectionLabel.text = node.name
+	_show_transform(node)
+	gizmo.attach(null)
+	timeline.set_object(id)
+	%ObjectProperties.visible = node is MeshInstance3D
+	%LightProperties.visible = node is Light3D
+	if node is Light3D:
+		var light := node as Light3D
+		%LightEnergy.value = light.light_energy
+		%LightColor.color = light.light_color
+		%LightShadow.button_pressed = light.shadow_enabled
+		%LightType.select(0 if light is DirectionalLight3D else (1 if light is OmniLight3D else 2))
+
+func _show_transform(node: Node3D) -> void:
+	%PosValue.text = "X %.2f   Y %.2f   Z %.2f" % [node.position.x,node.position.y,node.position.z]
+	%RotValue.text = "X %.1f   Y %.1f   Z %.1f" % [rad_to_deg(node.rotation.x),rad_to_deg(node.rotation.y),rad_to_deg(node.rotation.z)]
+	%ScaleValue.text = "X %.2f   Y %.2f   Z %.2f" % [node.scale.x,node.scale.y,node.scale.z]
+
 func _on_object_selected(index: int) -> void:
-	var id = object_list.get_item_metadata(index)
+	var id: String = object_list.get_item_metadata(index)
 	for r in runtime_objects:
 		if r.model.id == id: _select(r); return
+	if scene_nodes.has(id):
+		_select_scene_node(id, scene_nodes[id])
 
 func _on_delete_pressed() -> void:
 	if selected == null: return
@@ -379,6 +423,46 @@ func _on_play_pressed() -> void:
 func _on_key_pressed() -> void:
 	_key_transform()
 	_flash_key_button()
+
+func _on_material_color_changed(value: Color) -> void:
+	if selected: selected.set_material_color(value)
+
+func _on_material_roughness_changed(value: float) -> void:
+	if selected: selected.set_material_roughness(value)
+
+func _on_material_metallic_changed(value: float) -> void:
+	if selected: selected.set_material_metallic(value)
+
+func _on_material_two_sided_toggled(enabled: bool) -> void:
+	if selected: selected.set_material_two_sided(enabled)
+
+func _on_light_energy_changed(value: float) -> void:
+	if selected_scene_node is Light3D: (selected_scene_node as Light3D).light_energy = value
+
+func _on_light_color_changed(value: Color) -> void:
+	if selected_scene_node is Light3D: (selected_scene_node as Light3D).light_color = value
+
+func _on_light_shadow_toggled(enabled: bool) -> void:
+	if selected_scene_node is Light3D: (selected_scene_node as Light3D).shadow_enabled = enabled
+
+func _on_light_type_selected(index: int) -> void:
+	if not (selected_scene_node is Light3D): return
+	var old_light := selected_scene_node as Light3D
+	var replacement: Light3D
+	if index == 0: replacement = DirectionalLight3D.new()
+	elif index == 1: replacement = OmniLight3D.new()
+	else: replacement = SpotLight3D.new()
+	replacement.name = old_light.name
+	replacement.transform = old_light.transform
+	replacement.light_color = old_light.light_color
+	replacement.light_energy = old_light.light_energy
+	replacement.shadow_enabled = old_light.shadow_enabled
+	world_root.add_child(replacement)
+	scene_nodes[selected_object_id] = replacement
+	old_light.queue_free()
+	selected_scene_node = replacement
+	_show_transform(replacement)
+	status.text = "Light type: " + ["Directional", "Point", "Spot"][index]
 
 func _on_filter_changed(_value: float) -> void:
 	effects_engine.set_glow(%Glow.value, %GlowThreshold.value, %GlowRadius.value)
