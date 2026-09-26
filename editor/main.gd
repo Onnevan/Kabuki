@@ -264,30 +264,18 @@ func _select_scene_node(id: String, node: Node3D) -> void:
 		%LightType.select(0 if light is DirectionalLight3D else (1 if light is OmniLight3D else 2))
 
 func _show_transform(node: Node3D) -> void:
-	%PositionEdit.text = "%.3f, %.3f, %.3f" % [node.position.x,node.position.y,node.position.z]
-	%RotationEdit.text = "%.2f, %.2f, %.2f" % [rad_to_deg(node.rotation.x),rad_to_deg(node.rotation.y),rad_to_deg(node.rotation.z)]
-	%ScaleEdit.text = "%.3f, %.3f, %.3f" % [node.scale.x,node.scale.y,node.scale.z]
+	%PosX.set_value_no_signal(node.position.x); %PosY.set_value_no_signal(node.position.y); %PosZ.set_value_no_signal(node.position.z)
+	%RotX.set_value_no_signal(node.rotation_degrees.x); %RotY.set_value_no_signal(node.rotation_degrees.y); %RotZ.set_value_no_signal(node.rotation_degrees.z)
+	%SclX.set_value_no_signal(node.scale.x); %SclY.set_value_no_signal(node.scale.y); %SclZ.set_value_no_signal(node.scale.z)
 
-func _parse_vec3(text: String, fallback: Vector3) -> Vector3:
-	var parts := text.replace(" ", "").split(",")
-	if parts.size() != 3: return fallback
-	return Vector3(float(parts[0]), float(parts[1]), float(parts[2]))
-
-func _on_position_submitted(text: String) -> void:
+func _process_transform_fields() -> void:
 	if selected_scene_node == null: return
-	selected_scene_node.position = _parse_vec3(text, selected_scene_node.position)
-	_show_transform(selected_scene_node)
-
-func _on_rotation_submitted(text: String) -> void:
-	if selected_scene_node == null: return
-	var degrees := _parse_vec3(text, selected_scene_node.rotation_degrees)
-	selected_scene_node.rotation_degrees = degrees
-	_show_transform(selected_scene_node)
-
-func _on_scale_submitted(text: String) -> void:
-	if selected_scene_node == null: return
-	selected_scene_node.scale = _parse_vec3(text, selected_scene_node.scale)
-	_show_transform(selected_scene_node)
+	var pos := Vector3(%PosX.value, %PosY.value, %PosZ.value)
+	var rot := Vector3(%RotX.value, %RotY.value, %RotZ.value)
+	var scl := Vector3(%SclX.value, %SclY.value, %SclZ.value)
+	if not selected_scene_node.position.is_equal_approx(pos): selected_scene_node.position = pos
+	if not selected_scene_node.rotation_degrees.is_equal_approx(rot): selected_scene_node.rotation_degrees = rot
+	if not selected_scene_node.scale.is_equal_approx(scl): selected_scene_node.scale = scl
 
 func _on_object_selected(index: int) -> void:
 	var id: String = object_list.get_item_metadata(index)
