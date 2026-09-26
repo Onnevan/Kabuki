@@ -2,6 +2,7 @@ extends Control
 
 const KabukiThemeBuilder = preload("res://editor/kabuki_theme.gd")
 const Stroke3DClass = preload("res://paint/stroke3d.gd")
+const DrawingDataClass = preload("res://paint/drawing_data.gd")
 
 @onready var viewport: SubViewport = %SceneViewport
 @onready var world_root: Node3D = %WorldRoot
@@ -43,6 +44,7 @@ var active_stroke_3d: Stroke3D
 var active_drawing_group: Node3D
 var active_drawing_id := ""
 var drawing_session_index := 0
+var drawing_data_by_object: Dictionary = {}
 
 func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
@@ -462,6 +464,27 @@ func _on_frame_changed(frame: int) -> void:
 	frame_slider.set_value_no_signal(frame)
 	timeline.set_frame(frame)
 	for r in runtime_objects: r.apply_frame(frame)
+	_apply_drawing_frame(frame)
+
+func _apply_drawing_frame(frame: int) -> void:
+	for object_id in drawing_data_by_object.keys():
+		if not scene_nodes.has(object_id): continue
+		var group: Node3D = scene_nodes[object_id]
+		var data: DrawingData = drawing_data_by_object[object_id]
+		var pose := data.evaluate_pose(frame)
+		for child in group.get_children():
+			if not child is Stroke3D: continue
+			var stroke := child as Stroke3D
+			if stroke.stroke_id.is_empty() or not pose.has(stroke.stroke_id): continue
+			var state: Dictionary = pose[stroke.stroke_id]
+			stroke.visible = bool(state.get("visible", true))
+			stroke.set_points(state.get("points", stroke.points))
+
+func key_active_drawing_pose(interpolation := "hold") -> void:
+	if active_drawing_id.is_empty() or not drawing_data_by_object.has(active_drawing_id): return
+	var data: DrawingData = drawing_data_by_object[active_drawing_id]
+	data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), interpolation)
+	status.text = "Drawing pose keyed at frame %d" % ProjectStore.current_frame
 
 func _on_frame_slider_value_changed(value: float) -> void: ProjectStore.set_frame(int(value))
 func _on_prev_pressed() -> void: ProjectStore.set_frame(ProjectStore.current_frame - 1)
@@ -574,7 +597,13 @@ func _sculpt_drawing(pos: Vector2) -> void:
 	var strength: float = float(%SculptStrength.value)
 	for child in active_drawing_group.get_children():
 		if child is Stroke3D:
-			(child as Stroke3D).sculpt(center, camera_forward, radius_world, strength)
+			var stroke := child as Stroke3D
+			if stroke.sculpt(center, camera_forward, radius_world, strength):
+				var data: DrawingData = drawing_data_by_object.get(active_drawing_id)
+				if data and not stroke.stroke_id.is_empty():
+					data.update_stroke_points(stroke.stroke_id, stroke.points)
+					if auto_key.button_pressed:
+						data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), "linear")
 
 func _on_brush_size_changed(value: float) -> void:
 	%DrawingCanvas.brush_size = value
@@ -605,6 +634,8 @@ func _ensure_drawing_group() -> void:
 	world_root.add_child(active_drawing_group)
 	_register_scene_object(obj, active_drawing_group)
 	active_drawing_id = obj.id
+	drawing_data_by_object[obj.id] = DrawingDataClass.new(obj.id)
+	obj.components["paint"] = {"drawing_data_id": drawing_data_by_object[obj.id].id, "animation_mode": "exposure_and_morph"}
 
 func _on_new_drawing_pressed() -> void:
 	active_drawing_group = null
@@ -632,6 +663,13 @@ func _extend_3d_stroke(pos: Vector2) -> void:
 func _finish_3d_stroke() -> void:
 	if active_stroke_3d == null: return
 	active_stroke_3d.name = "Stroke %02d" % active_drawing_group.get_child_count()
+	var data: DrawingData = drawing_data_by_object.get(active_drawing_id)
+	if data:
+		active_stroke_3d.stroke_id = data.add_stroke(active_stroke_3d.points, active_stroke_3d.style_dict())
+		if data.exposures.is_empty():
+			data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), "hold")
+		elif auto_key.button_pressed:
+			data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), "hold")
 	active_stroke_3d = null
 	_select_scene_node(active_drawing_id, active_drawing_group)
 
