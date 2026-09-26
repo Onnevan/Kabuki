@@ -88,3 +88,35 @@ func _interpolate_pose(a: Dictionary, b: Dictionary, t: float) -> Dictionary:
 		for i in range(pa.size()): points[i] = pa[i].lerp(pb[i], t)
 		result[stroke_id] = {"points": points, "visible": bool(sa.get("visible", true))}
 	return result
+
+func exposure_frames() -> Array[int]:
+	var result: Array[int] = []
+	for exposure in exposures: result.append(int(exposure["frame"]))
+	return result
+
+func has_exposure(frame: int) -> bool:
+	for exposure in exposures:
+		if int(exposure["frame"]) == frame: return true
+	return false
+
+func remove_exposure(frame: int) -> void:
+	for i in range(exposures.size() - 1, -1, -1):
+		if int(exposures[i]["frame"]) == frame:
+			exposures.remove_at(i)
+			return
+
+func duplicate_previous_exposure(frame: int) -> bool:
+	if exposures.is_empty(): return false
+	var source: Dictionary = {}
+	for exposure in exposures:
+		if int(exposure["frame"]) <= frame: source = exposure
+		else: break
+	if source.is_empty(): source = exposures[0]
+	set_exposure(frame, (source["pose"] as Dictionary).duplicate(true), String(source.get("interpolation","hold")))
+	return true
+
+func set_exposure_interpolation(frame: int, interpolation: String) -> void:
+	for exposure in exposures:
+		if int(exposure["frame"]) == frame:
+			exposure["interpolation"] = interpolation
+			return
