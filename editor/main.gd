@@ -39,6 +39,9 @@ var selected_scene_node: Node3D
 var selected_object_id := ""
 var drawing_3d_active := false
 var active_stroke_3d: Stroke3D
+var active_drawing_group: Node3D
+var active_drawing_id := ""
+var drawing_session_index := 0
 
 func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
@@ -552,23 +555,46 @@ func _on_bitmap_finished(image: Image) -> void:
 	_select(runtime)
 	status.text = "Bitmap drawing converted to alpha Delaunay mesh"
 
+func _ensure_drawing_group() -> void:
+	if active_drawing_group != null and is_instance_valid(active_drawing_group): return
+	drawing_session_index += 1
+	var obj := MotionObject.new("Drawing %02d" % drawing_session_index, "drawing_group", "drawing")
+	active_drawing_group = Node3D.new()
+	world_root.add_child(active_drawing_group)
+	_register_scene_object(obj, active_drawing_group)
+	active_drawing_id = obj.id
+
+func _on_new_drawing_pressed() -> void:
+	active_drawing_group = null
+	active_drawing_id = ""
+	_ensure_drawing_group()
+	_select_scene_node(active_drawing_id, active_drawing_group)
+	status.text = "New drawing session"
+
 func _begin_3d_stroke(pos: Vector2) -> void:
+	_ensure_drawing_group()
 	active_stroke_3d = Stroke3DClass.new()
 	active_stroke_3d.stroke_color = %BrushColor.color
 	active_stroke_3d.radius = %BrushSize.value * 0.0012
-	world_root.add_child(active_stroke_3d)
-	active_stroke_3d.add_point(_screen_to_view_plane(pos, Vector3.ZERO))
+	active_stroke_3d.fill_enabled = %Fill.button_pressed
+	active_stroke_3d.fill_color = %FillColor.color
+	active_drawing_group.add_child(active_stroke_3d)
+	var world_point := _screen_to_view_plane(pos, active_drawing_group.global_position)
+	active_stroke_3d.add_point(active_drawing_group.to_local(world_point))
 
 func _extend_3d_stroke(pos: Vector2) -> void:
-	if active_stroke_3d:
-		active_stroke_3d.add_point(_screen_to_view_plane(pos, Vector3.ZERO))
+	if active_stroke_3d and active_drawing_group:
+		var world_point := _screen_to_view_plane(pos, active_drawing_group.global_position)
+		active_stroke_3d.add_point(active_drawing_group.to_local(world_point))
 
 func _finish_3d_stroke() -> void:
 	if active_stroke_3d == null: return
-	var obj := MotionObject.new("3D Stroke", "stroke3d", "drawing")
-	_register_scene_object(obj, active_stroke_3d)
-	_select_scene_node(obj.id, active_stroke_3d)
+	active_stroke_3d.name = "Stroke %02d" % active_drawing_group.get_child_count()
 	active_stroke_3d = null
+	_select_scene_node(active_drawing_id, active_drawing_group)
+
+func _on_fill_toggled(enabled: bool) -> void:
+	status.text = "Stroke fill enabled" if enabled else "Stroke fill disabled"
 
 func _on_preview_mode_toggled(render_mode: bool) -> void:
 	render_preview = render_mode
