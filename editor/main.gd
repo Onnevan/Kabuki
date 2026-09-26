@@ -62,6 +62,7 @@ func _ready() -> void:
 	camera_rig.setup(camera)
 	gizmo.set_mode(active_tool)
 	_setup_workspace_tabs()
+	_setup_drawing_menus()
 	_update_preview_mode()
 	_on_frame_changed(0)
 	_responsive_layout()
@@ -476,7 +477,10 @@ func _apply_drawing_frame(frame: int) -> void:
 		for child in group.get_children():
 			if not child is Stroke3D: continue
 			var stroke := child as Stroke3D
-			if stroke.stroke_id.is_empty() or not pose.has(stroke.stroke_id): continue
+			if stroke.stroke_id.is_empty(): continue
+			if not pose.has(stroke.stroke_id):
+				stroke.visible = false
+				continue
 			var state: Dictionary = pose[stroke.stroke_id]
 			stroke.visible = bool(state.get("visible", true))
 			stroke.set_points(state.get("points", stroke.points))
@@ -615,6 +619,35 @@ func _setup_workspace_tabs() -> void:
 		%WorkspaceTabs.add_tab(label)
 	%WorkspaceTabs.current_tab = 0
 
+func _setup_drawing_menus() -> void:
+	var tools_popup: PopupMenu = %ToolMenu.get_popup()
+	tools_popup.clear()
+	for label in ["3D Stroke", "Sculpt", "Bitmap Paint", "New Drawing", "Clear Bitmap", "Finish Bitmap"]:
+		tools_popup.add_item(label)
+	tools_popup.id_pressed.connect(_on_drawing_tool_menu)
+	var cel_popup: PopupMenu = %CelMenu.get_popup()
+	cel_popup.clear()
+	for label in ["New Empty Cel", "Duplicate Previous Cel", "Delete Cel", "Hold", "Morph"]:
+		cel_popup.add_item(label)
+	cel_popup.id_pressed.connect(_on_drawing_cel_menu)
+
+func _on_drawing_tool_menu(id: int) -> void:
+	match id:
+		0: _on_draw_stroke3d_pressed()
+		1: _on_draw_sculpt_pressed()
+		2: _on_draw_bitmap_pressed()
+		3: _on_new_drawing_pressed()
+		4: %DrawingCanvas.clear_canvas()
+		5: %DrawingCanvas.finish_bitmap()
+
+func _on_drawing_cel_menu(id: int) -> void:
+	match id:
+		0: _on_drawing_new_cel()
+		1: _on_drawing_duplicate_cel()
+		2: _on_drawing_delete_cel()
+		3: _on_drawing_hold_cel()
+		4: _on_drawing_morph_cel()
+
 func _on_workspace_tab_changed(tab: int) -> void:
 	workspace = ["scene","animation","drawing","compositor"][tab]
 	%RightPanel.visible = workspace == "scene" or workspace == "compositor"
@@ -654,19 +687,22 @@ func _on_draw_sculpt_pressed() -> void:
 
 func _sculpt_drawing(pos: Vector2) -> void:
 	if active_drawing_group == null or not is_instance_valid(active_drawing_group): return
-	var center := _screen_to_view_plane(pos, active_drawing_group.global_position)
-	var camera_forward := -camera.global_transform.basis.z.normalized()
-	var radius_world := maxf(0.02, %BrushSize.value * 0.006)
+	var radius_px := maxf(12.0, %BrushSize.value * 2.5)
 	var strength: float = float(%SculptStrength.value)
+	var changed := false
+	var data: RefCounted = drawing_data_by_object.get(active_drawing_id)
 	for child in active_drawing_group.get_children():
 		if child is Stroke3D:
 			var stroke := child as Stroke3D
-			if stroke.sculpt(center, camera_forward, radius_world, strength):
-				var data: RefCounted = drawing_data_by_object.get(active_drawing_id)
+			if stroke.sculpt_screen(pos, camera, radius_px, strength):
+				changed = true
 				if data and not stroke.stroke_id.is_empty():
 					data.update_stroke_points(stroke.stroke_id, stroke.points)
-					if auto_key.button_pressed:
-						data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), "linear")
+	if changed and data:
+		# Editing a drawing at a frame must create/update that frame's pose.
+		# This prevents the evaluator from snapping the sculpt back to an older cel.
+		data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), "linear" if auto_key.button_pressed else "hold")
+		_refresh_drawing_timeline()
 
 func _on_brush_size_changed(value: float) -> void:
 	%DrawingCanvas.brush_size = value
@@ -730,10 +766,9 @@ func _finish_3d_stroke() -> void:
 	var data: RefCounted = drawing_data_by_object.get(active_drawing_id)
 	if data:
 		active_stroke_3d.stroke_id = data.add_stroke(active_stroke_3d.points, active_stroke_3d.style_dict())
-		if data.exposures.is_empty():
-			data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), "hold")
-		elif auto_key.button_pressed:
-			data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), "hold")
+		# Drawing changes are frame data: always update the current cel.
+		# AutoKey controls interpolation/editing behavior, not whether the stroke exists in time.
+		data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), "hold")
 	active_stroke_3d = null
 	_select_scene_node(active_drawing_id, active_drawing_group)
 	_refresh_drawing_timeline()
