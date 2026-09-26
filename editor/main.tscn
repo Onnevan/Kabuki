@@ -145,13 +145,20 @@ offset_left=306.0
 offset_top=76.0
 offset_right=1034.0
 offset_bottom=116.0
+[node name="ToolMenu" type="MenuButton" parent="DrawingBar"]
+unique_name_in_owner=true
+text="TOOLS ▾"
+
 [node name="Stroke3D" type="Button" parent="DrawingBar"]
+visible=false
 unique_name_in_owner=true
 text="3D STROKE"
 [node name="Bitmap" type="Button" parent="DrawingBar"]
+visible=false
 unique_name_in_owner=true
 text="BITMAP"
 [node name="Sculpt" type="Button" parent="DrawingBar"]
+visible=false
 unique_name_in_owner=true
 text="SCULPT"
 [node name="SculptStrength" type="HSlider" parent="DrawingBar"]
@@ -178,10 +185,13 @@ text="FILL"
 unique_name_in_owner=true
 color=Color(0.8,0.25,0.18,0.55)
 [node name="NewDrawing" type="Button" parent="DrawingBar"]
+visible=false
 text="NEW DRAWING"
 [node name="ClearDrawing" type="Button" parent="DrawingBar"]
+visible=false
 text="CLEAR"
 [node name="FinishBitmap" type="Button" parent="DrawingBar"]
+visible=false
 text="FINISH BITMAP"
 
 [node name="DrawingAnimBar" type="HBoxContainer" parent="."]
@@ -192,16 +202,24 @@ offset_top=120.0
 offset_right=1034.0
 offset_bottom=156.0
 [node name="AnimLabel" type="Label" parent="DrawingAnimBar"]
-text="CELS"
+text="ANIMATION"
+[node name="CelMenu" type="MenuButton" parent="DrawingAnimBar"]
+unique_name_in_owner=true
+text="CELS ▾"
 [node name="NewCel" type="Button" parent="DrawingAnimBar"]
+visible=false
 text="＋ EMPTY"
 [node name="DuplicateCel" type="Button" parent="DrawingAnimBar"]
+visible=false
 text="DUPLICATE"
 [node name="DeleteCel" type="Button" parent="DrawingAnimBar"]
+visible=false
 text="DELETE"
 [node name="HoldCel" type="Button" parent="DrawingAnimBar"]
+visible=false
 text="HOLD"
 [node name="MorphCel" type="Button" parent="DrawingAnimBar"]
+visible=false
 text="MORPH"
 [node name="OnionSkin" type="CheckButton" parent="DrawingAnimBar"]
 unique_name_in_owner=true
