@@ -9,6 +9,8 @@ var fill_enabled := false
 var fill_color := Color(0.8, 0.25, 0.18, 0.55)
 var closed := false
 var stroke_id := ""
+var _sculpt_last_mouse := Vector2.ZERO
+var _sculpt_has_last := false
 
 func set_points(value: PackedVector3Array) -> void:
 	points = value.duplicate()
@@ -23,23 +25,59 @@ func add_point(p: Vector3) -> void:
 	points.append(p)
 	rebuild()
 
-func sculpt_screen(brush_pos: Vector2, camera: Camera3D, brush_radius_px: float, strength: float) -> bool:
-	# Screen-space hit testing makes sculpt work even after points have been pushed
-	# away from the original drawing plane.
-	var local_direction := (global_transform.basis.inverse() * -camera.global_transform.basis.z).normalized()
+func begin_sculpt(mouse_pos: Vector2) -> void:
+	_sculpt_last_mouse = mouse_pos
+	_sculpt_has_last = true
+
+func end_sculpt() -> void:
+	_sculpt_has_last = false
+
+func sculpt_screen(brush_pos: Vector2, camera: Camera3D, brush_radius_px: float, strength: float, mode: String) -> bool:
+	var local_view := (global_transform.basis.inverse() * -camera.global_transform.basis.z).normalized()
+	var local_right := (global_transform.basis.inverse() * camera.global_transform.basis.x).normalized()
+	var local_up := (global_transform.basis.inverse() * camera.global_transform.basis.y).normalized()
+	var drag := brush_pos - _sculpt_last_mouse if _sculpt_has_last else Vector2.ZERO
+	_sculpt_last_mouse = brush_pos
+	_sculpt_has_last = true
 	var changed := false
+	var original := points.duplicate()
 	for i in range(points.size()):
-		var world_point := to_global(points[i])
+		var world_point := to_global(original[i])
 		if camera.is_position_behind(world_point): continue
 		var screen_point := camera.unproject_position(world_point)
 		var distance_px := screen_point.distance_to(brush_pos)
 		if distance_px > brush_radius_px: continue
 		var falloff := 1.0 - distance_px / maxf(brush_radius_px, 1.0)
 		falloff = falloff * falloff * (3.0 - 2.0 * falloff)
-		points[i] += local_direction * strength * falloff
+		match mode:
+			"move":
+				points[i] += (local_right * drag.x - local_up * drag.y) * strength * 0.035 * falloff
+			"pinch":
+				var target_world := camera.project_ray_origin(brush_pos) + camera.project_ray_normal(brush_pos) * camera.project_ray_origin(brush_pos).distance_to(world_point)
+				var target_local := to_local(target_world)
+				points[i] = points[i].lerp(target_local, clampf(absf(strength) * 3.0 * falloff, 0.0, 0.75))
+			"smooth":
+				if i > 0 and i < original.size() - 1:
+					var avg := (original[i - 1] + original[i + 1]) * 0.5
+					points[i] = points[i].lerp(avg, clampf(absf(strength) * 5.0 * falloff, 0.0, 0.85))
+			"inflate":
+				var tangent := Vector3.RIGHT
+				if i > 0 and i < original.size() - 1: tangent = (original[i + 1] - original[i - 1]).normalized()
+				elif i + 1 < original.size(): tangent = (original[i + 1] - original[i]).normalized()
+				var outward := tangent.cross(local_view).normalized()
+				var sign_dir := 1.0 if screen_point.x >= brush_pos.x else -1.0
+				points[i] += outward * sign_dir * strength * falloff
+			_:
+				points[i] += local_view * strength * falloff
 		changed = true
 	if changed: rebuild()
 	return changed
+
+func set_style(line_color: Color, use_fill: bool, new_fill_color: Color) -> void:
+	stroke_color = line_color
+	fill_enabled = use_fill
+	fill_color = new_fill_color
+	rebuild()
 
 func rebuild() -> void:
 	if points.size() < 2:
@@ -73,6 +111,7 @@ func rebuild() -> void:
 	mesh = result
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = stroke_color
+	mat.vertex_color_use_as_albedo = true
 	mat.roughness = 0.8
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	material_override = mat
