@@ -132,3 +132,22 @@ func replacement_pose(stroke_id: String) -> Dictionary:
 	# Traditional drawing semantics: a newly drawn cel replaces the previous cel.
 	var ids: Array[String] = [stroke_id]
 	return snapshot_pose(ids, true)
+
+func current_cel_pose(frame: int) -> Dictionary:
+	for exposure in exposures:
+		if int(exposure["frame"]) == frame:
+			return (exposure["pose"] as Dictionary).duplicate(true)
+	return {}
+
+func add_stroke_to_cel(frame: int, stroke_id: String) -> void:
+	var pose := current_cel_pose(frame)
+	if pose.is_empty():
+		# New frame = new replacement drawing. Explicitly hide every older stroke.
+		pose = snapshot_pose([], true)
+	if strokes.has(stroke_id):
+		var stroke: Dictionary = strokes[stroke_id]
+		pose[stroke_id] = {
+			"points": (stroke["points"] as PackedVector3Array).duplicate(),
+			"visible": true
+		}
+	set_exposure(frame, pose, "hold")
