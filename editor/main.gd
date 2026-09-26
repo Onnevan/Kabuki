@@ -1,6 +1,7 @@
 extends Control
 
 const KabukiThemeBuilder = preload("res://editor/kabuki_theme.gd")
+const Stroke3DClass = preload("res://paint/stroke3d.gd")
 
 @onready var viewport: SubViewport = %SceneViewport
 @onready var world_root: Node3D = %WorldRoot
@@ -36,6 +37,8 @@ var scene_nodes: Dictionary = {}
 var wireframe_overlays: Array[MeshInstance3D] = []
 var selected_scene_node: Node3D
 var selected_object_id := ""
+var drawing_3d_active := false
+var active_stroke_3d: Stroke3D
 
 func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
@@ -306,6 +309,13 @@ func _key_position() -> void:
 	if selected: ProjectStore.set_key(selected.model.id,"transform.position",ProjectStore.current_frame,selected.position,_interp_name())
 
 func _on_canvas_gui_input(event: InputEvent) -> void:
+	if workspace == "drawing" and drawing_3d_active:
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed: _begin_3d_stroke(event.position)
+			else: _finish_3d_stroke()
+		elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			_extend_3d_stroke(event.position)
+		return
 	if event is InputEventMouseButton:
 		last_mouse = event.position
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed: camera_rig.zoom(-1.0)
@@ -497,12 +507,68 @@ func _setup_workspace_tabs() -> void:
 func _on_workspace_tab_changed(tab: int) -> void:
 	workspace = ["scene","animation","drawing","compositor"][tab]
 	%RightPanel.visible = workspace == "scene" or workspace == "compositor"
+	%DrawingBar.visible = workspace == "drawing"
+	%DrawingCanvas.visible = workspace == "drawing" and %DrawingCanvas.bitmap_mode
+	%ViewportTop.visible = workspace != "drawing"
+	%ToolRail.visible = workspace != "drawing"
 	%Title.text = "OBJECTS" if workspace != "drawing" else "DRAWINGS"
 	%Status.text = workspace.to_upper() + " workspace"
 	if workspace == "compositor":
 		%LookTitle.text = "◇  EFFECT STACK  ·  Scene Output"
 	else:
 		%LookTitle.text = "◇  LOOK / FILTERS"
+
+func _on_draw_stroke3d_pressed() -> void:
+	drawing_3d_active = true
+	%DrawingCanvas.bitmap_mode = false
+	%DrawingCanvas.visible = false
+	status.text = "3D Stroke · draw on the camera-facing work plane"
+
+func _on_draw_bitmap_pressed() -> void:
+	drawing_3d_active = false
+	%DrawingCanvas.bitmap_mode = true
+	%DrawingCanvas.visible = true
+	%DrawingCanvas.queue_redraw()
+	status.text = "Bitmap drawing · Finish Bitmap converts alpha to a Delaunay mesh"
+
+func _on_brush_size_changed(value: float) -> void:
+	%DrawingCanvas.brush_size = value
+
+func _on_brush_color_changed(value: Color) -> void:
+	%DrawingCanvas.brush_color = value
+
+func _on_bitmap_finished(image: Image) -> void:
+	var obj := MotionObject.new("Bitmap Drawing", "image_mesh", "drawing")
+	ProjectStore.add_object(obj)
+	var runtime := RuntimeObject.new()
+	world_root.add_child(runtime)
+	runtime.setup(obj, image)
+	runtime_objects.append(runtime)
+	object_list.add_item(obj.name)
+	object_list.set_item_metadata(object_list.item_count - 1, obj.id)
+	%DrawingCanvas.clear_canvas()
+	%DrawingCanvas.visible = false
+	%DrawingCanvas.bitmap_mode = false
+	_select(runtime)
+	status.text = "Bitmap drawing converted to alpha Delaunay mesh"
+
+func _begin_3d_stroke(pos: Vector2) -> void:
+	active_stroke_3d = Stroke3DClass.new()
+	active_stroke_3d.stroke_color = %BrushColor.color
+	active_stroke_3d.radius = %BrushSize.value * 0.0012
+	world_root.add_child(active_stroke_3d)
+	active_stroke_3d.add_point(_screen_to_view_plane(pos, Vector3.ZERO))
+
+func _extend_3d_stroke(pos: Vector2) -> void:
+	if active_stroke_3d:
+		active_stroke_3d.add_point(_screen_to_view_plane(pos, Vector3.ZERO))
+
+func _finish_3d_stroke() -> void:
+	if active_stroke_3d == null: return
+	var obj := MotionObject.new("3D Stroke", "stroke3d", "drawing")
+	_register_scene_object(obj, active_stroke_3d)
+	_select_scene_node(obj.id, active_stroke_3d)
+	active_stroke_3d = null
 
 func _on_preview_mode_toggled(render_mode: bool) -> void:
 	render_preview = render_mode
@@ -557,6 +623,10 @@ func _responsive_layout() -> void:
 	%ViewportTop.position = %ViewportFrame.position + Vector2(12.0, 10.0)
 	%ViewportTop.size = Vector2(maxf(100.0, %ViewportFrame.size.x - 24.0), 40.0)
 	%ToolRail.position = %ViewportFrame.position + Vector2(12.0, 60.0)
+	%DrawingCanvas.position = %ViewportFrame.position
+	%DrawingCanvas.size = %ViewportFrame.size
+	%DrawingBar.position = %ViewportFrame.position + Vector2(12.0, 10.0)
+	%DrawingBar.size = Vector2(maxf(100.0, %ViewportFrame.size.x - 24.0), 40.0)
 
 	%Bottom.position = Vector2(margin, content_bottom + 8.0)
 	%Bottom.size = Vector2(w - margin * 2.0, timeline_h)
