@@ -834,12 +834,17 @@ func _finish_3d_stroke() -> void:
 	var data: RefCounted = drawing_data_by_object.get(active_drawing_id)
 	if data:
 		active_stroke_3d.stroke_id = data.add_stroke(active_stroke_3d.points, active_stroke_3d.style_dict())
-		# A cel is a complete drawing state, not an additive list of every historical stroke.
-		var visible_ids: Array[String] = []
-		for child in active_drawing_group.get_children():
-			if child is Stroke3D and child.visible and not (child as Stroke3D).stroke_id.is_empty():
-				visible_ids.append((child as Stroke3D).stroke_id)
-		data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(visible_ids), "hold")
+		# Traditional animation semantics: when drawing on a frame that did not
+		# already have a cel, the new cel replaces the held artwork from the
+		# previous exposure instead of accumulating it.
+		if data.has_exposure(ProjectStore.current_frame):
+			var visible_ids: Array[String] = []
+			for child in active_drawing_group.get_children():
+				if child is Stroke3D and child.visible and not (child as Stroke3D).stroke_id.is_empty():
+					visible_ids.append((child as Stroke3D).stroke_id)
+			data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(visible_ids, true), "hold")
+		else:
+			data.set_exposure(ProjectStore.current_frame, data.replacement_pose(active_stroke_3d.stroke_id), "hold")
 	active_stroke_3d = null
 	_select_scene_node(active_drawing_id, active_drawing_group)
 	_refresh_drawing_timeline()
