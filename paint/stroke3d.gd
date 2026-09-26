@@ -82,12 +82,27 @@ func set_style(line_color: Color, use_fill: bool, new_fill_color: Color) -> void
 func rebuild() -> void:
 	if points.size() < 2:
 		return
+	var result := ArrayMesh.new()
+	_build_line_surface(result)
+	if fill_enabled and points.size() >= 3:
+		_build_fill_surface(result)
+	mesh = result
+
+func _base_material(color: Color) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = 0.8
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if color.a < 0.999:
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	return mat
+
+func _build_line_surface(result: ArrayMesh) -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var direction := (points[1] - points[0]).normalized()
 	var up := Vector3.UP
-	if absf(direction.dot(up)) > 0.92:
-		up = Vector3.RIGHT
+	if absf(direction.dot(up)) > 0.92: up = Vector3.RIGHT
 	var side := direction.cross(up).normalized()
 	up = side.cross(direction).normalized()
 	for i in range(points.size() - 1):
@@ -105,38 +120,26 @@ func rebuild() -> void:
 			var r1 := side * cos(a1) * radius + up * sin(a1) * radius
 			_tri(st, p0 + r0, p1 + r0, p1 + r1)
 			_tri(st, p0 + r0, p1 + r1, p0 + r1)
-	if fill_enabled and points.size() >= 3:
-		_add_fill(st)
-	var result := st.commit()
-	mesh = result
-	var mat := StandardMaterial3D.new()
-	# Vertex colors carry the actual line/fill colors. A white material avoids
-	# multiplying the fill by the line color.
-	mat.albedo_color = Color.WHITE
-	mat.vertex_color_use_as_albedo = true
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.roughness = 0.8
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	material_override = mat
+	st.commit(result)
+	result.surface_set_material(result.get_surface_count() - 1, _base_material(stroke_color))
 
-func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
-	var n := (b - a).cross(c - a).normalized()
-	# SurfaceTool keeps vertex attributes as state. Set the line color explicitly
-	# for every line triangle so it can never inherit the fill color.
-	st.set_color(stroke_color); st.set_normal(n); st.add_vertex(a)
-	st.set_color(stroke_color); st.set_normal(n); st.add_vertex(b)
-	st.set_color(stroke_color); st.set_normal(n); st.add_vertex(c)
-
-func _add_fill(st: SurfaceTool) -> void:
+func _build_fill_surface(result: ArrayMesh) -> void:
 	var flat := PackedVector2Array()
-	for p in points:
-		flat.append(Vector2(p.x, p.y))
+	for p in points: flat.append(Vector2(p.x, p.y))
 	var fill_indices := Geometry2D.triangulate_polygon(flat)
+	if fill_indices.size() < 3: return
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in range(0, fill_indices.size(), 3):
 		var a := points[fill_indices[i]]
 		var b := points[fill_indices[i + 1]]
 		var c := points[fill_indices[i + 2]]
-		var n := (b - a).cross(c - a).normalized()
-		st.set_color(fill_color); st.set_normal(n); st.add_vertex(a)
-		st.set_color(fill_color); st.set_normal(n); st.add_vertex(b)
-		st.set_color(fill_color); st.set_normal(n); st.add_vertex(c)
+		_tri(st, a, b, c)
+	st.commit(result)
+	result.surface_set_material(result.get_surface_count() - 1, _base_material(fill_color))
+
+func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
+	var n := (b - a).cross(c - a).normalized()
+	st.set_normal(n); st.add_vertex(a)
+	st.set_normal(n); st.add_vertex(b)
+	st.set_normal(n); st.add_vertex(c)
