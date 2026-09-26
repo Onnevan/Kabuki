@@ -23,17 +23,22 @@ static func build(image: Image, alpha_threshold := 0.08, target_samples := 900) 
 			if edge: pts.append(Vector2(x, y))
 	if pts.size() < 3: return ArrayMesh.new()
 	var indices := Geometry2D.triangulate_delaunay(pts)
-	var verts := PackedVector3Array(); var uvs := PackedVector2Array(); var out_idx := PackedInt32Array()
+	var verts := PackedVector3Array(); var uvs := PackedVector2Array(); var normals := PackedVector3Array(); var out_idx := PackedInt32Array()
 	for p in pts:
 		verts.append(Vector3((p.x - w*0.5)/float(h), -(p.y-h*0.5)/float(h), 0.0))
 		uvs.append(Vector2(p.x/float(w), p.y/float(h)))
+		normals.append(Vector3(0.0, 0.0, 1.0))
 	for i in range(0, indices.size(), 3):
 		var a := pts[indices[i]]; var b := pts[indices[i+1]]; var c := pts[indices[i+2]]
 		var q := (a+b+c)/3.0
 		if image.get_pixel(clampi(int(q.x),0,w-1), clampi(int(q.y),0,h-1)).a >= alpha_threshold:
-			out_idx.append(indices[i]); out_idx.append(indices[i+1]); out_idx.append(indices[i+2])
+			var ia: int = indices[i]; var ib: int = indices[i+1]; var ic: int = indices[i+2]
+			var cross_z: float = (pts[ib] - pts[ia]).cross(pts[ic] - pts[ia])
+			if cross_z > 0.0:
+				var tmp: int = ib; ib = ic; ic = tmp
+			out_idx.append(ia); out_idx.append(ib); out_idx.append(ic)
 	var arrays := []; arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts; arrays[Mesh.ARRAY_TEX_UV] = uvs; arrays[Mesh.ARRAY_INDEX] = out_idx
+	arrays[Mesh.ARRAY_VERTEX] = verts; arrays[Mesh.ARRAY_NORMAL] = normals; arrays[Mesh.ARRAY_TEX_UV] = uvs; arrays[Mesh.ARRAY_INDEX] = out_idx
 	var mesh := ArrayMesh.new()
 	if out_idx.size() >= 3: mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh
