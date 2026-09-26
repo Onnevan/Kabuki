@@ -34,9 +34,9 @@ func update_stroke_points(stroke_id: String, points: PackedVector3Array) -> void
 	if strokes.has(stroke_id):
 		strokes[stroke_id]["points"] = points.duplicate()
 
-func snapshot_pose(visible_ids: Array[String] = []) -> Dictionary:
+func snapshot_pose(visible_ids: Array[String] = [], force_filter := false) -> Dictionary:
 	var pose: Dictionary = {}
-	var filter_visibility := not visible_ids.is_empty()
+	var filter_visibility := force_filter or not visible_ids.is_empty()
 	for stroke_id in stroke_order:
 		if not strokes.has(stroke_id): continue
 		var stroke: Dictionary = strokes[stroke_id]
@@ -127,3 +127,8 @@ func remove_stroke_from_pose(frame: int, stroke_id: String) -> void:
 	if pose.has(stroke_id):
 		pose[stroke_id]["visible"] = false
 	set_exposure(frame, pose, "hold")
+
+func replacement_pose(stroke_id: String) -> Dictionary:
+	# Traditional drawing semantics: a newly drawn cel replaces the previous cel.
+	var ids: Array[String] = [stroke_id]
+	return snapshot_pose(ids, true)
