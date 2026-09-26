@@ -160,6 +160,14 @@ value=10.0
 [node name="BrushColor" type="ColorPickerButton" parent="DrawingBar"]
 unique_name_in_owner=true
 color=Color(0.08,0.08,0.08,1)
+[node name="Fill" type="CheckButton" parent="DrawingBar"]
+unique_name_in_owner=true
+text="FILL"
+[node name="FillColor" type="ColorPickerButton" parent="DrawingBar"]
+unique_name_in_owner=true
+color=Color(0.8,0.25,0.18,0.55)
+[node name="NewDrawing" type="Button" parent="DrawingBar"]
+text="NEW DRAWING"
 [node name="ClearDrawing" type="Button" parent="DrawingBar"]
 text="CLEAR"
 [node name="FinishBitmap" type="Button" parent="DrawingBar"]
