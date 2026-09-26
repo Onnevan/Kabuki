@@ -576,3 +576,6 @@ filters=PackedStringArray("*.png ; PNG Images")
 [connection signal="pressed" from="DrawingBar/ClearDrawing" to="DrawingCanvas" method="clear_canvas"]
 [connection signal="pressed" from="DrawingBar/FinishBitmap" to="DrawingCanvas" method="finish_bitmap"]
 [connection signal="bitmap_finished" from="DrawingCanvas" to="." method="_on_bitmap_finished"]
+
+[connection signal="toggled" from="DrawingBar/Fill" to="." method="_on_fill_toggled"]
+[connection signal="pressed" from="DrawingBar/NewDrawing" to="." method="_on_new_drawing_pressed"]
