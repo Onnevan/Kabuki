@@ -15,6 +15,10 @@ func setup(obj: MotionObject, img: Image) -> void:
 	material = ShaderMaterial.new()
 	material.shader = load("res://render/cutout_material.gdshader")
 	material.set_shader_parameter("source_texture", texture)
+	material.set_shader_parameter("tint", Color.WHITE)
+	material.set_shader_parameter("roughness", 0.8)
+	material.set_shader_parameter("metallic", 0.0)
+	material.set_shader_parameter("two_sided", true)
 	material_override = material
 	name = obj.name
 
@@ -55,17 +59,23 @@ func set_material_two_sided(enabled: bool) -> void:
 		standard_material.cull_mode = BaseMaterial3D.CULL_DISABLED if enabled else BaseMaterial3D.CULL_BACK
 
 func get_material_color() -> Color:
-	if material: return material.get_shader_parameter("tint")
+	if material:
+		var value = material.get_shader_parameter("tint")
+		return value as Color if value is Color else Color.WHITE
 	if standard_material: return standard_material.albedo_color
 	return Color.WHITE
 
 func get_material_roughness() -> float:
-	if material: return float(material.get_shader_parameter("roughness"))
+	if material:
+		var value = material.get_shader_parameter("roughness")
+		return float(value) if value != null else 0.8
 	if standard_material: return standard_material.roughness
 	return 0.8
 
 func get_material_metallic() -> float:
-	if material: return float(material.get_shader_parameter("metallic"))
+	if material:
+		var value = material.get_shader_parameter("metallic")
+		return float(value) if value != null else 0.0
 	if standard_material: return standard_material.metallic
 	return 0.0
 
