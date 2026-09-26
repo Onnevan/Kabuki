@@ -12,7 +12,9 @@ uniform float glow_threshold : hint_range(0.0,2.0) = 0.55;
 uniform vec4 tint : source_color = vec4(1.0);
 uniform float metallic : hint_range(0.0,1.0) = 0.0;
 uniform float roughness : hint_range(0.0,1.0) = 0.8;
+uniform bool two_sided = true;
 void fragment(){
+	if (!two_sided && !FRONT_FACING) discard;
 	vec2 texel = 1.0 / vec2(textureSize(source_texture,0));
 	vec2 px = texel * blur * render_quality;
 	vec4 c = texture(source_texture,UV)*0.4;
