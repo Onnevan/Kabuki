@@ -15,6 +15,20 @@ func add_point(p: Vector3) -> void:
 	points.append(p)
 	rebuild()
 
+func sculpt(center_world: Vector3, camera_forward_world: Vector3, brush_radius: float, strength: float) -> bool:
+	var local_center := to_local(center_world)
+	var local_direction := (global_transform.basis.inverse() * camera_forward_world).normalized()
+	var changed := false
+	for i in range(points.size()):
+		var distance := points[i].distance_to(local_center)
+		if distance > brush_radius: continue
+		var falloff := 1.0 - distance / maxf(brush_radius, 0.0001)
+		falloff = falloff * falloff * (3.0 - 2.0 * falloff)
+		points[i] += local_direction * strength * falloff
+		changed = true
+	if changed: rebuild()
+	return changed
+
 func rebuild() -> void:
 	if points.size() < 2:
 		return
