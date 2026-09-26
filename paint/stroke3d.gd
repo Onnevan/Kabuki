@@ -23,14 +23,18 @@ func add_point(p: Vector3) -> void:
 	points.append(p)
 	rebuild()
 
-func sculpt(center_world: Vector3, camera_forward_world: Vector3, brush_radius: float, strength: float) -> bool:
-	var local_center := to_local(center_world)
-	var local_direction := (global_transform.basis.inverse() * camera_forward_world).normalized()
+func sculpt_screen(brush_pos: Vector2, camera: Camera3D, brush_radius_px: float, strength: float) -> bool:
+	# Screen-space hit testing makes sculpt work even after points have been pushed
+	# away from the original drawing plane.
+	var local_direction := (global_transform.basis.inverse() * -camera.global_transform.basis.z).normalized()
 	var changed := false
 	for i in range(points.size()):
-		var distance := points[i].distance_to(local_center)
-		if distance > brush_radius: continue
-		var falloff := 1.0 - distance / maxf(brush_radius, 0.0001)
+		var world_point := to_global(points[i])
+		if camera.is_position_behind(world_point): continue
+		var screen_point := camera.unproject_position(world_point)
+		var distance_px := screen_point.distance_to(brush_pos)
+		if distance_px > brush_radius_px: continue
+		var falloff := 1.0 - distance_px / maxf(brush_radius_px, 1.0)
 		falloff = falloff * falloff * (3.0 - 2.0 * falloff)
 		points[i] += local_direction * strength * falloff
 		changed = true
