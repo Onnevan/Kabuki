@@ -196,21 +196,15 @@ theme_override_font_sizes/font_size=17
 text="     Material"
 [node name="ObjectSection" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 text="▣  TRANSFORM"
-[node name="PosLabel" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
-text="Position"
-[node name="PosValue" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+[node name="PositionEdit" type="LineEdit" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
-text="X 0.00    Y 0.00    Z 0.00"
-[node name="RotLabel" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
-text="Rotation"
-[node name="RotValue" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+placeholder_text="Position X, Y, Z"
+[node name="RotationEdit" type="LineEdit" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
-text="X 0.0     Y 0.0     Z 0.0"
-[node name="ScaleLabel" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
-text="Scale"
-[node name="ScaleValue" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+placeholder_text="Rotation X, Y, Z"
+[node name="ScaleEdit" type="LineEdit" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
-text="X 1.00    Y 1.00    Z 1.00"
+placeholder_text="Scale X, Y, Z"
 [node name="ObjectProperties" type="VBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
 [node name="MaterialTitle" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
@@ -461,3 +455,7 @@ filters=PackedStringArray("*.png ; PNG Images")
 [connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties/LightEnergy" to="." method="_on_light_energy_changed"]
 [connection signal="color_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties/LightColor" to="." method="_on_light_color_changed"]
 [connection signal="toggled" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties/LightShadow" to="." method="_on_light_shadow_toggled"]
+
+[connection signal="text_submitted" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/PositionEdit" to="." method="_on_position_submitted"]
+[connection signal="text_submitted" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/RotationEdit" to="." method="_on_rotation_submitted"]
+[connection signal="text_submitted" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/ScaleEdit" to="." method="_on_scale_submitted"]
