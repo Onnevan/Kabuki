@@ -45,6 +45,7 @@ var active_drawing_group: Node3D
 var active_drawing_id := ""
 var drawing_session_index := 0
 var drawing_data_by_object: Dictionary = {}
+var sculpt_mode := "push"
 
 func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
@@ -63,6 +64,10 @@ func _ready() -> void:
 	gizmo.set_mode(active_tool)
 	_setup_workspace_tabs()
 	_setup_drawing_menus()
+	%SculptMode.clear()
+	for label in ["Push / Pull", "Move", "Pinch", "Smooth", "Inflate"]:
+		%SculptMode.add_item(label)
+	%SculptMode.select(0)
 	_update_preview_mode()
 	_on_frame_changed(0)
 	_responsive_layout()
@@ -334,7 +339,13 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 					else: _finish_3d_stroke()
 					return
 				elif drawing_sculpt_active:
-					if event.pressed: _sculpt_drawing(event.position)
+					if event.pressed:
+						for child in active_drawing_group.get_children() if active_drawing_group else []:
+							if child is Stroke3D: (child as Stroke3D).begin_sculpt(event.position)
+						_sculpt_drawing(event.position)
+					else:
+						for child in active_drawing_group.get_children() if active_drawing_group else []:
+							if child is Stroke3D: (child as Stroke3D).end_sculpt()
 					return
 		elif event is InputEventMouseMotion:
 			if orbiting:
@@ -354,9 +365,9 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 			else: orbiting = event.pressed
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
-				gizmo_axis = gizmo.pick_axis(event.position, camera) if selected else TransformGizmo.Axis.NONE
+				gizmo_axis = gizmo.pick_axis(event.position, camera) if selected_scene_node else TransformGizmo.Axis.NONE
 				if gizmo_axis != TransformGizmo.Axis.NONE:
-					dragging = true; transform_start = selected.transform; drag_start_mouse = event.position
+					dragging = true; transform_start = selected_scene_node.transform; drag_start_mouse = event.position
 					return
 				var hit := _pick(event.position)
 				if hit != null:
@@ -373,48 +384,44 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion:
 		if orbiting: camera_rig.orbit(event.relative)
 		elif panning: camera_rig.pan(event.relative)
-		elif dragging and selected:
+		elif dragging and selected_scene_node:
 			_apply_drag(event.relative, event.position)
 		last_mouse = event.position
 
 func _apply_drag(relative: Vector2, mouse_pos: Vector2) -> void:
-	if selected == null: return
+	var target := selected_scene_node
+	if target == null: return
 	if gizmo_axis != TransformGizmo.Axis.NONE:
 		var total := mouse_pos - drag_start_mouse
 		if gizmo_axis == TransformGizmo.Axis.ALL:
 			if active_tool == TransformGizmo.Mode.MOVE:
-				selected.global_position = _screen_to_view_plane(mouse_pos, transform_start.origin)
-				selected.model.transform.origin = selected.position
+				target.global_position = _screen_to_view_plane(mouse_pos, transform_start.origin)
 			elif active_tool == TransformGizmo.Mode.ROTATE:
-				selected.transform = transform_start
-				selected.rotate(camera.global_transform.basis.z.normalized(), total.x * 0.012)
+				target.transform = transform_start
+				target.rotate(camera.global_transform.basis.z.normalized(), total.x * 0.012)
 			elif active_tool == TransformGizmo.Mode.SCALE:
-				selected.transform = transform_start
-				var uniform_factor := maxf(0.03, 1.0 + (total.x - total.y) * 0.01)
-				selected.scale = transform_start.basis.get_scale() * uniform_factor
+				target.transform = transform_start
+				target.scale = transform_start.basis.get_scale() * maxf(0.03, 1.0 + (total.x - total.y) * 0.01)
 			_refresh_transform_readout()
 			return
 		var axis := gizmo.axis_vector(gizmo_axis)
 		var amount := (total.x - total.y) * 0.006 * camera_rig.distance
 		if active_tool == TransformGizmo.Mode.MOVE:
-			selected.position = transform_start.origin + axis * amount
-			selected.model.transform.origin = selected.position
+			target.position = transform_start.origin + axis * amount
 		elif active_tool == TransformGizmo.Mode.ROTATE:
-			selected.transform = transform_start
-			selected.rotate(axis, (total.x - total.y) * 0.012)
-			_refresh_transform_readout()
+			target.transform = transform_start
+			target.rotate(axis, (total.x - total.y) * 0.012)
 		elif active_tool == TransformGizmo.Mode.SCALE:
-			selected.transform = transform_start
-			var sc := selected.scale
+			target.transform = transform_start
+			var sc := target.scale
 			var factor := maxf(0.03, 1.0 + (total.x - total.y) * 0.01)
 			if gizmo_axis == 0: sc.x *= factor
 			elif gizmo_axis == 1: sc.y *= factor
 			else: sc.z *= factor
-			selected.scale = sc
-			_refresh_transform_readout()
-	elif active_tool == TransformGizmo.Mode.MOVE:
-		selected.global_position = _screen_to_view_plane(mouse_pos, selected.global_position) + drag_offset
-		selected.model.transform.origin = selected.position
+			target.scale = sc
+		_refresh_transform_readout()
+	if selected:
+		selected.model.transform = selected.transform
 
 func _screen_to_view_plane(pos: Vector2, point: Vector3) -> Vector3:
 	var origin := camera.project_ray_origin(pos)
@@ -432,16 +439,16 @@ func _on_tool_rotate_pressed() -> void:
 func _on_tool_scale_pressed() -> void:
 	active_tool = TransformGizmo.Mode.SCALE; gizmo.set_mode(active_tool); status.text = "Scale tool"
 func _on_frame_selected_pressed() -> void:
-	if selected: camera_rig.frame_target(selected.global_position)
+	if selected_scene_node: camera_rig.frame_target(selected_scene_node.global_position)
 
 func _on_grid_toggled(enabled: bool) -> void:
 	world_grid.visible = enabled
 
 func _key_transform() -> void:
-	if selected == null: return
-	ProjectStore.set_key(selected.model.id,"transform.position",ProjectStore.current_frame,selected.position,_interp_name())
-	ProjectStore.set_key(selected.model.id,"transform.rotation",ProjectStore.current_frame,selected.rotation,_interp_name())
-	ProjectStore.set_key(selected.model.id,"transform.scale",ProjectStore.current_frame,selected.scale,_interp_name())
+	if selected_scene_node == null or selected_object_id.is_empty(): return
+	ProjectStore.set_key(selected_object_id,"transform.position",ProjectStore.current_frame,selected_scene_node.position,_interp_name())
+	ProjectStore.set_key(selected_object_id,"transform.rotation",ProjectStore.current_frame,selected_scene_node.rotation,_interp_name())
+	ProjectStore.set_key(selected_object_id,"transform.scale",ProjectStore.current_frame,selected_scene_node.scale,_interp_name())
 
 func _pick(pos: Vector2) -> RuntimeObject:
 	var best: RuntimeObject = null
@@ -694,7 +701,7 @@ func _sculpt_drawing(pos: Vector2) -> void:
 	for child in active_drawing_group.get_children():
 		if child is Stroke3D:
 			var stroke := child as Stroke3D
-			if stroke.sculpt_screen(pos, camera, radius_px, strength):
+			if stroke.sculpt_screen(pos, camera, radius_px, strength, sculpt_mode):
 				changed = true
 				if data and not stroke.stroke_id.is_empty():
 					data.update_stroke_points(stroke.stroke_id, stroke.points)
@@ -709,6 +716,28 @@ func _on_brush_size_changed(value: float) -> void:
 
 func _on_brush_color_changed(value: Color) -> void:
 	%DrawingCanvas.brush_color = value
+	_apply_active_drawing_style()
+
+func _on_fill_color_changed(_value: Color) -> void:
+	_apply_active_drawing_style()
+
+func _on_sculpt_mode_selected(index: int) -> void:
+	var modes: Array[String] = ["push", "move", "pinch", "smooth", "inflate"]
+	sculpt_mode = modes[clampi(index, 0, modes.size() - 1)]
+	status.text = "Sculpt · " + %SculptMode.get_item_text(index)
+
+func _apply_active_drawing_style() -> void:
+	if active_drawing_group == null or not is_instance_valid(active_drawing_group): return
+	var data: RefCounted = drawing_data_by_object.get(active_drawing_id)
+	for child in active_drawing_group.get_children():
+		if child is Stroke3D:
+			var stroke := child as Stroke3D
+			stroke.set_style(%BrushColor.color, %Fill.button_pressed, %FillColor.color)
+			if data and not stroke.stroke_id.is_empty():
+				var record: Dictionary = data.strokes.get(stroke.stroke_id, {})
+				record["color"] = %BrushColor.color
+				record["fill_enabled"] = %Fill.button_pressed
+				record["fill_color"] = %FillColor.color
 
 func _on_bitmap_finished(image: Image) -> void:
 	var obj := MotionObject.new("Bitmap Drawing", "image_mesh", "drawing")
@@ -774,6 +803,7 @@ func _finish_3d_stroke() -> void:
 	_refresh_drawing_timeline()
 
 func _on_fill_toggled(enabled: bool) -> void:
+	_apply_active_drawing_style()
 	status.text = "Stroke fill enabled" if enabled else "Stroke fill disabled"
 
 func _on_preview_mode_toggled(render_mode: bool) -> void:
