@@ -211,6 +211,61 @@ text="Scale"
 [node name="ScaleValue" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
 text="X 1.00    Y 1.00    Z 1.00"
+[node name="ObjectProperties" type="VBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+[node name="MaterialTitle" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
+text="◇  MATERIAL"
+theme_override_font_sizes/font_size=16
+[node name="MaterialColorText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
+text="Base Color"
+[node name="MaterialColor" type="ColorPickerButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
+unique_name_in_owner=true
+color=Color(1,1,1,1)
+[node name="RoughnessText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
+text="Roughness"
+[node name="MaterialRoughness" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
+unique_name_in_owner=true
+max_value=1.0
+step=0.01
+value=0.8
+[node name="MetallicText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
+text="Metallic"
+[node name="MaterialMetallic" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
+unique_name_in_owner=true
+max_value=1.0
+step=0.01
+[node name="MaterialTwoSided" type="CheckButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
+unique_name_in_owner=true
+text="2 Sided"
+button_pressed=true
+
+[node name="LightProperties" type="VBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+visible=false
+[node name="LightTitle" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties"]
+text="◇  LIGHT"
+theme_override_font_sizes/font_size=16
+[node name="LightTypeText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties"]
+text="Type"
+[node name="LightType" type="OptionButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties"]
+unique_name_in_owner=true
+[node name="LightEnergyText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties"]
+text="Intensity"
+[node name="LightEnergy" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties"]
+unique_name_in_owner=true
+max_value=16.0
+step=0.05
+value=1.0
+[node name="LightColorText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties"]
+text="Color"
+[node name="LightColor" type="ColorPickerButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties"]
+unique_name_in_owner=true
+color=Color(1,1,1,1)
+[node name="LightShadow" type="CheckButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties"]
+unique_name_in_owner=true
+text="Shadows"
+button_pressed=true
+
 [node name="Sep1" type="HSeparator" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 [node name="LookTitle" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
@@ -397,3 +452,12 @@ filters=PackedStringArray("*.png ; PNG Images")
 [connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/Back" to="." method="_on_key_interp_back"]
 [connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/Bounce" to="." method="_on_key_interp_bounce"]
 [connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/Elastic" to="." method="_on_key_interp_elastic"]
+
+[connection signal="color_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties/MaterialColor" to="." method="_on_material_color_changed"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties/MaterialRoughness" to="." method="_on_material_roughness_changed"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties/MaterialMetallic" to="." method="_on_material_metallic_changed"]
+[connection signal="toggled" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties/MaterialTwoSided" to="." method="_on_material_two_sided_toggled"]
+[connection signal="item_selected" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties/LightType" to="." method="_on_light_type_selected"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties/LightEnergy" to="." method="_on_light_energy_changed"]
+[connection signal="color_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties/LightColor" to="." method="_on_light_color_changed"]
+[connection signal="toggled" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties/LightShadow" to="." method="_on_light_shadow_toggled"]
