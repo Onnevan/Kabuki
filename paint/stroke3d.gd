@@ -8,6 +8,14 @@ var sides := 6
 var fill_enabled := false
 var fill_color := Color(0.8, 0.25, 0.18, 0.55)
 var closed := false
+var stroke_id := ""
+
+func set_points(value: PackedVector3Array) -> void:
+	points = value.duplicate()
+	rebuild()
+
+func style_dict() -> Dictionary:
+	return {"radius": radius, "color": stroke_color, "fill_enabled": fill_enabled, "fill_color": fill_color}
 
 func add_point(p: Vector3) -> void:
 	if not points.is_empty() and points[-1].distance_to(p) < 0.006:
