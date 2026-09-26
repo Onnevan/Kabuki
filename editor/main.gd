@@ -72,10 +72,11 @@ func _setup_shading_menu() -> void:
 	%ShadingMode.item_selected.connect(_on_shading_mode_selected)
 
 func _on_shading_mode_selected(index: int) -> void:
-	# Use explicit edge geometry instead of Viewport.DEBUG_DRAW_WIREFRAME.
-	# This guarantees that imported PNGs show their actual Delaunay triangulation.
-	_set_wireframe_overlays(index == 1)
-	status.text = "Wireframe · actual mesh topology" if index == 1 else "Solid viewport"
+	var wire := index == 1
+	_set_wireframe_overlays(wire)
+	for runtime in runtime_objects:
+		runtime.visible = not wire
+	status.text = "Wireframe · actual mesh topology" if wire else "Solid viewport"
 
 func _set_wireframe_overlays(enabled: bool) -> void:
 	for overlay in wireframe_overlays:
@@ -93,7 +94,8 @@ func _set_wireframe_overlays(enabled: bool) -> void:
 		mat.no_depth_test = true
 		overlay.material_override = mat
 		overlay.position.z = 0.002
-		runtime.add_child(overlay)
+		world_root.add_child(overlay)
+		overlay.global_transform = runtime.global_transform
 		wireframe_overlays.append(overlay)
 
 func _build_wire_mesh(source: Mesh) -> ArrayMesh:
@@ -250,7 +252,7 @@ func _select_scene_node(id: String, node: Node3D) -> void:
 			object_list.select(i); break
 	%SelectionLabel.text = node.name
 	_show_transform(node)
-	gizmo.attach(null)
+	gizmo.attach(node)
 	timeline.set_object(id)
 	%ObjectProperties.visible = node is MeshInstance3D
 	%LightProperties.visible = node is Light3D
