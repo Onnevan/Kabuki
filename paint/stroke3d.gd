@@ -5,6 +5,9 @@ var points := PackedVector3Array()
 var stroke_color := Color(0.08, 0.08, 0.08, 1.0)
 var radius := 0.012
 var sides := 6
+var fill_enabled := false
+var fill_color := Color(0.8, 0.25, 0.18, 0.55)
+var closed := false
 
 func add_point(p: Vector3) -> void:
 	if not points.is_empty() and points[-1].distance_to(p) < 0.006:
@@ -38,6 +41,8 @@ func rebuild() -> void:
 			var r1 := side * cos(a1) * radius + up * sin(a1) * radius
 			_tri(st, p0 + r0, p1 + r0, p1 + r1)
 			_tri(st, p0 + r0, p1 + r1, p0 + r1)
+	if fill_enabled and points.size() >= 3:
+		_add_fill(st)
 	var result := st.commit()
 	mesh = result
 	var mat := StandardMaterial3D.new()
@@ -51,3 +56,17 @@ func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
 	st.set_normal(n); st.add_vertex(a)
 	st.set_normal(n); st.add_vertex(b)
 	st.set_normal(n); st.add_vertex(c)
+
+func _add_fill(st: SurfaceTool) -> void:
+	var flat := PackedVector2Array()
+	for p in points:
+		flat.append(Vector2(p.x, p.y))
+	var fill_indices := Geometry2D.triangulate_polygon(flat)
+	for i in range(0, fill_indices.size(), 3):
+		var a := points[fill_indices[i]]
+		var b := points[fill_indices[i + 1]]
+		var c := points[fill_indices[i + 2]]
+		var n := (b - a).cross(c - a).normalized()
+		st.set_color(fill_color); st.set_normal(n); st.add_vertex(a)
+		st.set_color(fill_color); st.set_normal(n); st.add_vertex(b)
+		st.set_color(fill_color); st.set_normal(n); st.add_vertex(c)
