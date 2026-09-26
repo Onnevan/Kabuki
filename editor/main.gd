@@ -38,6 +38,7 @@ var wireframe_overlays: Array[MeshInstance3D] = []
 var selected_scene_node: Node3D
 var selected_object_id := ""
 var drawing_3d_active := false
+var drawing_sculpt_active := false
 var active_stroke_3d: Stroke3D
 var active_drawing_group: Node3D
 var active_drawing_id := ""
@@ -312,13 +313,35 @@ func _key_position() -> void:
 	if selected: ProjectStore.set_key(selected.model.id,"transform.position",ProjectStore.current_frame,selected.position,_interp_name())
 
 func _on_canvas_gui_input(event: InputEvent) -> void:
-	if workspace == "drawing" and drawing_3d_active:
-		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-			if event.pressed: _begin_3d_stroke(event.position)
-			else: _finish_3d_stroke()
-		elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-			_extend_3d_stroke(event.position)
-		return
+	if workspace == "drawing":
+		# Navigation remains available while drawing: MMB orbit, Shift+MMB pan, wheel zoom.
+		if event is InputEventMouseButton:
+			last_mouse = event.position
+			if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+				camera_rig.zoom(-1.0); return
+			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+				camera_rig.zoom(1.0); return
+			elif event.button_index == MOUSE_BUTTON_MIDDLE:
+				if Input.is_key_pressed(KEY_SHIFT): panning = event.pressed
+				else: orbiting = event.pressed
+				return
+			elif event.button_index == MOUSE_BUTTON_LEFT:
+				if drawing_3d_active:
+					if event.pressed: _begin_3d_stroke(event.position)
+					else: _finish_3d_stroke()
+					return
+				elif drawing_sculpt_active:
+					if event.pressed: _sculpt_drawing(event.position)
+					return
+		elif event is InputEventMouseMotion:
+			if orbiting:
+				camera_rig.orbit(event.relative); return
+			elif panning:
+				camera_rig.pan(event.relative); return
+			elif drawing_3d_active and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+				_extend_3d_stroke(event.position); return
+			elif drawing_sculpt_active and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+				_sculpt_drawing(event.position); return
 	if event is InputEventMouseButton:
 		last_mouse = event.position
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed: camera_rig.zoom(-1.0)
@@ -523,16 +546,35 @@ func _on_workspace_tab_changed(tab: int) -> void:
 
 func _on_draw_stroke3d_pressed() -> void:
 	drawing_3d_active = true
+	drawing_sculpt_active = false
 	%DrawingCanvas.bitmap_mode = false
 	%DrawingCanvas.visible = false
 	status.text = "3D Stroke · draw on the camera-facing work plane"
 
 func _on_draw_bitmap_pressed() -> void:
 	drawing_3d_active = false
+	drawing_sculpt_active = false
 	%DrawingCanvas.bitmap_mode = true
 	%DrawingCanvas.visible = true
 	%DrawingCanvas.queue_redraw()
 	status.text = "Bitmap drawing · Finish Bitmap converts alpha to a Delaunay mesh"
+
+func _on_draw_sculpt_pressed() -> void:
+	drawing_3d_active = false
+	drawing_sculpt_active = true
+	%DrawingCanvas.bitmap_mode = false
+	%DrawingCanvas.visible = false
+	status.text = "Sculpt · drag to push strokes in depth · middle mouse orbits viewport"
+
+func _sculpt_drawing(pos: Vector2) -> void:
+	if active_drawing_group == null or not is_instance_valid(active_drawing_group): return
+	var center := _screen_to_view_plane(pos, active_drawing_group.global_position)
+	var camera_forward := -camera.global_transform.basis.z.normalized()
+	var radius_world := maxf(0.02, %BrushSize.value * 0.006)
+	var strength := %SculptStrength.value
+	for child in active_drawing_group.get_children():
+		if child is Stroke3D:
+			(child as Stroke3D).sculpt(center, camera_forward, radius_world, strength)
 
 func _on_brush_size_changed(value: float) -> void:
 	%DrawingCanvas.brush_size = value
