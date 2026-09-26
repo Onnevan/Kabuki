@@ -551,8 +551,8 @@ func _responsive_layout() -> void:
 	%StatusBar.position = Vector2(12.0, h - status_h)
 	%StatusBar.size = Vector2(w - 24.0, status_h)
 
-	var vp_size := Vector2i(maxi(1, int(%ViewportFrame.size.x)), maxi(1, int(%ViewportFrame.size.y)))
-	%SceneViewport.size = vp_size
+	# ViewportContainer has stretch=true, so it owns SceneViewport sizing.
+	# Setting SubViewport.size here causes a warning on every resize event.
 
 func _on_timeline_key_selected(path: String, frame: int, mode: String) -> void:
 	%KeyInterpolationPanel.visible = true
