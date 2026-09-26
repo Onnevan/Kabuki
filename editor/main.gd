@@ -496,6 +496,11 @@ func _apply_drawing_frame(frame: int) -> void:
 				continue
 			var state: Dictionary = pose[stroke.stroke_id]
 			stroke.visible = bool(state.get("visible", true))
+			if data.strokes.has(stroke.stroke_id):
+				var record: Dictionary = data.strokes[stroke.stroke_id]
+				stroke.stroke_color = record.get("color", stroke.stroke_color)
+				stroke.fill_enabled = bool(record.get("fill_enabled", stroke.fill_enabled))
+				stroke.fill_color = record.get("fill_color", stroke.fill_color)
 			stroke.set_points(state.get("points", stroke.points))
 
 func _active_drawing_data() -> RefCounted:
@@ -834,17 +839,10 @@ func _finish_3d_stroke() -> void:
 	var data: RefCounted = drawing_data_by_object.get(active_drawing_id)
 	if data:
 		active_stroke_3d.stroke_id = data.add_stroke(active_stroke_3d.points, active_stroke_3d.style_dict())
-		# Traditional animation semantics: when drawing on a frame that did not
-		# already have a cel, the new cel replaces the held artwork from the
-		# previous exposure instead of accumulating it.
-		if data.has_exposure(ProjectStore.current_frame):
-			var visible_ids: Array[String] = []
-			for child in active_drawing_group.get_children():
-				if child is Stroke3D and child.visible and not (child as Stroke3D).stroke_id.is_empty():
-					visible_ids.append((child as Stroke3D).stroke_id)
-			data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(visible_ids, true), "hold")
-		else:
-			data.set_exposure(ProjectStore.current_frame, data.replacement_pose(active_stroke_3d.stroke_id), "hold")
+		# The cel owns its strokes explicitly. Runtime visibility from a held
+		# previous cel is never sampled when authoring a new frame.
+		data.add_stroke_to_cel(ProjectStore.current_frame, active_stroke_3d.stroke_id)
+		_apply_drawing_frame(ProjectStore.current_frame)
 	active_stroke_3d = null
 	_select_scene_node(active_drawing_id, active_drawing_group)
 	_refresh_drawing_timeline()
