@@ -33,5 +33,5 @@ void fragment(){
 	METALLIC=metallic;
 	ROUGHNESS=roughness;
 	ALPHA=c.a*opacity*tint.a;
-	EMISSION=glow_color*render_quality;
+	EMISSION=c.rgb*0.18 + glow_color*render_quality;
 }
