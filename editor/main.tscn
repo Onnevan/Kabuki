@@ -184,6 +184,29 @@ text="CLEAR"
 [node name="FinishBitmap" type="Button" parent="DrawingBar"]
 text="FINISH BITMAP"
 
+[node name="DrawingAnimBar" type="HBoxContainer" parent="."]
+unique_name_in_owner=true
+visible=false
+offset_left=306.0
+offset_top=120.0
+offset_right=1034.0
+offset_bottom=156.0
+[node name="AnimLabel" type="Label" parent="DrawingAnimBar"]
+text="CELS"
+[node name="NewCel" type="Button" parent="DrawingAnimBar"]
+text="＋ EMPTY"
+[node name="DuplicateCel" type="Button" parent="DrawingAnimBar"]
+text="DUPLICATE"
+[node name="DeleteCel" type="Button" parent="DrawingAnimBar"]
+text="DELETE"
+[node name="HoldCel" type="Button" parent="DrawingAnimBar"]
+text="HOLD"
+[node name="MorphCel" type="Button" parent="DrawingAnimBar"]
+text="MORPH"
+[node name="OnionSkin" type="CheckButton" parent="DrawingAnimBar"]
+unique_name_in_owner=true
+text="ONION SKIN"
+
 [node name="EffectsEngine" type="Control" parent="."]
 unique_name_in_owner=true
 offset_left=294.0
@@ -592,3 +615,10 @@ filters=PackedStringArray("*.png ; PNG Images")
 [connection signal="pressed" from="DrawingBar/NewDrawing" to="." method="_on_new_drawing_pressed"]
 
 [connection signal="pressed" from="DrawingBar/Sculpt" to="." method="_on_draw_sculpt_pressed"]
+
+[connection signal="pressed" from="DrawingAnimBar/NewCel" to="." method="_on_drawing_new_cel"]
+[connection signal="pressed" from="DrawingAnimBar/DuplicateCel" to="." method="_on_drawing_duplicate_cel"]
+[connection signal="pressed" from="DrawingAnimBar/DeleteCel" to="." method="_on_drawing_delete_cel"]
+[connection signal="pressed" from="DrawingAnimBar/HoldCel" to="." method="_on_drawing_hold_cel"]
+[connection signal="pressed" from="DrawingAnimBar/MorphCel" to="." method="_on_drawing_morph_cel"]
+[connection signal="toggled" from="DrawingAnimBar/OnionSkin" to="." method="_on_onion_skin_toggled"]
