@@ -472,7 +472,7 @@ func _apply_drawing_frame(frame: int) -> void:
 		if not scene_nodes.has(object_id): continue
 		var group: Node3D = scene_nodes[object_id]
 		var data: RefCounted = drawing_data_by_object[object_id]
-		var pose := data.evaluate_pose(frame)
+		var pose: Dictionary = data.call("evaluate_pose", frame)
 		for child in group.get_children():
 			if not child is Stroke3D: continue
 			var stroke := child as Stroke3D
