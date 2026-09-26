@@ -151,6 +151,17 @@ text="3D STROKE"
 [node name="Bitmap" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
 text="BITMAP"
+[node name="Sculpt" type="Button" parent="DrawingBar"]
+unique_name_in_owner=true
+text="SCULPT"
+[node name="SculptStrength" type="HSlider" parent="DrawingBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(90,0)
+min_value=-0.08
+max_value=0.08
+step=0.002
+value=0.025
+tooltip_text="Depth sculpt strength. Negative values pull toward the camera."
 [node name="BrushSize" type="HSlider" parent="DrawingBar"]
 unique_name_in_owner=true
 custom_minimum_size=Vector2(150,0)
@@ -579,3 +590,5 @@ filters=PackedStringArray("*.png ; PNG Images")
 
 [connection signal="toggled" from="DrawingBar/Fill" to="." method="_on_fill_toggled"]
 [connection signal="pressed" from="DrawingBar/NewDrawing" to="." method="_on_new_drawing_pressed"]
+
+[connection signal="pressed" from="DrawingBar/Sculpt" to="." method="_on_draw_sculpt_pressed"]
