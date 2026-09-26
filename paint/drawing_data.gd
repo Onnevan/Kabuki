@@ -34,14 +34,15 @@ func update_stroke_points(stroke_id: String, points: PackedVector3Array) -> void
 	if strokes.has(stroke_id):
 		strokes[stroke_id]["points"] = points.duplicate()
 
-func snapshot_pose() -> Dictionary:
+func snapshot_pose(visible_ids: Array[String] = []) -> Dictionary:
 	var pose: Dictionary = {}
+	var filter_visibility := not visible_ids.is_empty()
 	for stroke_id in stroke_order:
 		if not strokes.has(stroke_id): continue
 		var stroke: Dictionary = strokes[stroke_id]
 		pose[stroke_id] = {
 			"points": (stroke["points"] as PackedVector3Array).duplicate(),
-			"visible": bool(stroke.get("visible", true))
+			"visible": visible_ids.has(stroke_id) if filter_visibility else bool(stroke.get("visible", true))
 		}
 	return pose
 
@@ -120,3 +121,9 @@ func set_exposure_interpolation(frame: int, interpolation: String) -> void:
 		if int(exposure["frame"]) == frame:
 			exposure["interpolation"] = interpolation
 			return
+
+func remove_stroke_from_pose(frame: int, stroke_id: String) -> void:
+	var pose := evaluate_pose(frame)
+	if pose.has(stroke_id):
+		pose[stroke_id]["visible"] = false
+	set_exposure(frame, pose, "hold")
