@@ -9,6 +9,7 @@ var expanded := [false, false, false]
 var selected_key_path := ""
 var selected_key_frame := -1
 var dragging_key := false
+var drawing_exposure_frames: Array[int] = []
 signal key_selected(path: String, frame: int, interpolation: String)
 signal key_deselected
 const LANE_X := 210.0
@@ -24,6 +25,9 @@ func _ready()->void:
 func set_frame(f:int)->void: current_frame=f;queue_redraw()
 func set_object(id:String)->void: object_id=id;selected_key_frame=-1;selected_key_path="";key_deselected.emit();queue_redraw()
 func refresh_keys(_a:String="",_b:String="",_c:int=0)->void: queue_redraw()
+func set_drawing_exposures(frames: Array[int]) -> void:
+	drawing_exposure_frames = frames.duplicate()
+	queue_redraw()
 
 func _keys(path:String)->Array:
 	if object_id.is_empty(): return []
@@ -58,6 +62,12 @@ func _draw()->void:
 			var p:=PackedVector2Array([Vector2(x,y-7),Vector2(x+6,y-1),Vector2(x,y+5),Vector2(x-6,y-1)])
 			draw_colored_polygon(p,Color.WHITE if selected_key_path==CHANNELS[row] and selected_key_frame==kf else COLORS[row])
 		if expanded[row]: _draw_curve(row,y+12.0,step)
+	if not drawing_exposure_frames.is_empty():
+		var ey := HEADER_H + 12.0
+		draw_string(get_theme_default_font(),Vector2(14,ey+4),"Drawing Cels",HORIZONTAL_ALIGNMENT_LEFT,-1,12,Color("#f0c96b"))
+		for ef in drawing_exposure_frames:
+			var ex := LANE_X + float(ef) * step
+			draw_rect(Rect2(ex-4, ey-7, 8, 14), Color("#f0c96b"))
 	var px:=LANE_X+float(current_frame)*step
 	draw_line(Vector2(px,HEADER_H-2),Vector2(px,size.y),Color("#238cff"),3)
 	draw_circle(Vector2(px,HEADER_H-4),7,Color("#238cff"))
