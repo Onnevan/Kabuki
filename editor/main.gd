@@ -487,7 +487,11 @@ func _active_drawing_data() -> RefCounted:
 
 func _refresh_drawing_timeline() -> void:
 	var data: RefCounted = _active_drawing_data()
-	var frames: Array[int] = data.exposure_frames() if data != null else []
+	var frames: Array[int] = []
+	if data != null:
+		var raw_frames: Array = data.call("exposure_frames")
+		for frame_value in raw_frames:
+			frames.append(int(frame_value))
 	timeline.set_drawing_exposures(frames)
 
 func _on_drawing_new_cel() -> void:
