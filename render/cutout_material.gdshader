@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode unshaded, cull_disabled, depth_draw_opaque, blend_mix;
+render_mode cull_disabled, depth_draw_opaque, blend_mix;
 uniform sampler2D source_texture : source_color, filter_linear_mipmap;
 uniform float opacity : hint_range(0.0,1.0) = 1.0;
 uniform float exposure : hint_range(-3.0,3.0) = 0.0;
@@ -9,6 +9,9 @@ uniform float glow : hint_range(0.0,3.0) = 0.0;
 uniform float selected : hint_range(0.0,1.0) = 0.0;
 uniform float render_quality : hint_range(0.0,1.0) = 0.0;
 uniform float glow_threshold : hint_range(0.0,2.0) = 0.55;
+uniform vec4 tint : source_color = vec4(1.0);
+uniform float metallic : hint_range(0.0,1.0) = 0.0;
+uniform float roughness : hint_range(0.0,1.0) = 0.8;
 void fragment(){
 	vec2 texel = 1.0 / vec2(textureSize(source_texture,0));
 	vec2 px = texel * blur * render_quality;
@@ -24,7 +27,9 @@ void fragment(){
 	float brightness = max(c.r, max(c.g, c.b));
 	float glow_mask = smoothstep(glow_threshold, glow_threshold + 0.35, brightness);
 	vec3 glow_color = c.rgb * glow_mask * glow * 2.5;
-	ALBEDO=c.rgb;
-	ALPHA=c.a*opacity;
+	ALBEDO=c.rgb*tint.rgb;
+	METALLIC=metallic;
+	ROUGHNESS=roughness;
+	ALPHA=c.a*opacity*tint.a;
 	EMISSION=glow_color*render_quality;
 }
