@@ -40,6 +40,7 @@ var selected_scene_node: Node3D
 var selected_object_id := ""
 var drawing_3d_active := false
 var drawing_sculpt_active := false
+var drawing_erase_active := false
 var active_stroke_3d: Stroke3D
 var active_drawing_group: Node3D
 var active_drawing_id := ""
@@ -338,6 +339,9 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 					if event.pressed: _begin_3d_stroke(event.position)
 					else: _finish_3d_stroke()
 					return
+				elif drawing_erase_active:
+					if event.pressed: _erase_drawing(event.position)
+					return
 				elif drawing_sculpt_active:
 					if event.pressed:
 						for child in active_drawing_group.get_children() if active_drawing_group else []:
@@ -354,6 +358,8 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 				camera_rig.pan(event.relative); return
 			elif drawing_3d_active and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 				_extend_3d_stroke(event.position); return
+			elif drawing_erase_active and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+				_erase_drawing(event.position); return
 			elif drawing_sculpt_active and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 				_sculpt_drawing(event.position); return
 	if event is InputEventMouseButton:
@@ -629,7 +635,7 @@ func _setup_workspace_tabs() -> void:
 func _setup_drawing_menus() -> void:
 	var tools_popup: PopupMenu = %ToolMenu.get_popup()
 	tools_popup.clear()
-	for label in ["3D Stroke", "Sculpt", "Bitmap Paint", "New Drawing", "Clear Bitmap", "Finish Bitmap"]:
+	for label in ["3D Stroke", "Eraser", "Sculpt", "Bitmap Paint", "New Drawing", "Clear Bitmap", "Finish Bitmap"]:
 		tools_popup.add_item(label)
 	tools_popup.id_pressed.connect(_on_drawing_tool_menu)
 	var cel_popup: PopupMenu = %CelMenu.get_popup()
@@ -641,11 +647,12 @@ func _setup_drawing_menus() -> void:
 func _on_drawing_tool_menu(id: int) -> void:
 	match id:
 		0: _on_draw_stroke3d_pressed()
-		1: _on_draw_sculpt_pressed()
-		2: _on_draw_bitmap_pressed()
-		3: _on_new_drawing_pressed()
-		4: %DrawingCanvas.clear_canvas()
-		5: %DrawingCanvas.finish_bitmap()
+		1: _on_draw_eraser_pressed()
+		2: _on_draw_sculpt_pressed()
+		3: _on_draw_bitmap_pressed()
+		4: _on_new_drawing_pressed()
+		5: %DrawingCanvas.clear_canvas()
+		6: %DrawingCanvas.finish_bitmap()
 
 func _on_drawing_cel_menu(id: int) -> void:
 	match id:
@@ -673,6 +680,7 @@ func _on_workspace_tab_changed(tab: int) -> void:
 func _on_draw_stroke3d_pressed() -> void:
 	drawing_3d_active = true
 	drawing_sculpt_active = false
+	drawing_erase_active = false
 	%DrawingCanvas.bitmap_mode = false
 	%DrawingCanvas.visible = false
 	status.text = "3D Stroke · draw on the camera-facing work plane"
@@ -680,6 +688,7 @@ func _on_draw_stroke3d_pressed() -> void:
 func _on_draw_bitmap_pressed() -> void:
 	drawing_3d_active = false
 	drawing_sculpt_active = false
+	drawing_erase_active = false
 	%DrawingCanvas.bitmap_mode = true
 	%DrawingCanvas.visible = true
 	%DrawingCanvas.queue_redraw()
@@ -688,9 +697,39 @@ func _on_draw_bitmap_pressed() -> void:
 func _on_draw_sculpt_pressed() -> void:
 	drawing_3d_active = false
 	drawing_sculpt_active = true
+	drawing_erase_active = false
 	%DrawingCanvas.bitmap_mode = false
 	%DrawingCanvas.visible = false
 	status.text = "Sculpt · drag to push strokes in depth · middle mouse orbits viewport"
+
+func _on_draw_eraser_pressed() -> void:
+	drawing_3d_active = false
+	drawing_sculpt_active = false
+	drawing_erase_active = true
+	%DrawingCanvas.bitmap_mode = false
+	%DrawingCanvas.visible = false
+	status.text = "Eraser · drag across strokes"
+
+func _erase_drawing(pos: Vector2) -> void:
+	if active_drawing_group == null or not is_instance_valid(active_drawing_group): return
+	var radius_px := maxf(10.0, %BrushSize.value * 2.5)
+	var data: RefCounted = drawing_data_by_object.get(active_drawing_id)
+	var changed := false
+	for child in active_drawing_group.get_children():
+		if not child is Stroke3D: continue
+		var stroke := child as Stroke3D
+		if not stroke.visible: continue
+		for point in stroke.points:
+			var world_point := stroke.to_global(point)
+			if camera.is_position_behind(world_point): continue
+			if camera.unproject_position(world_point).distance_to(pos) <= radius_px:
+				stroke.visible = false
+				if data and not stroke.stroke_id.is_empty():
+					data.call("remove_stroke_from_pose", ProjectStore.current_frame, stroke.stroke_id)
+				changed = true
+				break
+	if changed:
+		_refresh_drawing_timeline()
 
 func _sculpt_drawing(pos: Vector2) -> void:
 	if active_drawing_group == null or not is_instance_valid(active_drawing_group): return
@@ -795,9 +834,12 @@ func _finish_3d_stroke() -> void:
 	var data: RefCounted = drawing_data_by_object.get(active_drawing_id)
 	if data:
 		active_stroke_3d.stroke_id = data.add_stroke(active_stroke_3d.points, active_stroke_3d.style_dict())
-		# Drawing changes are frame data: always update the current cel.
-		# AutoKey controls interpolation/editing behavior, not whether the stroke exists in time.
-		data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), "hold")
+		# A cel is a complete drawing state, not an additive list of every historical stroke.
+		var visible_ids: Array[String] = []
+		for child in active_drawing_group.get_children():
+			if child is Stroke3D and child.visible and not (child as Stroke3D).stroke_id.is_empty():
+				visible_ids.append((child as Stroke3D).stroke_id)
+		data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(visible_ids), "hold")
 	active_stroke_3d = null
 	_select_scene_node(active_drawing_id, active_drawing_group)
 	_refresh_drawing_timeline()
