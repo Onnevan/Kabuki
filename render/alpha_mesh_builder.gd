@@ -12,7 +12,7 @@ static func build(image: Image, alpha_threshold := 0.08, target_samples := 900) 
 	for y in range(0, h, step):
 		for x in range(0, w, step):
 			if image.get_pixel(x, y).a >= alpha_threshold:
-				pts.append(Vector2(x, y))
+				pts.append(Vector2(clampi(x + int(sin(float(x * 7 + y * 3)) * step * 0.32), 0, w - 1), clampi(y + int(sin(float(x * 5 + y * 11)) * step * 0.32), 0, h - 1)))
 	var bstep: int = maxi(1, int(step / 2))
 	for y in range(0, h, bstep):
 		for x in range(0, w, bstep):
