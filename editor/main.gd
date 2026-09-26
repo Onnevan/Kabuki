@@ -465,6 +465,7 @@ func _on_frame_changed(frame: int) -> void:
 	timeline.set_frame(frame)
 	for r in runtime_objects: r.apply_frame(frame)
 	_apply_drawing_frame(frame)
+	_refresh_drawing_timeline()
 
 func _apply_drawing_frame(frame: int) -> void:
 	for object_id in drawing_data_by_object.keys():
@@ -479,6 +480,62 @@ func _apply_drawing_frame(frame: int) -> void:
 			var state: Dictionary = pose[stroke.stroke_id]
 			stroke.visible = bool(state.get("visible", true))
 			stroke.set_points(state.get("points", stroke.points))
+
+func _active_drawing_data() -> DrawingData:
+	if active_drawing_id.is_empty() or not drawing_data_by_object.has(active_drawing_id): return null
+	return drawing_data_by_object[active_drawing_id]
+
+func _refresh_drawing_timeline() -> void:
+	var data := _active_drawing_data()
+	timeline.set_drawing_exposures(data.exposure_frames() if data else [])
+
+func _on_drawing_new_cel() -> void:
+	var data := _active_drawing_data()
+	if data == null: return
+	var empty_pose: Dictionary = {}
+	for stroke_id in data.stroke_order:
+		empty_pose[stroke_id] = {"points": (data.strokes[stroke_id]["points"] as PackedVector3Array).duplicate(), "visible": false}
+	data.set_exposure(ProjectStore.current_frame, empty_pose, "hold")
+	_apply_drawing_frame(ProjectStore.current_frame)
+	_refresh_drawing_timeline()
+	status.text = "Empty drawing cel · frame %d" % ProjectStore.current_frame
+
+func _on_drawing_duplicate_cel() -> void:
+	var data := _active_drawing_data()
+	if data == null: return
+	if data.duplicate_previous_exposure(ProjectStore.current_frame):
+		_apply_drawing_frame(ProjectStore.current_frame)
+		_refresh_drawing_timeline()
+		status.text = "Drawing cel duplicated · frame %d" % ProjectStore.current_frame
+
+func _on_drawing_delete_cel() -> void:
+	var data := _active_drawing_data()
+	if data == null: return
+	data.remove_exposure(ProjectStore.current_frame)
+	_apply_drawing_frame(ProjectStore.current_frame)
+	_refresh_drawing_timeline()
+	status.text = "Drawing cel deleted · frame %d" % ProjectStore.current_frame
+
+func _on_drawing_hold_cel() -> void:
+	var data := _active_drawing_data()
+	if data == null: return
+	if not data.has_exposure(ProjectStore.current_frame):
+		data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), "hold")
+	data.set_exposure_interpolation(ProjectStore.current_frame, "hold")
+	_refresh_drawing_timeline()
+	status.text = "Cel interpolation · HOLD"
+
+func _on_drawing_morph_cel() -> void:
+	var data := _active_drawing_data()
+	if data == null: return
+	if not data.has_exposure(ProjectStore.current_frame):
+		data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), "linear")
+	data.set_exposure_interpolation(ProjectStore.current_frame, "linear")
+	_refresh_drawing_timeline()
+	status.text = "Cel interpolation · MORPH"
+
+func _on_onion_skin_toggled(enabled: bool) -> void:
+	status.text = "Onion skin prepared · preview pass next" if enabled else "Onion skin off"
 
 func key_active_drawing_pose(interpolation := "hold") -> void:
 	if active_drawing_id.is_empty() or not drawing_data_by_object.has(active_drawing_id): return
@@ -557,6 +614,7 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	workspace = ["scene","animation","drawing","compositor"][tab]
 	%RightPanel.visible = workspace == "scene" or workspace == "compositor"
 	%DrawingBar.visible = workspace == "drawing"
+	%DrawingAnimBar.visible = workspace == "drawing"
 	%DrawingCanvas.visible = workspace == "drawing" and %DrawingCanvas.bitmap_mode
 	%ViewportTop.visible = workspace != "drawing"
 	%ToolRail.visible = workspace != "drawing"
@@ -642,6 +700,7 @@ func _on_new_drawing_pressed() -> void:
 	active_drawing_id = ""
 	_ensure_drawing_group()
 	_select_scene_node(active_drawing_id, active_drawing_group)
+	_refresh_drawing_timeline()
 	status.text = "New drawing session"
 
 func _begin_3d_stroke(pos: Vector2) -> void:
@@ -672,6 +731,7 @@ func _finish_3d_stroke() -> void:
 			data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), "hold")
 	active_stroke_3d = null
 	_select_scene_node(active_drawing_id, active_drawing_group)
+	_refresh_drawing_timeline()
 
 func _on_fill_toggled(enabled: bool) -> void:
 	status.text = "Stroke fill enabled" if enabled else "Stroke fill disabled"
@@ -733,6 +793,8 @@ func _responsive_layout() -> void:
 	%DrawingCanvas.size = %ViewportFrame.size
 	%DrawingBar.position = %ViewportFrame.position + Vector2(12.0, 10.0)
 	%DrawingBar.size = Vector2(maxf(100.0, %ViewportFrame.size.x - 24.0), 40.0)
+	%DrawingAnimBar.position = %ViewportFrame.position + Vector2(12.0, 50.0)
+	%DrawingAnimBar.size = Vector2(maxf(100.0, %ViewportFrame.size.x - 24.0), 36.0)
 
 	%Bottom.position = Vector2(margin, content_bottom + 8.0)
 	%Bottom.size = Vector2(w - margin * 2.0, timeline_h)
