@@ -91,6 +91,8 @@ func rebuild() -> void:
 func _base_material(color: Color) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
+	# Drawing colors should be WYSIWYG and must not be darkened by scene lighting.
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.roughness = 0.8
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	if color.a < 0.999:
