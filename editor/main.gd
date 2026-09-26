@@ -264,9 +264,30 @@ func _select_scene_node(id: String, node: Node3D) -> void:
 		%LightType.select(0 if light is DirectionalLight3D else (1 if light is OmniLight3D else 2))
 
 func _show_transform(node: Node3D) -> void:
-	%PosValue.text = "X %.2f   Y %.2f   Z %.2f" % [node.position.x,node.position.y,node.position.z]
-	%RotValue.text = "X %.1f   Y %.1f   Z %.1f" % [rad_to_deg(node.rotation.x),rad_to_deg(node.rotation.y),rad_to_deg(node.rotation.z)]
-	%ScaleValue.text = "X %.2f   Y %.2f   Z %.2f" % [node.scale.x,node.scale.y,node.scale.z]
+	%PositionEdit.text = "%.3f, %.3f, %.3f" % [node.position.x,node.position.y,node.position.z]
+	%RotationEdit.text = "%.2f, %.2f, %.2f" % [rad_to_deg(node.rotation.x),rad_to_deg(node.rotation.y),rad_to_deg(node.rotation.z)]
+	%ScaleEdit.text = "%.3f, %.3f, %.3f" % [node.scale.x,node.scale.y,node.scale.z]
+
+func _parse_vec3(text: String, fallback: Vector3) -> Vector3:
+	var parts := text.replace(" ", "").split(",")
+	if parts.size() != 3: return fallback
+	return Vector3(float(parts[0]), float(parts[1]), float(parts[2]))
+
+func _on_position_submitted(text: String) -> void:
+	if selected_scene_node == null: return
+	selected_scene_node.position = _parse_vec3(text, selected_scene_node.position)
+	_show_transform(selected_scene_node)
+
+func _on_rotation_submitted(text: String) -> void:
+	if selected_scene_node == null: return
+	var degrees := _parse_vec3(text, selected_scene_node.rotation_degrees)
+	selected_scene_node.rotation_degrees = degrees
+	_show_transform(selected_scene_node)
+
+func _on_scale_submitted(text: String) -> void:
+	if selected_scene_node == null: return
+	selected_scene_node.scale = _parse_vec3(text, selected_scene_node.scale)
+	_show_transform(selected_scene_node)
 
 func _on_object_selected(index: int) -> void:
 	var id: String = object_list.get_item_metadata(index)
@@ -513,10 +534,8 @@ func _flash_key_button() -> void:
 	%Key.text = "● KEY"
 
 func _refresh_transform_readout() -> void:
-	if selected == null: return
-	%PosValue.text = "X %.2f   Y %.2f   Z %.2f" % [selected.position.x,selected.position.y,selected.position.z]
-	%RotValue.text = "X %.1f   Y %.1f   Z %.1f" % [rad_to_deg(selected.rotation.x),rad_to_deg(selected.rotation.y),rad_to_deg(selected.rotation.z)]
-	%ScaleValue.text = "X %.2f   Y %.2f   Z %.2f" % [selected.scale.x,selected.scale.y,selected.scale.z]
+	if selected_scene_node == null: return
+	_show_transform(selected_scene_node)
 
 func _responsive_layout() -> void:
 	var w: float = size.x
