@@ -359,7 +359,8 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 			elif drawing_3d_active and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 				_extend_3d_stroke(event.position); return
 			elif drawing_erase_active and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-				_erase_drawing(event.position); return
+				_erase_drawing(event.position)
+				return
 			elif drawing_sculpt_active and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 				_sculpt_drawing(event.position); return
 	if event is InputEventMouseButton:
