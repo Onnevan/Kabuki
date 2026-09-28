@@ -77,6 +77,7 @@ func _ready() -> void:
 	%ViewY.pressed.connect(func(): _align_view_axis(Vector3.UP, "Y"))
 	%ViewZ.pressed.connect(func(): _align_view_axis(Vector3.BACK, "Z"))
 	%ViewCamera.pressed.connect(_restore_projection_view)
+	%PlaneDelete.pressed.connect(_on_plane_delete)
 	%SculptMode.clear()
 	for label in ["Push / Pull", "Move", "Pinch", "Smooth", "Inflate"]:
 		%SculptMode.add_item(label)
@@ -339,14 +340,45 @@ func _on_object_selected(index: int) -> void:
 		_select_scene_node(id, scene_nodes[id])
 
 func _on_delete_pressed() -> void:
-	if selected == null: return
-	var idx := runtime_objects.find(selected)
-	if idx >= 0:
-		runtime_objects.remove_at(idx); object_list.remove_item(idx)
-	selected.queue_free(); selected = null; gizmo.attach(null); timeline.set_object(""); %SelectionLabel.text = "Nothing selected"
+	if selected_scene_node == null: return
+	if selected_scene_node is ReferenceCanvas:
+		_delete_reference_canvas(selected_scene_node as ReferenceCanvas)
+		return
+	if selected != null:
+		runtime_objects.erase(selected)
+	if not selected_object_id.is_empty():
+		ProjectStore.objects.erase(selected_object_id)
+		scene_nodes.erase(selected_object_id)
+	selected_scene_node.queue_free()
+	selected = null; selected_scene_node = null; selected_object_id = ""
+	gizmo.attach(null); timeline.set_object(""); %SelectionLabel.text = "Nothing selected"
+	_refresh_scene_object_list()
+	status.text = "Object deleted"
 
 func _on_duplicate_pressed() -> void:
-	status.text = "Duplicate is reserved for the next pass"
+	if selected_scene_node == null: return
+	if selected_scene_node is ReferenceCanvas:
+		_on_plane_duplicate()
+		return
+	if selected is RuntimeObject and selected.model != null:
+		var source := selected as RuntimeObject
+		var obj := MotionObject.new(source.model.name + " Copy", source.model.technical_type, source.model.role)
+		var copy := RuntimeObject.new()
+		world_root.add_child(copy)
+		copy.mesh = source.mesh
+		copy.texture = source.texture
+		copy.material = source.material.duplicate() as ShaderMaterial if source.material else null
+		copy.standard_material = source.standard_material.duplicate() as StandardMaterial3D if source.standard_material else null
+		copy.material_override = copy.material if copy.material else copy.standard_material
+		copy.transform = source.transform
+		copy.position += Vector3(0.12,0.0,0.0)
+		copy.model = obj
+		_register_scene_object(obj,copy)
+		runtime_objects.append(copy)
+		_select(copy)
+		status.text = "Object duplicated"
+		return
+	status.text = "This object type cannot be duplicated yet"
 
 func _interp_name() -> String:
 	var modes: Array[String] = ["constant","linear","bezier","quadratic_in","quadratic_out","quadratic_in_out","cubic_in_out","back","bounce","elastic"]
@@ -790,6 +822,7 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	%ToolRail.visible = workspace != "drawing"
 	%Title.text = "OBJECTS" if workspace != "drawing" else "DRAWINGS"
 	%Status.text = workspace.to_upper() + " workspace"
+	%EditorTitle.text = workspace.to_upper() + " EDITOR"
 	for reference_canvas in drawing_planes:
 		if is_instance_valid(reference_canvas):
 			reference_canvas.set_guide_visible(workspace == "scene")
@@ -1018,6 +1051,28 @@ func _move_active_plane(step: int) -> void:
 
 func _on_plane_up() -> void: _move_active_plane(-1)
 func _on_plane_down() -> void: _move_active_plane(1)
+
+func _on_plane_delete() -> void:
+	if active_drawing_group == null: return
+	_delete_reference_canvas(active_drawing_group)
+
+func _delete_reference_canvas(plane: ReferenceCanvas) -> void:
+	var id := _reference_canvas_id(plane)
+	drawing_planes.erase(plane)
+	if not id.is_empty():
+		ProjectStore.objects.erase(id)
+		scene_nodes.erase(id)
+		drawing_data_by_object.erase(id)
+	plane.queue_free()
+	active_drawing_group = drawing_planes[-1] if not drawing_planes.is_empty() else null
+	active_drawing_id = _reference_canvas_id(active_drawing_group) if active_drawing_group else ""
+	selected_scene_node = active_drawing_group
+	selected_object_id = active_drawing_id
+	gizmo.attach(active_drawing_group)
+	_refresh_drawing_planes()
+	_refresh_scene_object_list()
+	_refresh_drawing_timeline()
+	status.text = "Reference canvas deleted"
 
 func _on_plane_duplicate() -> void:
 	if active_drawing_group == null: return
