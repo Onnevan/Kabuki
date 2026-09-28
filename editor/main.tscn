@@ -82,13 +82,13 @@ unique_name_in_owner=true
 visible=false
 [node name="PlanesHead" type="HBoxContainer" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes"]
 [node name="PlanesTitle" type="Label" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlanesHead"]
-text="PLANES"
+text="REFERENCE CANVASES"
 [node name="PlanesGrow" type="Control" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlanesHead"]
 size_flags_horizontal=3
 [node name="AddDrawingPlane" type="Button" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlanesHead"]
 unique_name_in_owner=true
 text="＋"
-tooltip_text="Add drawing plane"
+tooltip_text="Add spatial reference canvas"
 [node name="DrawingPlaneList" type="ItemList" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes"]
 unique_name_in_owner=true
 custom_minimum_size=Vector2(0,150)
