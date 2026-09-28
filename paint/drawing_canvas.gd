@@ -22,6 +22,7 @@ var hardness := 0.78
 var flow := 0.34
 var spacing_ratio := 0.10
 var brush_preset := 0
+var pencil_texture := 0.22
 var raster: Image
 var stroke_start := Vector2.ZERO
 var last_point := Vector2.ZERO
@@ -65,6 +66,8 @@ func set_brush_preset(value: int) -> void:
 		1: hardness = 0.42; flow = 0.20; spacing_ratio = 0.07
 		2: hardness = 0.18; flow = 0.10; spacing_ratio = 0.06
 		3: hardness = 0.72; flow = 0.28; spacing_ratio = 0.05
+		4: hardness = 0.96; flow = 0.72; spacing_ratio = 0.045; pencil_texture = 0.34
+		5: hardness = 0.88; flow = 0.48; spacing_ratio = 0.04; pencil_texture = 0.58
 
 func clear_canvas() -> void:
 	_ensure_raster()
@@ -190,6 +193,8 @@ func _stamp(p: Vector2) -> void:
 					coverage *= 0.35+grain*0.9
 			elif tool == TOOL_PENCIL:
 				coverage = 0.92 if d <= 0.92 else 0.0
+				var graphite := fmod(absf(sin(float(x*41+y*73))*9187.13),1.0)
+				coverage *= lerpf(1.0,0.42+graphite*0.58,pencil_texture)
 			_blend_pixel(x,y,_paint_color(),coverage)
 
 func _blend_pixel(x: int,y: int,src: Color,coverage: float) -> void:
