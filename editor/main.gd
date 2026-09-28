@@ -172,6 +172,13 @@ func _register_scene_object(obj: MotionObject, node: Node3D) -> void:
 	object_list.add_item(obj.name)
 	object_list.set_item_metadata(object_list.item_count - 1, obj.id)
 
+func _refresh_scene_object_list() -> void:
+	object_list.clear()
+	for obj in ProjectStore.objects:
+		if not scene_nodes.has(obj.id): continue
+		object_list.add_item(obj.name)
+		object_list.set_item_metadata(object_list.item_count - 1, obj.id)
+
 func _on_add_object_type(id: int) -> void:
 	match id:
 		0: _create_plane()
@@ -672,7 +679,7 @@ func _on_drawing_cel_menu(id: int) -> void:
 
 func _on_workspace_tab_changed(tab: int) -> void:
 	workspace = ["scene","animation","drawing","compositor"][tab]
-	%RightPanel.visible = workspace == "scene" or workspace == "compositor"
+	%RightPanel.visible = workspace == "scene" or workspace == "drawing" or workspace == "compositor"
 	%DrawingBar.visible = workspace == "drawing"
 	%DrawingAnimBar.visible = workspace == "drawing"
 	%DrawingPlanes.visible = workspace == "drawing"
@@ -682,6 +689,9 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	%ToolRail.visible = workspace != "drawing"
 	%Title.text = "OBJECTS" if workspace != "drawing" else "DRAWINGS"
 	%Status.text = workspace.to_upper() + " workspace"
+	_refresh_scene_object_list()
+	if workspace == "drawing" and active_drawing_group != null:
+		_select_scene_node(active_drawing_id, active_drawing_group)
 	if workspace == "compositor":
 		%LookTitle.text = "◇  EFFECT STACK  ·  Scene Output"
 	else:
@@ -819,7 +829,9 @@ func _on_add_drawing_plane() -> void:
 	active_drawing_id = obj.id
 	selected_stroke = null
 	_refresh_drawing_planes()
+	_refresh_scene_object_list()
 	_select_scene_node(active_drawing_id, active_drawing_group)
+	%RightPanel.visible = true
 	status.text = "Drawing plane created · strokes and bitmap paint target this plane"
 
 func _refresh_drawing_planes() -> void:
@@ -839,6 +851,7 @@ func _on_drawing_plane_selected(index: int) -> void:
 			active_drawing_id = id
 			break
 	_select_scene_node(active_drawing_id, plane)
+	%RightPanel.visible = true
 	_refresh_drawing_timeline()
 	status.text = "Active drawing plane · " + plane.name
 
@@ -916,6 +929,7 @@ func _finish_3d_stroke() -> void:
 	selected_stroke = active_stroke_3d
 	active_stroke_3d = null
 	_select_scene_node(active_drawing_id, active_drawing_group)
+	%RightPanel.visible = true
 	_refresh_drawing_timeline()
 
 func _on_fill_toggled(enabled: bool) -> void:
