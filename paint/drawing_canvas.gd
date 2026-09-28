@@ -79,10 +79,15 @@ func _draw() -> void:
 		if tool == Tool.LINE:
 			draw_line(stroke_start, last_point, c, brush_size, true)
 		elif tool == Tool.RECT:
-			draw_rect(Rect2(stroke_start, last_point - stroke_start).abs(), c, false, brush_size)
+			draw_rect(_normalized_rect(stroke_start, last_point), c, false, brush_size)
 		elif tool == Tool.ELLIPSE:
-			var rect := Rect2(stroke_start, last_point - stroke_start).abs()
+			var rect := _normalized_rect(stroke_start, last_point)
 			draw_arc(rect.get_center(), minf(rect.size.x, rect.size.y) * 0.5, 0, TAU, 48, c, brush_size, true)
+
+func _normalized_rect(a: Vector2, b: Vector2) -> Rect2:
+	var top_left := Vector2(minf(a.x, b.x), minf(a.y, b.y))
+	var bottom_right := Vector2(maxf(a.x, b.x), maxf(a.y, b.y))
+	return Rect2(top_left, bottom_right - top_left)
 
 func _paint_color() -> Color:
 	var c := brush_color
@@ -133,7 +138,7 @@ func _commit_shape(a: Vector2, b: Vector2) -> void:
 	if tool == Tool.LINE:
 		_paint_segment(a,b)
 		return
-	var rect := Rect2(a,b-a).abs()
+	var rect := _normalized_rect(a, b)
 	var samples := maxi(24, int(rect.size.length() * 0.8))
 	if tool == Tool.RECT:
 		_paint_segment(rect.position, Vector2(rect.end.x,rect.position.y))
