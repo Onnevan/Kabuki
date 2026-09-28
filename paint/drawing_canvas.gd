@@ -28,10 +28,42 @@ var stroke_start := Vector2.ZERO
 var last_point := Vector2.ZERO
 var painting := false
 var raster_texture: ImageTexture
+var canvas_rasters: Dictionary = {}
+var active_canvas_id := ""
 var lasso_points := PackedVector2Array()
 var undo_stack: Array[Image] = []
 var redo_stack: Array[Image] = []
 const MAX_UNDO := 24
+
+func switch_canvas(canvas_id: String) -> void:
+	if canvas_id == active_canvas_id: return
+	if not active_canvas_id.is_empty() and raster != null:
+		canvas_rasters[active_canvas_id] = raster.duplicate()
+	active_canvas_id = canvas_id
+	raster = null
+	raster_texture = null
+	if canvas_rasters.has(canvas_id):
+		raster = (canvas_rasters[canvas_id] as Image).duplicate()
+		raster_texture = ImageTexture.create_from_image(raster)
+	undo_stack.clear()
+	redo_stack.clear()
+	_ensure_raster()
+	queue_redraw()
+
+func committed_canvas_images() -> Dictionary:
+	if not active_canvas_id.is_empty() and raster != null:
+		canvas_rasters[active_canvas_id] = raster.duplicate()
+	var result: Dictionary = {}
+	for canvas_id in canvas_rasters:
+		var image: Image = canvas_rasters[canvas_id]
+		if not image.is_empty():
+			result[canvas_id] = image.duplicate()
+	return result
+
+func clear_canvas_session(canvas_id: String) -> void:
+	canvas_rasters.erase(canvas_id)
+	if active_canvas_id == canvas_id:
+		clear_canvas_without_history()
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
