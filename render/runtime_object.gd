@@ -23,33 +23,34 @@ func setup(obj: MotionObject, img: Image) -> void:
 	name = obj.name
 
 func setup_bitmap(obj: MotionObject, img: Image, local_corners := PackedVector3Array()) -> void:
-	# Bitmap layers stay bitmaps. A four-corner textured mesh preserves every
-	# pixel and can represent the exact camera-to-reference-canvas projection.
 	model = obj
-	if local_corners.size() == 4:
-		var arrays := []
-		arrays.resize(Mesh.ARRAY_MAX)
-		arrays[Mesh.ARRAY_VERTEX] = local_corners
-		arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(0,0),Vector2(1,0),Vector2(1,1),Vector2(0,1)])
-		arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0,2,1,0,3,2])
+	# Build the real alpha silhouette now, so bitmap layers are already
+	# deformation-ready rather than permanent four-vertex quads.
+	var source_mesh := AlphaMeshBuilder.build(img,0.08,1400)
+	if local_corners.size() == 4 and source_mesh.get_surface_count() > 0:
+		var src_arrays := source_mesh.surface_get_arrays(0)
+		var src_verts: PackedVector3Array = src_arrays[Mesh.ARRAY_VERTEX]
+		var src_uvs: PackedVector2Array = src_arrays[Mesh.ARRAY_TEX_UV]
+		var projected_verts := PackedVector3Array()
+		for uv in src_uvs:
+			var top := local_corners[0].lerp(local_corners[1],uv.x)
+			var bottom := local_corners[3].lerp(local_corners[2],uv.x)
+			projected_verts.append(top.lerp(bottom,uv.y))
+		src_arrays[Mesh.ARRAY_VERTEX] = projected_verts
 		var projected := ArrayMesh.new()
-		projected.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		projected.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,src_arrays)
 		mesh = projected
 	else:
-		var quad := QuadMesh.new()
-		quad.size = Vector2(1.6, 1.0)
-		mesh = quad
+		mesh = source_mesh
 	texture = ImageTexture.create_from_image(img)
 	material = ShaderMaterial.new()
 	material.shader = load("res://render/cutout_material.gdshader")
-	material.set_shader_parameter("source_texture", texture)
-	material.set_shader_parameter("tint", Color.WHITE)
-	material.set_shader_parameter("roughness", 0.8)
-	material.set_shader_parameter("metallic", 0.0)
-	material.set_shader_parameter("two_sided", true)
+	material.set_shader_parameter("source_texture",texture)
+	material.set_shader_parameter("tint",Color.WHITE)
+	material.set_shader_parameter("roughness",0.8)
+	material.set_shader_parameter("metallic",0.0)
+	material.set_shader_parameter("two_sided",true)
 	material_override = material
-	# Bitmap paint is transparent RGBA content; keep it visible from either
-	# side of a reference canvas and sort it as transparent geometry.
 	transparency = 0.0001
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	name = obj.name
