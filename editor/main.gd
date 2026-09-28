@@ -71,6 +71,8 @@ func _ready() -> void:
 	gizmo.set_mode(active_tool)
 	_setup_workspace_tabs()
 	_setup_drawing_menus()
+	%UndoPaint.pressed.connect(%DrawingCanvas.undo_paint)
+	%RedoPaint.pressed.connect(%DrawingCanvas.redo_paint)
 	%ViewX.pressed.connect(func(): _align_view_axis(Vector3.RIGHT, "X"))
 	%ViewY.pressed.connect(func(): _align_view_axis(Vector3.UP, "Y"))
 	%ViewZ.pressed.connect(func(): _align_view_axis(Vector3.BACK, "Z"))
@@ -83,6 +85,18 @@ func _ready() -> void:
 	_on_frame_changed(0)
 	_responsive_layout()
 	resized.connect(_responsive_layout)
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not event is InputEventKey: return
+	var key_event := event as InputEventKey
+	if not key_event.pressed or key_event.echo: return
+	if key_event.ctrl_pressed and key_event.keycode == KEY_Z:
+		if key_event.shift_pressed: %DrawingCanvas.redo_paint()
+		else: %DrawingCanvas.undo_paint()
+		get_viewport().set_input_as_handled()
+	elif key_event.ctrl_pressed and key_event.keycode == KEY_Y:
+		%DrawingCanvas.redo_paint()
+		get_viewport().set_input_as_handled()
 
 func _process(delta: float) -> void:
 	if playing:
