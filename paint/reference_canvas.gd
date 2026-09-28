@@ -56,8 +56,12 @@ func content_bounds() -> AABB:
 		var visual := child as VisualInstance3D
 		if not visual.visible: continue
 		if child is MeshInstance3D and (child as MeshInstance3D).mesh:
-			var box := (child as MeshInstance3D).mesh.get_aabb()
-			box = box.transformed(child.transform)
+			var local_box := (child as MeshInstance3D).mesh.get_aabb()
+			# Godot 4 removed AABB.transformed(). Transform the 8 corners into
+			# reference-canvas local space and rebuild the enclosing AABB.
+			var box := AABB(child.transform * local_box.get_endpoint(0), Vector3.ZERO)
+			for corner in range(1, 8):
+				box = box.expand(child.transform * local_box.get_endpoint(corner))
 			result = box if first else result.merge(box)
 			first = false
 	return AABB(Vector3(-guide_size.x*.5,-guide_size.y*.5,0),Vector3(guide_size.x,guide_size.y,0.001)) if first else result
