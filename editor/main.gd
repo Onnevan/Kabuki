@@ -47,6 +47,8 @@ var active_drawing_id := ""
 var drawing_session_index := 0
 var drawing_data_by_object: Dictionary = {}
 var sculpt_mode := "push"
+var drawing_planes: Array[Node3D] = []
+var selected_stroke: Stroke3D
 
 func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
@@ -673,6 +675,8 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	%RightPanel.visible = workspace == "scene" or workspace == "compositor"
 	%DrawingBar.visible = workspace == "drawing"
 	%DrawingAnimBar.visible = workspace == "drawing"
+	%DrawingPlanes.visible = workspace == "drawing"
+	%ObjectList.visible = workspace != "drawing"
 	%DrawingCanvas.visible = workspace == "drawing" and %DrawingCanvas.bitmap_mode
 	%ViewportTop.visible = workspace != "drawing"
 	%ToolRail.visible = workspace != "drawing"
@@ -761,34 +765,37 @@ func _on_brush_size_changed(value: float) -> void:
 
 func _on_brush_color_changed(value: Color) -> void:
 	%DrawingCanvas.brush_color = value
-	_apply_active_drawing_style()
+	_apply_selected_stroke_style()
 
 func _on_fill_color_changed(_value: Color) -> void:
-	_apply_active_drawing_style()
+	_apply_selected_stroke_style()
 
 func _on_sculpt_mode_selected(index: int) -> void:
 	var modes: Array[String] = ["push", "move", "pinch", "smooth", "inflate"]
 	sculpt_mode = modes[clampi(index, 0, modes.size() - 1)]
 	status.text = "Sculpt · " + %SculptMode.get_item_text(index)
 
-func _apply_active_drawing_style() -> void:
-	if active_drawing_group == null or not is_instance_valid(active_drawing_group): return
+func _apply_selected_stroke_style() -> void:
+	# Color controls edit only the selected/last stroke. With no stroke selected
+	# they are simply the style for the next stroke.
+	if selected_stroke == null or not is_instance_valid(selected_stroke): return
+	selected_stroke.set_style(%BrushColor.color, %Fill.button_pressed, %FillColor.color)
 	var data: RefCounted = drawing_data_by_object.get(active_drawing_id)
-	for child in active_drawing_group.get_children():
-		if child is Stroke3D:
-			var stroke := child as Stroke3D
-			stroke.set_style(%BrushColor.color, %Fill.button_pressed, %FillColor.color)
-			if data and not stroke.stroke_id.is_empty():
-				var record: Dictionary = data.strokes.get(stroke.stroke_id, {})
-				record["color"] = %BrushColor.color
-				record["fill_enabled"] = %Fill.button_pressed
-				record["fill_color"] = %FillColor.color
+	if data and not selected_stroke.stroke_id.is_empty():
+		var record: Dictionary = data.strokes.get(selected_stroke.stroke_id, {})
+		record["color"] = %BrushColor.color
+		record["fill_enabled"] = %Fill.button_pressed
+		record["fill_color"] = %FillColor.color
+
+func _apply_active_drawing_style() -> void:
+	_apply_selected_stroke_style()
 
 func _on_bitmap_finished(image: Image) -> void:
+	_ensure_drawing_group()
 	var obj := MotionObject.new("Bitmap Drawing", "image_mesh", "drawing")
 	ProjectStore.add_object(obj)
 	var runtime := RuntimeObject.new()
-	world_root.add_child(runtime)
+	active_drawing_group.add_child(runtime)
 	runtime.setup(obj, image)
 	runtime_objects.append(runtime)
 	object_list.add_item(obj.name)
@@ -799,24 +806,86 @@ func _on_bitmap_finished(image: Image) -> void:
 	_select(runtime)
 	status.text = "Bitmap drawing converted to alpha Delaunay mesh"
 
+func _on_add_drawing_plane() -> void:
+	drawing_session_index += 1
+	var obj := MotionObject.new("Plane %02d" % drawing_session_index, "drawing_group", "drawing")
+	var plane := Node3D.new()
+	world_root.add_child(plane)
+	_register_scene_object(obj, plane)
+	drawing_planes.append(plane)
+	drawing_data_by_object[obj.id] = DrawingDataClass.new(obj.id)
+	obj.components["paint"] = {"drawing_data_id": drawing_data_by_object[obj.id].id, "animation_mode": "exposure_and_morph", "spatial_plane": true}
+	active_drawing_group = plane
+	active_drawing_id = obj.id
+	selected_stroke = null
+	_refresh_drawing_planes()
+	_select_scene_node(active_drawing_id, active_drawing_group)
+	status.text = "Drawing plane created · strokes and bitmap paint target this plane"
+
+func _refresh_drawing_planes() -> void:
+	%DrawingPlaneList.clear()
+	for plane in drawing_planes:
+		if not is_instance_valid(plane): continue
+		%DrawingPlaneList.add_item("◉  " + plane.name)
+		%DrawingPlaneList.set_item_metadata(%DrawingPlaneList.item_count - 1, plane)
+
+func _on_drawing_plane_selected(index: int) -> void:
+	var plane: Node3D = %DrawingPlaneList.get_item_metadata(index)
+	if plane == null: return
+	active_drawing_group = plane
+	selected_stroke = null
+	for id in scene_nodes:
+		if scene_nodes[id] == plane:
+			active_drawing_id = id
+			break
+	_select_scene_node(active_drawing_id, plane)
+	_refresh_drawing_timeline()
+	status.text = "Active drawing plane · " + plane.name
+
+func _move_active_plane(step: int) -> void:
+	if active_drawing_group == null: return
+	var idx := drawing_planes.find(active_drawing_group)
+	var target: int = clampi(idx + step, 0, drawing_planes.size() - 1)
+	if idx < 0 or idx == target: return
+	var tmp := drawing_planes[idx]
+	drawing_planes[idx] = drawing_planes[target]
+	drawing_planes[target] = tmp
+	# Layer order also gets a small physical Z separation: cut-out theatre semantics.
+	for i in range(drawing_planes.size()):
+		drawing_planes[i].position.z = float(i) * 0.02
+	_refresh_drawing_planes()
+	%DrawingPlaneList.select(target)
+
+func _on_plane_up() -> void: _move_active_plane(-1)
+func _on_plane_down() -> void: _move_active_plane(1)
+
+func _on_plane_duplicate() -> void:
+	if active_drawing_group == null: return
+	var source := active_drawing_group
+	_on_add_drawing_plane()
+	active_drawing_group.name = source.name + " Copy"
+	for child in source.get_children():
+		if child is Stroke3D:
+			var src := child as Stroke3D
+			var copy := Stroke3DClass.new()
+			copy.points = src.points.duplicate()
+			copy.stroke_color = src.stroke_color
+			copy.radius = src.radius
+			copy.fill_enabled = src.fill_enabled
+			copy.fill_color = src.fill_color
+			active_drawing_group.add_child(copy)
+			copy.rebuild()
+			var data: RefCounted = drawing_data_by_object.get(active_drawing_id)
+			copy.stroke_id = data.add_stroke(copy.points, copy.style_dict())
+			data.add_stroke_to_cel(ProjectStore.current_frame, copy.stroke_id)
+	_refresh_drawing_planes()
+
 func _ensure_drawing_group() -> void:
 	if active_drawing_group != null and is_instance_valid(active_drawing_group): return
-	drawing_session_index += 1
-	var obj := MotionObject.new("Drawing %02d" % drawing_session_index, "drawing_group", "drawing")
-	active_drawing_group = Node3D.new()
-	world_root.add_child(active_drawing_group)
-	_register_scene_object(obj, active_drawing_group)
-	active_drawing_id = obj.id
-	drawing_data_by_object[obj.id] = DrawingDataClass.new(obj.id)
-	obj.components["paint"] = {"drawing_data_id": drawing_data_by_object[obj.id].id, "animation_mode": "exposure_and_morph"}
+	_on_add_drawing_plane()
 
 func _on_new_drawing_pressed() -> void:
-	active_drawing_group = null
-	active_drawing_id = ""
-	_ensure_drawing_group()
-	_select_scene_node(active_drawing_id, active_drawing_group)
-	_refresh_drawing_timeline()
-	status.text = "New drawing session"
+	_on_add_drawing_plane()
 
 func _begin_3d_stroke(pos: Vector2) -> void:
 	_ensure_drawing_group()
@@ -844,12 +913,13 @@ func _finish_3d_stroke() -> void:
 		# previous cel is never sampled when authoring a new frame.
 		data.add_stroke_to_cel(ProjectStore.current_frame, active_stroke_3d.stroke_id)
 		_apply_drawing_frame(ProjectStore.current_frame)
+	selected_stroke = active_stroke_3d
 	active_stroke_3d = null
 	_select_scene_node(active_drawing_id, active_drawing_group)
 	_refresh_drawing_timeline()
 
 func _on_fill_toggled(enabled: bool) -> void:
-	_apply_active_drawing_style()
+	_apply_selected_stroke_style()
 	status.text = "Stroke fill enabled" if enabled else "Stroke fill disabled"
 
 func _on_preview_mode_toggled(render_mode: bool) -> void:
