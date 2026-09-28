@@ -52,7 +52,7 @@ func setup_bitmap(obj: MotionObject, img: Image, local_corners := PackedVector3A
 	material.set_shader_parameter("two_sided",true)
 	material_override = material
 	transparency = 0.0001
-	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
 	name = obj.name
 
 func setup_plane(obj: MotionObject) -> void:
