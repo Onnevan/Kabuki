@@ -336,6 +336,25 @@ text="HOLD"
 [node name="MorphCel" type="Button" parent="DrawingAnimBar"]
 visible=false
 text="MORPH"
+[node name="LocalTimelineLabel" type="Label" parent="DrawingAnimBar"]
+unique_name_in_owner=true
+text="LOCAL · Canvas"
+[node name="ClipMode" type="OptionButton" parent="DrawingAnimBar"]
+unique_name_in_owner=true
+tooltip_text="Local clip playback: Loop, Ping-Pong, Hold, Reverse or Once"
+[node name="LocalDuration" type="SpinBox" parent="DrawingAnimBar"]
+unique_name_in_owner=true
+min_value=1.0
+max_value=1000.0
+value=24.0
+tooltip_text="Local canvas clip length in frames"
+[node name="SceneStart" type="SpinBox" parent="DrawingAnimBar"]
+unique_name_in_owner=true
+min_value=0.0
+max_value=10000.0
+value=0.0
+tooltip_text="Scene frame where this local clip starts"
+
 [node name="OnionSkin" type="CheckButton" parent="DrawingAnimBar"]
 unique_name_in_owner=true
 text="ONION SKIN"
