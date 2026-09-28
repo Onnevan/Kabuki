@@ -307,6 +307,9 @@ func _process_transform_fields() -> void:
 	if not selected_scene_node.position.is_equal_approx(pos): selected_scene_node.position = pos
 	if not selected_scene_node.rotation_degrees.is_equal_approx(rot): selected_scene_node.rotation_degrees = rot
 	if not selected_scene_node.scale.is_equal_approx(scl): selected_scene_node.scale = scl
+	if selected_scene_node is ReferenceCanvas:
+		var reference_canvas := selected_scene_node as ReferenceCanvas
+		if reference_canvas.model: reference_canvas.model.transform = reference_canvas.transform
 
 func _on_object_selected(index: int) -> void:
 	var id: String = object_list.get_item_metadata(index)
@@ -396,7 +399,13 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 					var world := _screen_to_view_plane(event.position, hit.global_position)
 					drag_offset = hit.global_position - world
 				else:
-					selected = null; gizmo.attach(null)
+					var canvas_hit := _pick_reference_canvas(event.position)
+					if canvas_hit != null:
+						_select_scene_node(_reference_canvas_id(canvas_hit), canvas_hit)
+						active_drawing_group = canvas_hit
+						active_drawing_id = selected_object_id
+						return
+					selected = null; selected_scene_node = null; selected_object_id = ""; gizmo.attach(null)
 					for r in runtime_objects: r.set_selected(false)
 					object_list.deselect_all(); timeline.set_object(""); %SelectionLabel.text = "Nothing selected"
 			else:
@@ -443,6 +452,10 @@ func _apply_drag(relative: Vector2, mouse_pos: Vector2) -> void:
 		_refresh_transform_readout()
 	if selected:
 		selected.model.transform = selected.transform
+	elif selected_scene_node is ReferenceCanvas:
+		var reference_canvas := selected_scene_node as ReferenceCanvas
+		if reference_canvas.model:
+			reference_canvas.model.transform = reference_canvas.transform
 
 func _screen_to_view_plane(pos: Vector2, point: Vector3) -> Vector3:
 	var origin := camera.project_ray_origin(pos)
@@ -481,6 +494,25 @@ func _pick(pos: Vector2) -> RuntimeObject:
 		if d <= radius and d < best_d: best = r; best_d = d
 	return best
 
+func _pick_reference_canvas(pos: Vector2) -> ReferenceCanvas:
+	var best: ReferenceCanvas = null
+	var best_d := 18.0
+	for reference_canvas in drawing_planes:
+		if not is_instance_valid(reference_canvas): continue
+		var center := camera.unproject_position(reference_canvas.global_position)
+		# Guides are reference frames, so picking near their projected center/cross
+		# is enough and does not require collision/render geometry.
+		var d := center.distance_to(pos)
+		if d < best_d:
+			best = reference_canvas
+			best_d = d
+	return best
+
+func _reference_canvas_id(reference_canvas: ReferenceCanvas) -> String:
+	for object_id in scene_nodes:
+		if scene_nodes[object_id] == reference_canvas: return object_id
+	return ""
+
 func _screen_to_plane(pos: Vector2, z_plane: float) -> Vector3:
 	var origin := camera.project_ray_origin(pos)
 	var dir := camera.project_ray_normal(pos)
@@ -493,6 +525,11 @@ func _on_frame_changed(frame: int) -> void:
 	frame_slider.set_value_no_signal(frame)
 	timeline.set_frame(frame)
 	for r in runtime_objects: r.apply_frame(frame)
+	for reference_canvas in drawing_planes:
+		if not is_instance_valid(reference_canvas) or reference_canvas.model == null: continue
+		reference_canvas.position = ProjectStore.evaluate(reference_canvas.model.id, "transform.position", frame, reference_canvas.model.transform.origin)
+		reference_canvas.rotation = ProjectStore.evaluate(reference_canvas.model.id, "transform.rotation", frame, reference_canvas.rotation)
+		reference_canvas.scale = ProjectStore.evaluate(reference_canvas.model.id, "transform.scale", frame, reference_canvas.scale)
 	_apply_drawing_frame(frame)
 	_refresh_drawing_timeline()
 
