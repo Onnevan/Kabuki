@@ -71,6 +71,14 @@ func set_brush_preset(value: int) -> void:
 		4: hardness = 0.96; flow = 0.72; spacing_ratio = 0.045; pencil_texture = 0.34
 		5: hardness = 0.88; flow = 0.48; spacing_ratio = 0.04; pencil_texture = 0.58
 
+func clear_canvas_without_history() -> void:
+	_ensure_raster()
+	raster.fill(Color.TRANSPARENT)
+	undo_stack.clear()
+	redo_stack.clear()
+	_refresh_texture()
+	queue_redraw()
+
 func clear_canvas() -> void:
 	_ensure_raster()
 	_push_undo()
