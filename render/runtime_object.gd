@@ -22,6 +22,27 @@ func setup(obj: MotionObject, img: Image) -> void:
 	material_override = material
 	name = obj.name
 
+func setup_bitmap(obj: MotionObject, img: Image, canvas_size := Vector2(1.6, 1.0)) -> void:
+	# Bitmap layers stay bitmaps. A regular textured quad preserves every pixel
+	# and avoids Delaunay silhouette breakup on thin painted marks.
+	model = obj
+	var aspect := float(img.get_width()) / maxf(1.0, float(img.get_height()))
+	var height := canvas_size.y
+	var width := height * aspect
+	var quad := QuadMesh.new()
+	quad.size = Vector2(width, height)
+	mesh = quad
+	texture = ImageTexture.create_from_image(img)
+	material = ShaderMaterial.new()
+	material.shader = load("res://render/cutout_material.gdshader")
+	material.set_shader_parameter("source_texture", texture)
+	material.set_shader_parameter("tint", Color.WHITE)
+	material.set_shader_parameter("roughness", 0.8)
+	material.set_shader_parameter("metallic", 0.0)
+	material.set_shader_parameter("two_sided", true)
+	material_override = material
+	name = obj.name
+
 func setup_plane(obj: MotionObject) -> void:
 	model = obj
 	var plane := PlaneMesh.new()
