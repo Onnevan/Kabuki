@@ -10,6 +10,35 @@ var strokes: Dictionary = {}
 var stroke_order: Array[String] = []
 var exposures: Array[Dictionary] = []
 var next_stroke_index := 1
+# Every Reference Canvas owns a local clip timeline. Scene time maps into it.
+var local_frame := 0
+var local_duration := 24
+var scene_start := 0
+var playback_mode := "loop" # once, loop, ping_pong, hold, reverse
+var playback_speed := 1.0
+
+func map_scene_frame(scene_frame: int) -> int:
+	var duration: int = maxi(1, local_duration)
+	var elapsed: int = maxi(0, scene_frame - scene_start)
+	var scaled: int = int(floor(float(elapsed) * playback_speed))
+	match playback_mode:
+		"loop":
+			return scaled % duration
+		"ping_pong":
+			if duration <= 1: return 0
+			var period: int = (duration - 1) * 2
+			var phase: int = scaled % period
+			return phase if phase < duration else period - phase
+		"reverse":
+			return maxi(0, duration - 1 - (scaled % duration))
+		"hold":
+			return mini(scaled, duration - 1)
+		"once":
+			return mini(scaled, duration - 1)
+	return scaled % duration
+
+func set_local_frame(frame: int) -> void:
+	local_frame = clampi(frame, 0, maxi(0, local_duration - 1))
 
 func _init(owner_object_id := "") -> void:
 	id = str(ResourceUID.create_id()) + "-" + str(Time.get_ticks_usec())
