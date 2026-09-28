@@ -39,3 +39,30 @@ func _update_camera() -> void:
 	var offset := q * Vector3(0,0,distance)
 	camera.global_position = pivot + offset
 	camera.look_at(pivot, Vector3.UP)
+
+
+func align_axis(axis: Vector3, up := Vector3.UP) -> void:
+	if camera == null: return
+	var dir := axis.normalized()
+	camera.global_position = pivot + dir * distance
+	var safe_up := up
+	if absf(dir.dot(safe_up)) > 0.98:
+		safe_up = Vector3(0,0,-1)
+	camera.look_at(pivot, safe_up)
+	_sync_angles_from_camera()
+
+func align_transform(view_transform: Transform3D) -> void:
+	if camera == null: return
+	# Preserve editor orbit distance but restore the saved view direction.
+	var forward := -view_transform.basis.z.normalized()
+	var up := view_transform.basis.y.normalized()
+	camera.global_position = pivot - forward * distance
+	camera.look_at(pivot, up)
+	_sync_angles_from_camera()
+
+func _sync_angles_from_camera() -> void:
+	var offset := camera.global_position - pivot
+	if offset.length_squared() < 0.000001: return
+	var dir := offset.normalized()
+	yaw = atan2(dir.x, dir.z)
+	pitch = asin(clampf(dir.y, -1.0, 1.0))
