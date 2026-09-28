@@ -168,17 +168,17 @@ func _commit_shape(a: Vector2, b: Vector2) -> void:
 
 func _flood_fill(seed: Vector2i, replacement: Color) -> void:
 	if seed.x < 0 or seed.y < 0 or seed.x >= raster.get_width() or seed.y >= raster.get_height(): return
-	var target := raster.get_pixelv(seed)
+	var target: Color = raster.get_pixelv(seed)
 	if target.is_equal_approx(replacement): return
 	var stack: Array[Vector2i] = [seed]
 	var seen: Dictionary = {}
 	while not stack.is_empty():
-		var p := stack.pop_back()
-		var key := p.y * raster.get_width() + p.x
+		var p: Vector2i = stack.pop_back()
+		var key: int = p.y * raster.get_width() + p.x
 		if seen.has(key): continue
 		seen[key] = true
 		if p.x < 0 or p.y < 0 or p.x >= raster.get_width() or p.y >= raster.get_height(): continue
-		var c := raster.get_pixelv(p)
+		var c: Color = raster.get_pixelv(p)
 		if absf(c.r-target.r)+absf(c.g-target.g)+absf(c.b-target.b)+absf(c.a-target.a) > 0.12: continue
 		raster.set_pixelv(p,replacement)
 		stack.append(p+Vector2i.LEFT); stack.append(p+Vector2i.RIGHT)
