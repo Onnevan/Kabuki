@@ -15,6 +15,8 @@ uniform float roughness : hint_range(0.0,1.0) = 0.8;
 uniform bool two_sided = true;
 void fragment(){
 	if (!two_sided && !FRONT_FACING) discard;
+	// Keep the visible face lit as its front face on two-sided cutout canvases.
+	if (two_sided && !FRONT_FACING) NORMAL = -NORMAL;
 	vec2 texel = 1.0 / vec2(textureSize(source_texture,0));
 	vec2 px = texel * blur * render_quality;
 	vec4 c = texture(source_texture,UV)*0.4;
