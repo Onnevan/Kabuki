@@ -53,6 +53,7 @@ var selected_stroke: Stroke3D
 const DRAWING_PLANE_SPACING := 1.0
 var projection_view_transform := Transform3D.IDENTITY
 var projection_view_valid := false
+var _pending_bitmap_image: Image
 
 func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
@@ -78,6 +79,7 @@ func _ready() -> void:
 	%ViewZ.pressed.connect(func(): _align_view_axis(Vector3.BACK, "Z"))
 	%ViewCamera.pressed.connect(_restore_projection_view)
 	%PlaneDelete.pressed.connect(_on_plane_delete)
+	%TessellationConfirm.pressed.connect(_commit_pending_bitmap)
 	%SculptMode.clear()
 	for label in ["Push / Pull", "Move", "Pinch", "Smooth", "Inflate"]:
 		%SculptMode.add_item(label)
@@ -554,7 +556,11 @@ func _key_transform() -> void:
 func _pick(pos: Vector2) -> RuntimeObject:
 	var best: RuntimeObject = null
 	var best_d := 999999.0
-	for r in runtime_objects:
+	for i in range(runtime_objects.size()-1,-1,-1):
+		var r: RuntimeObject = runtime_objects[i]
+		if not is_instance_valid(r):
+			runtime_objects.remove_at(i)
+			continue
 		var sp := camera.unproject_position(r.global_position)
 		var radius := maxf(28.0, r.screen_radius(camera, viewport.size))
 		var d := sp.distance_to(pos)
@@ -945,6 +951,14 @@ func _apply_active_drawing_style() -> void:
 
 func _on_bitmap_finished(image: Image) -> void:
 	_ensure_drawing_group()
+	_pending_bitmap_image = image.duplicate()
+	%TessellationDialog.popup_centered()
+	return
+
+func _commit_pending_bitmap() -> void:
+	if _pending_bitmap_image == null: return
+	var image: Image = _pending_bitmap_image
+	_pending_bitmap_image = null
 	var obj := MotionObject.new("Bitmap Layer", "bitmap_layer", "drawing")
 	obj.parent_id = active_drawing_id
 	ProjectStore.add_object(obj)
@@ -966,7 +980,7 @@ func _on_bitmap_finished(image: Image) -> void:
 		var viewport_corner: Vector2 = global_corner - viewport_rect.position
 		var world_corner: Vector3 = _ray_to_drawing_plane(viewport_corner, active_drawing_group)
 		local_corners.append(active_drawing_group.to_local(world_corner))
-	runtime.setup_bitmap(obj, image, local_corners)
+	runtime.setup_bitmap(obj, image, local_corners, int(%TessellationSamples.value))
 	runtime_objects.append(runtime)
 	%DrawingCanvas.clear_canvas()
 	%DrawingCanvas.visible = false
@@ -999,8 +1013,18 @@ func _on_add_drawing_plane() -> void:
 	# A new reference canvas belongs to the CURRENT drawing projection.
 	# Default/front view produces an XY canvas (normal Z). If the user snaps
 	# to Z/top before creating it, the canvas becomes a floor (XZ), etc.
-	var target_position: Vector3 = camera_rig.pivot
 	var view_basis: Basis = camera.global_transform.basis.orthonormalized()
+	var target_position: Vector3 = camera_rig.pivot
+	# Paper-theatre stacking follows the CURRENT view normal. Canvases with
+	# approximately the same orientation advance one spacing step toward camera.
+	var stack_index: int = 0
+	var new_normal: Vector3 = view_basis.z.normalized()
+	for existing in drawing_planes:
+		if not is_instance_valid(existing): continue
+		var existing_normal: Vector3 = existing.global_transform.basis.z.normalized()
+		if absf(existing_normal.dot(new_normal)) > 0.985:
+			stack_index += 1
+	target_position += -new_normal * DRAWING_PLANE_SPACING * float(stack_index)
 	plane.global_transform = Transform3D(view_basis, target_position)
 	drawing_planes.append(plane)
 	plane.setup(obj)
@@ -1028,6 +1052,9 @@ func _on_drawing_plane_selected(index: int) -> void:
 	var plane: ReferenceCanvas = %DrawingPlaneList.get_item_metadata(index)
 	if plane == null: return
 	active_drawing_group = plane
+	# Bitmap sessions are canvas-local. Never carry an unfinished raster to
+	# another reference canvas.
+	%DrawingCanvas.clear_canvas_without_history()
 	selected_stroke = null
 	for id in scene_nodes:
 		if scene_nodes[id] == plane:
@@ -1058,6 +1085,10 @@ func _on_plane_delete() -> void:
 
 func _delete_reference_canvas(plane: ReferenceCanvas) -> void:
 	var id := _reference_canvas_id(plane)
+	# Remove runtime children from global pick/render registries before freeing.
+	for child in plane.get_children():
+		if child is RuntimeObject:
+			runtime_objects.erase(child as RuntimeObject)
 	drawing_planes.erase(plane)
 	if not id.is_empty():
 		ProjectStore.objects.erase(id)
@@ -1066,6 +1097,7 @@ func _delete_reference_canvas(plane: ReferenceCanvas) -> void:
 	plane.queue_free()
 	active_drawing_group = drawing_planes[-1] if not drawing_planes.is_empty() else null
 	active_drawing_id = _reference_canvas_id(active_drawing_group) if active_drawing_group else ""
+	selected = null
 	selected_scene_node = active_drawing_group
 	selected_object_id = active_drawing_id
 	gizmo.attach(active_drawing_group)
