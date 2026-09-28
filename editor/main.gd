@@ -3,6 +3,7 @@ extends Control
 const KabukiThemeBuilder = preload("res://editor/kabuki_theme.gd")
 const Stroke3DClass = preload("res://paint/stroke3d.gd")
 const DrawingDataClass = preload("res://paint/drawing_data.gd")
+const ReferenceCanvasClass = preload("res://paint/reference_canvas.gd")
 
 @onready var viewport: SubViewport = %SceneViewport
 @onready var world_root: Node3D = %WorldRoot
@@ -42,12 +43,12 @@ var drawing_3d_active := false
 var drawing_sculpt_active := false
 var drawing_erase_active := false
 var active_stroke_3d: Stroke3D
-var active_drawing_group: Node3D
+var active_drawing_group: ReferenceCanvas
 var active_drawing_id := ""
 var drawing_session_index := 0
 var drawing_data_by_object: Dictionary = {}
 var sculpt_mode := "push"
-var drawing_planes: Array[Node3D] = []
+var drawing_planes: Array[ReferenceCanvas] = []
 var selected_stroke: Stroke3D
 const DRAWING_PLANE_SPACING := 1.0
 
@@ -693,6 +694,9 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	%ToolRail.visible = workspace != "drawing"
 	%Title.text = "OBJECTS" if workspace != "drawing" else "DRAWINGS"
 	%Status.text = workspace.to_upper() + " workspace"
+	for reference_canvas in drawing_planes:
+		if is_instance_valid(reference_canvas):
+			reference_canvas.set_guide_visible(workspace == "scene")
 	_refresh_scene_object_list()
 	if workspace == "drawing" and active_drawing_group != null:
 		_select_scene_node(active_drawing_id, active_drawing_group)
@@ -806,19 +810,22 @@ func _apply_active_drawing_style() -> void:
 
 func _on_bitmap_finished(image: Image) -> void:
 	_ensure_drawing_group()
-	var obj := MotionObject.new("Bitmap Drawing", "image_mesh", "drawing")
+	var obj := MotionObject.new("Bitmap Layer", "bitmap_layer", "drawing")
+	obj.parent_id = active_drawing_id
 	ProjectStore.add_object(obj)
 	var runtime := RuntimeObject.new()
 	active_drawing_group.add_child(runtime)
-	runtime.setup(obj, image)
+	var local_corners := PackedVector3Array()
+	for screen_corner in [Vector2.ZERO, Vector2(%DrawingCanvas.size.x,0), %DrawingCanvas.size, Vector2(0,%DrawingCanvas.size.y)]:
+		var world_corner := _ray_to_drawing_plane(screen_corner, active_drawing_group)
+		local_corners.append(active_drawing_group.to_local(world_corner))
+	runtime.setup_bitmap(obj, image, local_corners)
 	runtime_objects.append(runtime)
-	object_list.add_item(obj.name)
-	object_list.set_item_metadata(object_list.item_count - 1, obj.id)
 	%DrawingCanvas.clear_canvas()
 	%DrawingCanvas.visible = false
 	%DrawingCanvas.bitmap_mode = false
-	_select(runtime)
-	status.text = "Bitmap drawing converted to alpha Delaunay mesh"
+	_select_scene_node(active_drawing_id, active_drawing_group)
+	status.text = "Bitmap layer projected onto " + active_drawing_group.name
 
 func _ray_to_drawing_plane(screen_pos: Vector2, plane: Node3D) -> Vector3:
 	# Reference canvases are mathematical XY planes. They have no rendered
@@ -843,7 +850,7 @@ func _sync_drawing_plane_depths() -> void:
 func _on_add_drawing_plane() -> void:
 	drawing_session_index += 1
 	var obj := MotionObject.new("Plane %02d" % drawing_session_index, "drawing_group", "drawing")
-	var plane := Node3D.new()
+	var plane: ReferenceCanvas = ReferenceCanvasClass.new()
 	world_root.add_child(plane)
 	if active_drawing_group != null and is_instance_valid(active_drawing_group):
 		plane.global_transform = active_drawing_group.global_transform
@@ -853,9 +860,11 @@ func _on_add_drawing_plane() -> void:
 		plane.global_position = camera.global_position + -camera.global_transform.basis.z.normalized() * camera_rig.distance
 		plane.global_rotation = camera.global_rotation
 	drawing_planes.append(plane)
+	plane.setup(obj)
+	plane.set_guide_visible(workspace == "scene")
 	_register_scene_object(obj, plane)
 	drawing_data_by_object[obj.id] = DrawingDataClass.new(obj.id)
-	obj.components["paint"] = {"drawing_data_id": drawing_data_by_object[obj.id].id, "animation_mode": "exposure_and_morph", "spatial_plane": true}
+	obj.components["paint"] = {"drawing_data_id": drawing_data_by_object[obj.id].id, "animation_mode": "exposure_and_morph", "reference_canvas": true, "supports_strokes": true, "supports_bitmap": true}
 	active_drawing_group = plane
 	active_drawing_id = obj.id
 	selected_stroke = null
@@ -869,11 +878,11 @@ func _refresh_drawing_planes() -> void:
 	%DrawingPlaneList.clear()
 	for plane in drawing_planes:
 		if not is_instance_valid(plane): continue
-		%DrawingPlaneList.add_item("▱  " + plane.name)
+		%DrawingPlaneList.add_item("▱  " + plane.name + "   z %.2f" % plane.global_position.z)
 		%DrawingPlaneList.set_item_metadata(%DrawingPlaneList.item_count - 1, plane)
 
 func _on_drawing_plane_selected(index: int) -> void:
-	var plane: Node3D = %DrawingPlaneList.get_item_metadata(index)
+	var plane: ReferenceCanvas = %DrawingPlaneList.get_item_metadata(index)
 	if plane == null: return
 	active_drawing_group = plane
 	selected_stroke = null
@@ -894,7 +903,6 @@ func _move_active_plane(step: int) -> void:
 	var tmp := drawing_planes[idx]
 	drawing_planes[idx] = drawing_planes[target]
 	drawing_planes[target] = tmp
-	_sync_drawing_plane_depths()
 	_refresh_drawing_planes()
 	%DrawingPlaneList.select(target)
 
