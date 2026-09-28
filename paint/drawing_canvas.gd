@@ -29,6 +29,7 @@ var last_point := Vector2.ZERO
 var painting := false
 var raster_texture: ImageTexture
 var canvas_rasters: Dictionary = {}
+var canvas_composite_textures: Dictionary = {}
 var active_canvas_id := ""
 var lasso_points := PackedVector2Array()
 var undo_stack: Array[Image] = []
@@ -39,6 +40,7 @@ func switch_canvas(canvas_id: String) -> void:
 	if canvas_id == active_canvas_id: return
 	if not active_canvas_id.is_empty() and raster != null:
 		canvas_rasters[active_canvas_id] = raster.duplicate()
+		_update_canvas_preview(active_canvas_id, raster)
 	active_canvas_id = canvas_id
 	raster = null
 	raster_texture = null
@@ -62,6 +64,7 @@ func committed_canvas_images() -> Dictionary:
 
 func clear_canvas_session(canvas_id: String) -> void:
 	canvas_rasters.erase(canvas_id)
+	canvas_composite_textures.erase(canvas_id)
 	if active_canvas_id == canvas_id:
 		clear_canvas_without_history()
 
@@ -87,6 +90,15 @@ func _refresh_texture() -> void:
 	if raster == null: return
 	if raster_texture == null: raster_texture = ImageTexture.create_from_image(raster)
 	else: raster_texture.update(raster)
+	if not active_canvas_id.is_empty():
+		_update_canvas_preview(active_canvas_id, raster)
+
+func _update_canvas_preview(canvas_id: String, image: Image) -> void:
+	if canvas_composite_textures.has(canvas_id):
+		var preview: ImageTexture = canvas_composite_textures[canvas_id]
+		preview.update(image)
+	else:
+		canvas_composite_textures[canvas_id] = ImageTexture.create_from_image(image)
 
 func set_tool(value: int) -> void:
 	tool = value
@@ -181,6 +193,12 @@ func _gui_input(event: InputEvent) -> void:
 func _draw() -> void:
 	if not bitmap_mode: return
 	_ensure_raster(); _refresh_texture()
+	# Draw every working canvas as a live composite. The active canvas remains
+	# editable, while the others act as visible paper-theatre context.
+	for canvas_id in canvas_composite_textures:
+		if String(canvas_id) == active_canvas_id: continue
+		var preview: ImageTexture = canvas_composite_textures[canvas_id]
+		if preview != null: draw_texture(preview, Vector2.ZERO)
 	if raster_texture != null: draw_texture(raster_texture, Vector2.ZERO)
 	if not painting: return
 	var c := brush_color
