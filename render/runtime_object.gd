@@ -48,6 +48,10 @@ func setup_bitmap(obj: MotionObject, img: Image, local_corners := PackedVector3A
 	material.set_shader_parameter("metallic", 0.0)
 	material.set_shader_parameter("two_sided", true)
 	material_override = material
+	# Bitmap paint is transparent RGBA content; keep it visible from either
+	# side of a reference canvas and sort it as transparent geometry.
+	transparency = 0.0001
+	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	name = obj.name
 
 func setup_plane(obj: MotionObject) -> void:
