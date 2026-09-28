@@ -77,6 +77,33 @@ text="＋"
 [node name="ObjectList" type="ItemList" parent="LeftPanel/ScenePanel/SceneBox"]
 unique_name_in_owner=true
 size_flags_vertical=3
+[node name="DrawingPlanes" type="VBoxContainer" parent="LeftPanel/ScenePanel/SceneBox"]
+unique_name_in_owner=true
+visible=false
+[node name="PlanesHead" type="HBoxContainer" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes"]
+[node name="PlanesTitle" type="Label" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlanesHead"]
+text="PLANES"
+[node name="PlanesGrow" type="Control" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlanesHead"]
+size_flags_horizontal=3
+[node name="AddDrawingPlane" type="Button" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlanesHead"]
+unique_name_in_owner=true
+text="＋"
+tooltip_text="Add drawing plane"
+[node name="DrawingPlaneList" type="ItemList" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(0,150)
+select_mode=0
+[node name="PlaneActions" type="HBoxContainer" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes"]
+[node name="PlaneUp" type="Button" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions"]
+unique_name_in_owner=true
+text="↑"
+[node name="PlaneDown" type="Button" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions"]
+unique_name_in_owner=true
+text="↓"
+[node name="PlaneDuplicate" type="Button" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions"]
+unique_name_in_owner=true
+text="Duplicate"
+
 [node name="SelectionLabel" type="Label" parent="LeftPanel/ScenePanel/SceneBox"]
 unique_name_in_owner=true
 text="Nothing selected"
@@ -646,3 +673,9 @@ filters=PackedStringArray("*.png ; PNG Images")
 
 [connection signal="item_selected" from="DrawingBar/SculptMode" to="." method="_on_sculpt_mode_selected"]
 [connection signal="color_changed" from="DrawingBar/FillColor" to="." method="_on_fill_color_changed"]
+
+[connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlanesHead/AddDrawingPlane" to="." method="_on_add_drawing_plane"]
+[connection signal="item_selected" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/DrawingPlaneList" to="." method="_on_drawing_plane_selected"]
+[connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions/PlaneUp" to="." method="_on_plane_up"]
+[connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions/PlaneDown" to="." method="_on_plane_down"]
+[connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions/PlaneDuplicate" to="." method="_on_plane_duplicate"]
