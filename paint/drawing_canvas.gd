@@ -58,6 +58,8 @@ func _refresh_texture() -> void:
 
 func set_tool(value: int) -> void:
 	tool = value
+	if tool == TOOL_PENCIL and brush_preset < 4:
+		set_brush_preset(4)
 
 func set_brush_preset(value: int) -> void:
 	brush_preset = value
@@ -192,9 +194,17 @@ func _stamp(p: Vector2) -> void:
 					var grain := fmod(float((x*73856093)^(y*19349663)),101.0)/101.0
 					coverage *= 0.35+grain*0.9
 			elif tool == TOOL_PENCIL:
-				coverage = 0.92 if d <= 0.92 else 0.0
-				var graphite := fmod(absf(sin(float(x*41+y*73))*9187.13),1.0)
-				coverage *= lerpf(1.0,0.42+graphite*0.58,pencil_texture)
+				var fine := absf(sin(float(x*41+y*73))*9187.13)
+				fine = fmod(fine,1.0)
+				var coarse := absf(sin(float((x/3)*29+(y/3)*53))*4731.71)
+				coarse = fmod(coarse,1.0)
+				var tooth := smoothstep(0.22,0.78,fine*0.62+coarse*0.38)
+				var edge := 1.0-smoothstep(0.72,1.0,d)
+				var breakup := 1.0
+				if d > 0.58:
+					breakup = smoothstep(0.28,0.72,fmod(absf(sin(float(x*67+y*31))*6329.4),1.0))
+				coverage = edge*breakup*lerpf(0.28,0.72,tooth)
+				coverage *= 0.78 if brush_preset == 5 else 0.58
 			_blend_pixel(x,y,_paint_color(),coverage)
 
 func _blend_pixel(x: int,y: int,src: Color,coverage: float) -> void:
