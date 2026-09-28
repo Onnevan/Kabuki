@@ -690,26 +690,42 @@ func _setup_workspace_tabs() -> void:
 	%WorkspaceTabs.current_tab = 0
 
 func _setup_drawing_menus() -> void:
-	var tools_popup: PopupMenu = %ToolMenu.get_popup()
-	tools_popup.clear()
-	for label in ["3D Stroke", "Eraser", "Sculpt", "Bitmap Paint", "New Drawing", "Clear Bitmap", "Finish Bitmap"]:
-		tools_popup.add_item(label)
-	tools_popup.id_pressed.connect(_on_drawing_tool_menu)
+	# Primary modes/tools are direct icon buttons. Dropdowns are reserved for
+	# subtools such as Sculpt Mode and cel operations.
+	%StrokeTool.pressed.connect(_on_draw_stroke3d_pressed)
+	%BitmapTool.pressed.connect(_on_draw_bitmap_pressed)
+	%EraseTool.pressed.connect(_on_draw_eraser_pressed)
+	%SculptTool.pressed.connect(_on_draw_sculpt_pressed)
+	%BitmapBrush.pressed.connect(func(): _set_bitmap_tool(DrawingCanvas.Tool.BRUSH))
+	%BitmapPencil.pressed.connect(func(): _set_bitmap_tool(DrawingCanvas.Tool.PENCIL))
+	%BitmapEraser.pressed.connect(func(): _set_bitmap_tool(DrawingCanvas.Tool.ERASER))
+	%BitmapLine.pressed.connect(func(): _set_bitmap_tool(DrawingCanvas.Tool.LINE))
+	%BitmapRect.pressed.connect(func(): _set_bitmap_tool(DrawingCanvas.Tool.RECT))
+	%BitmapEllipse.pressed.connect(func(): _set_bitmap_tool(DrawingCanvas.Tool.ELLIPSE))
+	%BitmapFillTool.pressed.connect(func(): _set_bitmap_tool(DrawingCanvas.Tool.FILL))
+	%BitmapClear.pressed.connect(%DrawingCanvas.clear_canvas)
+	%BitmapCommit.pressed.connect(%DrawingCanvas.finish_bitmap)
 	var cel_popup: PopupMenu = %CelMenu.get_popup()
 	cel_popup.clear()
 	for label in ["New Empty Cel", "Duplicate Previous Cel", "Delete Cel", "Hold", "Morph"]:
 		cel_popup.add_item(label)
 	cel_popup.id_pressed.connect(_on_drawing_cel_menu)
+	_update_drawing_tool_ui()
 
-func _on_drawing_tool_menu(id: int) -> void:
-	match id:
-		0: _on_draw_stroke3d_pressed()
-		1: _on_draw_eraser_pressed()
-		2: _on_draw_sculpt_pressed()
-		3: _on_draw_bitmap_pressed()
-		4: _on_new_drawing_pressed()
-		5: %DrawingCanvas.clear_canvas()
-		6: %DrawingCanvas.finish_bitmap()
+func _set_bitmap_tool(tool: int) -> void:
+	_on_draw_bitmap_pressed()
+	%DrawingCanvas.set_tool(tool)
+	status.text = ["Brush", "Pencil", "Bitmap Eraser", "Line", "Rectangle", "Ellipse", "Fill"][tool]
+	_update_drawing_tool_ui()
+
+func _update_drawing_tool_ui() -> void:
+	var bitmap := %DrawingCanvas.bitmap_mode
+	for control in [%BitmapBrush,%BitmapPencil,%BitmapEraser,%BitmapLine,%BitmapRect,%BitmapEllipse,%BitmapFillTool,%BitmapClear,%BitmapCommit]:
+		control.visible = bitmap
+	%SculptMode.visible = drawing_sculpt_active
+	%SculptStrength.visible = drawing_sculpt_active
+	%Fill.visible = drawing_3d_active
+	%FillColor.visible = drawing_3d_active
 
 func _on_drawing_cel_menu(id: int) -> void:
 	match id:
@@ -748,7 +764,8 @@ func _on_draw_stroke3d_pressed() -> void:
 	drawing_erase_active = false
 	%DrawingCanvas.bitmap_mode = false
 	%DrawingCanvas.visible = false
-	status.text = "3D Stroke · draw on the camera-facing work plane"
+	_update_drawing_tool_ui()
+	status.text = "Spatial stroke · active reference canvas"
 
 func _on_draw_bitmap_pressed() -> void:
 	drawing_3d_active = false
@@ -757,7 +774,8 @@ func _on_draw_bitmap_pressed() -> void:
 	%DrawingCanvas.bitmap_mode = true
 	%DrawingCanvas.visible = true
 	%DrawingCanvas.queue_redraw()
-	status.text = "Bitmap drawing · Finish Bitmap converts alpha to a Delaunay mesh"
+	_update_drawing_tool_ui()
+	status.text = "Bitmap paint · true raster layer on active reference canvas"
 
 func _on_draw_sculpt_pressed() -> void:
 	drawing_3d_active = false
@@ -765,6 +783,7 @@ func _on_draw_sculpt_pressed() -> void:
 	drawing_erase_active = false
 	%DrawingCanvas.bitmap_mode = false
 	%DrawingCanvas.visible = false
+	_update_drawing_tool_ui()
 	status.text = "Sculpt · drag to push strokes in depth · middle mouse orbits viewport"
 
 func _on_draw_eraser_pressed() -> void:
@@ -773,7 +792,8 @@ func _on_draw_eraser_pressed() -> void:
 	drawing_erase_active = true
 	%DrawingCanvas.bitmap_mode = false
 	%DrawingCanvas.visible = false
-	status.text = "Eraser · drag across strokes"
+	_update_drawing_tool_ui()
+	status.text = "Stroke eraser · drag across spatial strokes"
 
 func _erase_drawing(pos: Vector2) -> void:
 	if active_drawing_group == null or not is_instance_valid(active_drawing_group): return
