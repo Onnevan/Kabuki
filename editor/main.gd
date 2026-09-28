@@ -49,6 +49,7 @@ var drawing_data_by_object: Dictionary = {}
 var sculpt_mode := "push"
 var drawing_planes: Array[Node3D] = []
 var selected_stroke: Stroke3D
+const DRAWING_PLANE_SPACING := 1.0
 
 func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
@@ -819,13 +820,36 @@ func _on_bitmap_finished(image: Image) -> void:
 	_select(runtime)
 	status.text = "Bitmap drawing converted to alpha Delaunay mesh"
 
+func _ray_to_drawing_plane(screen_pos: Vector2, plane: Node3D) -> Vector3:
+	# Reference canvases are mathematical XY planes. They have no rendered
+	# geometry; strokes/images are projected onto this coordinate system.
+	var ray_origin := camera.project_ray_origin(screen_pos)
+	var ray_dir := camera.project_ray_normal(screen_pos)
+	var plane_normal := plane.global_transform.basis.z.normalized()
+	var denom := ray_dir.dot(plane_normal)
+	if absf(denom) < 0.00001:
+		return plane.global_position
+	var distance := (plane.global_position - ray_origin).dot(plane_normal) / denom
+	return ray_origin + ray_dir * distance
+
+func _sync_drawing_plane_depths() -> void:
+	# Default theatre stack: each reference canvas starts one world unit deeper.
+	# Once moved/rotated by the user it remains a normal spatial reference frame.
+	for i in range(drawing_planes.size()):
+		var plane := drawing_planes[i]
+		if is_instance_valid(plane):
+			plane.position.z = float(i) * DRAWING_PLANE_SPACING
+
 func _on_add_drawing_plane() -> void:
 	drawing_session_index += 1
 	var obj := MotionObject.new("Plane %02d" % drawing_session_index, "drawing_group", "drawing")
 	var plane := Node3D.new()
 	world_root.add_child(plane)
-	_register_scene_object(obj, plane)
+	if active_drawing_group != null and is_instance_valid(active_drawing_group):
+		plane.global_transform = active_drawing_group.global_transform
 	drawing_planes.append(plane)
+	plane.position.z += DRAWING_PLANE_SPACING
+	_register_scene_object(obj, plane)
 	drawing_data_by_object[obj.id] = DrawingDataClass.new(obj.id)
 	obj.components["paint"] = {"drawing_data_id": drawing_data_by_object[obj.id].id, "animation_mode": "exposure_and_morph", "spatial_plane": true}
 	active_drawing_group = plane
@@ -835,13 +859,13 @@ func _on_add_drawing_plane() -> void:
 	_refresh_scene_object_list()
 	_select_scene_node(active_drawing_id, active_drawing_group)
 	%RightPanel.visible = true
-	status.text = "Drawing plane created · strokes and bitmap paint target this plane"
+	status.text = "Reference canvas created · drawing is projected onto its coordinates"
 
 func _refresh_drawing_planes() -> void:
 	%DrawingPlaneList.clear()
 	for plane in drawing_planes:
 		if not is_instance_valid(plane): continue
-		%DrawingPlaneList.add_item("◉  " + plane.name)
+		%DrawingPlaneList.add_item("▱  " + plane.name)
 		%DrawingPlaneList.set_item_metadata(%DrawingPlaneList.item_count - 1, plane)
 
 func _on_drawing_plane_selected(index: int) -> void:
@@ -866,9 +890,7 @@ func _move_active_plane(step: int) -> void:
 	var tmp := drawing_planes[idx]
 	drawing_planes[idx] = drawing_planes[target]
 	drawing_planes[target] = tmp
-	# Layer order also gets a small physical Z separation: cut-out theatre semantics.
-	for i in range(drawing_planes.size()):
-		drawing_planes[i].position.z = float(i) * 0.02
+	_sync_drawing_plane_depths()
 	_refresh_drawing_planes()
 	%DrawingPlaneList.select(target)
 
@@ -911,12 +933,12 @@ func _begin_3d_stroke(pos: Vector2) -> void:
 	active_stroke_3d.fill_enabled = %Fill.button_pressed
 	active_stroke_3d.fill_color = %FillColor.color
 	active_drawing_group.add_child(active_stroke_3d)
-	var world_point := _screen_to_view_plane(pos, active_drawing_group.global_position)
+	var world_point := _ray_to_drawing_plane(pos, active_drawing_group)
 	active_stroke_3d.add_point(active_drawing_group.to_local(world_point))
 
 func _extend_3d_stroke(pos: Vector2) -> void:
 	if active_stroke_3d and active_drawing_group:
-		var world_point := _screen_to_view_plane(pos, active_drawing_group.global_position)
+		var world_point := _ray_to_drawing_plane(pos, active_drawing_group)
 		active_stroke_3d.add_point(active_drawing_group.to_local(world_point))
 
 func _finish_3d_stroke() -> void:
