@@ -38,6 +38,12 @@ vertical_alignment=1
 [node name="WorkspaceTabs" type="TabBar" parent="TopBar"]
 unique_name_in_owner=true
 custom_minimum_size=Vector2(520,44)
+[node name="EditorTitle" type="Label" parent="TopBar"]
+unique_name_in_owner=true
+text="SCENE EDITOR"
+theme_override_font_sizes/font_size=18
+vertical_alignment=1
+
 [node name="TopSpacer" type="Control" parent="TopBar"]
 size_flags_horizontal=3
 [node name="UndoPaint" type="Button" parent="TopBar"]
@@ -112,6 +118,9 @@ text="↓"
 [node name="PlaneDuplicate" type="Button" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions"]
 unique_name_in_owner=true
 text="Duplicate"
+[node name="PlaneDelete" type="Button" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions"]
+unique_name_in_owner=true
+text="Delete"
 
 [node name="SelectionLabel" type="Label" parent="LeftPanel/ScenePanel/SceneBox"]
 unique_name_in_owner=true
