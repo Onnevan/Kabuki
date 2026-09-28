@@ -79,7 +79,7 @@ func _ready() -> void:
 	%ViewZ.pressed.connect(func(): _align_view_axis(Vector3.BACK, "Z"))
 	%ViewCamera.pressed.connect(_restore_projection_view)
 	%PlaneDelete.pressed.connect(_on_plane_delete)
-	%TessellationConfirm.pressed.connect(_commit_pending_bitmap)
+	%TessellationDialog.confirmed.connect(_commit_pending_bitmap)
 	%SculptMode.clear()
 	for label in ["Push / Pull", "Move", "Pinch", "Smooth", "Inflate"]:
 		%SculptMode.add_item(label)
