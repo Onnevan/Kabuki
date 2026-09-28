@@ -876,9 +876,9 @@ func _on_bitmap_finished(image: Image) -> void:
 	# DrawingCanvas uses editor-global coordinates, while Camera3D projection
 	# expects coordinates local to the SubViewport. Convert the four bitmap
 	# corners into viewport space before intersecting the reference canvas.
-	var viewport_rect := %ViewportContainer.get_global_rect()
-	var canvas_rect := %DrawingCanvas.get_global_rect()
-	var global_corners := [
+	var viewport_rect: Rect2 = %ViewportContainer.get_global_rect()
+	var canvas_rect: Rect2 = %DrawingCanvas.get_global_rect()
+	var global_corners: Array[Vector2] = [
 		canvas_rect.position,
 		Vector2(canvas_rect.end.x, canvas_rect.position.y),
 		canvas_rect.end,
@@ -886,7 +886,7 @@ func _on_bitmap_finished(image: Image) -> void:
 	]
 	for global_corner in global_corners:
 		var viewport_corner: Vector2 = global_corner - viewport_rect.position
-		var world_corner := _ray_to_drawing_plane(viewport_corner, active_drawing_group)
+		var world_corner: Vector3 = _ray_to_drawing_plane(viewport_corner, active_drawing_group)
 		local_corners.append(active_drawing_group.to_local(world_corner))
 	runtime.setup_bitmap(obj, image, local_corners)
 	runtime_objects.append(runtime)
