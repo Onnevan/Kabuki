@@ -8,7 +8,7 @@ enum Tool { BRUSH, PENCIL, ERASER, LINE, RECT, ELLIPSE, FILL }
 var bitmap_mode := false
 var brush_color := Color(0.08, 0.08, 0.08, 1.0)
 var brush_size := 10.0
-var tool := Tool.BRUSH
+var tool: int = Tool.BRUSH
 var opacity := 1.0
 var hardness := 0.78
 var raster: Image
@@ -31,7 +31,7 @@ func _ensure_raster() -> void:
 		raster = next
 
 func set_tool(value: int) -> void:
-	tool = value as Tool
+	tool = value
 
 func clear_canvas() -> void:
 	_ensure_raster()
