@@ -789,3 +789,22 @@ filters=PackedStringArray("*.png ; PNG Images")
 [connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions/PlaneUp" to="." method="_on_plane_up"]
 [connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions/PlaneDown" to="." method="_on_plane_down"]
 [connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions/PlaneDuplicate" to="." method="_on_plane_duplicate"]
+
+[node name="TessellationDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner=true
+title="Bitmap Tessellation"
+dialog_text="Choose mesh density for future deformation."
+ok_button_text="Create Mesh"
+
+[node name="TessellationBox" type="VBoxContainer" parent="TessellationDialog"]
+[node name="TessellationLabel" type="Label" parent="TessellationDialog/TessellationBox"]
+text="Target Poisson samples"
+[node name="TessellationSamples" type="SpinBox" parent="TessellationDialog/TessellationBox"]
+unique_name_in_owner=true
+min_value=200.0
+max_value=6000.0
+step=100.0
+value=1400.0
+tooltip_text="Higher values preserve more detail and create a denser deformation mesh"
+[node name="TessellationHint" type="Label" parent="TessellationDialog/TessellationBox"]
+text="600–1000 light · 1400 balanced · 2500+ detailed"
