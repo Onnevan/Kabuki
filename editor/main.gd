@@ -719,7 +719,7 @@ func _set_bitmap_tool(tool: int) -> void:
 	_update_drawing_tool_ui()
 
 func _update_drawing_tool_ui() -> void:
-	var bitmap := %DrawingCanvas.bitmap_mode
+	var bitmap: bool = bool(%DrawingCanvas.bitmap_mode)
 	for control in [%BitmapBrush,%BitmapPencil,%BitmapEraser,%BitmapLine,%BitmapRect,%BitmapEllipse,%BitmapFillTool,%BitmapClear,%BitmapCommit]:
 		control.visible = bitmap
 	%SculptMode.visible = drawing_sculpt_active
