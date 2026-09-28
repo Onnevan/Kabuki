@@ -22,11 +22,11 @@ func setup(obj: MotionObject, img: Image) -> void:
 	material_override = material
 	name = obj.name
 
-func setup_bitmap(obj: MotionObject, img: Image, local_corners := PackedVector3Array()) -> void:
+func setup_bitmap(obj: MotionObject, img: Image, local_corners := PackedVector3Array(), tessellation_samples := 1400) -> void:
 	model = obj
 	# Build the real alpha silhouette now, so bitmap layers are already
 	# deformation-ready rather than permanent four-vertex quads.
-	var source_mesh := AlphaMeshBuilder.build(img,0.08,1400)
+	var source_mesh := AlphaMeshBuilder.build(img,0.08,tessellation_samples)
 	if local_corners.size() == 4 and source_mesh.get_surface_count() > 0:
 		var src_arrays := source_mesh.surface_get_arrays(0)
 		var src_verts: PackedVector3Array = src_arrays[Mesh.ARRAY_VERTEX]
