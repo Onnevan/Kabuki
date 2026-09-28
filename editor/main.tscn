@@ -172,22 +172,59 @@ offset_left=306.0
 offset_top=76.0
 offset_right=1034.0
 offset_bottom=116.0
-[node name="ToolMenu" type="MenuButton" parent="DrawingBar"]
+[node name="StrokeTool" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
-text="TOOLS ▾"
-
-[node name="Stroke3D" type="Button" parent="DrawingBar"]
-visible=false
+text="✎"
+tooltip_text="Spatial stroke"
+[node name="BitmapTool" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
-text="3D STROKE"
-[node name="Bitmap" type="Button" parent="DrawingBar"]
-visible=false
+text="▧"
+tooltip_text="Bitmap paint"
+[node name="EraseTool" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
-text="BITMAP"
-[node name="Sculpt" type="Button" parent="DrawingBar"]
-visible=false
+text="⌫"
+tooltip_text="Eraser"
+[node name="SculptTool" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
-text="SCULPT"
+text="≈"
+tooltip_text="Sculpt spatial strokes"
+[node name="ToolSep" type="VSeparator" parent="DrawingBar"]
+[node name="BitmapBrush" type="Button" parent="DrawingBar"]
+unique_name_in_owner=true
+text="●"
+tooltip_text="Soft brush"
+[node name="BitmapPencil" type="Button" parent="DrawingBar"]
+unique_name_in_owner=true
+text="✎"
+tooltip_text="Pencil"
+[node name="BitmapEraser" type="Button" parent="DrawingBar"]
+unique_name_in_owner=true
+text="◌"
+tooltip_text="Bitmap eraser"
+[node name="BitmapLine" type="Button" parent="DrawingBar"]
+unique_name_in_owner=true
+text="╱"
+tooltip_text="Line"
+[node name="BitmapRect" type="Button" parent="DrawingBar"]
+unique_name_in_owner=true
+text="□"
+tooltip_text="Rectangle"
+[node name="BitmapEllipse" type="Button" parent="DrawingBar"]
+unique_name_in_owner=true
+text="○"
+tooltip_text="Ellipse"
+[node name="BitmapFillTool" type="Button" parent="DrawingBar"]
+unique_name_in_owner=true
+text="▣"
+tooltip_text="Flood fill"
+[node name="BitmapClear" type="Button" parent="DrawingBar"]
+unique_name_in_owner=true
+text="⌧"
+tooltip_text="Clear bitmap"
+[node name="BitmapCommit" type="Button" parent="DrawingBar"]
+unique_name_in_owner=true
+text="✓"
+tooltip_text="Commit bitmap to active reference canvas"
 [node name="SculptMode" type="OptionButton" parent="DrawingBar"]
 unique_name_in_owner=true
 tooltip_text="Sculpt subtool: Push, Move, Pinch, Smooth or Inflate"
