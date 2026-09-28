@@ -873,8 +873,20 @@ func _on_bitmap_finished(image: Image) -> void:
 	var runtime := RuntimeObject.new()
 	active_drawing_group.add_child(runtime)
 	var local_corners := PackedVector3Array()
-	for screen_corner in [Vector2.ZERO, Vector2(%DrawingCanvas.size.x,0), %DrawingCanvas.size, Vector2(0,%DrawingCanvas.size.y)]:
-		var world_corner := _ray_to_drawing_plane(screen_corner, active_drawing_group)
+	# DrawingCanvas uses editor-global coordinates, while Camera3D projection
+	# expects coordinates local to the SubViewport. Convert the four bitmap
+	# corners into viewport space before intersecting the reference canvas.
+	var viewport_rect := %ViewportContainer.get_global_rect()
+	var canvas_rect := %DrawingCanvas.get_global_rect()
+	var global_corners := [
+		canvas_rect.position,
+		Vector2(canvas_rect.end.x, canvas_rect.position.y),
+		canvas_rect.end,
+		Vector2(canvas_rect.position.x, canvas_rect.end.y)
+	]
+	for global_corner in global_corners:
+		var viewport_corner: Vector2 = global_corner - viewport_rect.position
+		var world_corner := _ray_to_drawing_plane(viewport_corner, active_drawing_group)
 		local_corners.append(active_drawing_group.to_local(world_corner))
 	runtime.setup_bitmap(obj, image, local_corners)
 	runtime_objects.append(runtime)
