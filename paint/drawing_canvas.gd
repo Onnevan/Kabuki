@@ -3,12 +3,18 @@ extends Control
 
 signal bitmap_finished(image: Image)
 
-enum Tool { BRUSH, PENCIL, ERASER, LINE, RECT, ELLIPSE, FILL }
+const TOOL_BRUSH := 0
+const TOOL_PENCIL := 1
+const TOOL_ERASER := 2
+const TOOL_LINE := 3
+const TOOL_RECT := 4
+const TOOL_ELLIPSE := 5
+const TOOL_FILL := 6
 
 var bitmap_mode := false
 var brush_color := Color(0.08, 0.08, 0.08, 1.0)
 var brush_size := 10.0
-var tool: int = Tool.BRUSH
+var tool: int = TOOL_BRUSH
 var opacity := 1.0
 var hardness := 0.78
 var raster: Image
@@ -50,18 +56,18 @@ func _gui_input(event: InputEvent) -> void:
 			painting = true
 			stroke_start = event.position
 			last_point = event.position
-			if tool == Tool.FILL:
+			if tool == TOOL_FILL:
 				_flood_fill(Vector2i(event.position), _paint_color())
 				painting = false
-			elif tool in [Tool.BRUSH, Tool.PENCIL, Tool.ERASER]:
+			elif tool in [TOOL_BRUSH, TOOL_PENCIL, TOOL_ERASER]:
 				_paint_segment(event.position, event.position)
 		else:
-			if painting and tool in [Tool.LINE, Tool.RECT, Tool.ELLIPSE]:
+			if painting and tool in [TOOL_LINE, TOOL_RECT, TOOL_ELLIPSE]:
 				_commit_shape(stroke_start, event.position)
 			painting = false
 		queue_redraw()
 	elif event is InputEventMouseMotion and painting:
-		if tool in [Tool.BRUSH, Tool.PENCIL, Tool.ERASER]:
+		if tool in [TOOL_BRUSH, TOOL_PENCIL, TOOL_ERASER]:
 			_paint_segment(last_point, event.position)
 			last_point = event.position
 		queue_redraw()
@@ -76,11 +82,11 @@ func _draw() -> void:
 	draw_texture(tex, Vector2.ZERO)
 	if painting:
 		var c := brush_color
-		if tool == Tool.LINE:
+		if tool == TOOL_LINE:
 			draw_line(stroke_start, last_point, c, brush_size, true)
-		elif tool == Tool.RECT:
+		elif tool == TOOL_RECT:
 			draw_rect(_normalized_rect(stroke_start, last_point), c, false, brush_size)
-		elif tool == Tool.ELLIPSE:
+		elif tool == TOOL_ELLIPSE:
 			var rect := _normalized_rect(stroke_start, last_point)
 			draw_arc(rect.get_center(), minf(rect.size.x, rect.size.y) * 0.5, 0, TAU, 48, c, brush_size, true)
 
@@ -111,16 +117,16 @@ func _stamp(p: Vector2) -> void:
 		for x in range(min_x, max_x + 1):
 			var d := Vector2(x + 0.5, y + 0.5).distance_to(p) / radius
 			if d > 1.0: continue
-			if tool == Tool.ERASER:
+			if tool == TOOL_ERASER:
 				var dst := raster.get_pixel(x,y)
 				dst.a *= smoothstep(0.0, 1.0, d)
 				raster.set_pixel(x,y,dst)
 				continue
 			var alpha := 1.0
-			if tool == Tool.BRUSH:
+			if tool == TOOL_BRUSH:
 				var edge_start := clampf(hardness, 0.0, 0.98)
 				alpha = 1.0 - smoothstep(edge_start, 1.0, d)
-			elif tool == Tool.PENCIL:
+			elif tool == TOOL_PENCIL:
 				alpha = 1.0 if d <= 1.0 else 0.0
 			_blend_pixel(x, y, _paint_color(), alpha)
 
@@ -135,17 +141,17 @@ func _blend_pixel(x: int, y: int, src: Color, coverage: float) -> void:
 	raster.set_pixel(x,y,Color(rgb.x,rgb.y,rgb.z,out_a))
 
 func _commit_shape(a: Vector2, b: Vector2) -> void:
-	if tool == Tool.LINE:
+	if tool == TOOL_LINE:
 		_paint_segment(a,b)
 		return
 	var rect := _normalized_rect(a, b)
 	var samples := maxi(24, int(rect.size.length() * 0.8))
-	if tool == Tool.RECT:
-		_paint_segment(rect.position, Vector2(rect.end.x,rect.position.y))
+	if tool == TOOL_RECT:
+		_paint_segment(rect.position, Vector2(rect.position.x + rect.size.x, rect.position.y))
 		_paint_segment(Vector2(rect.end.x,rect.position.y), rect.end)
 		_paint_segment(rect.end, Vector2(rect.position.x,rect.end.y))
 		_paint_segment(Vector2(rect.position.x,rect.end.y), rect.position)
-	elif tool == Tool.ELLIPSE:
+	elif tool == TOOL_ELLIPSE:
 		var center := rect.get_center()
 		var radii := rect.size * 0.5
 		var prev := center + Vector2(radii.x,0)
