@@ -319,6 +319,31 @@ size_flags_horizontal=3
 [node name="PreviewChip" type="Label" parent="ViewportTop"]
 text="PREVIEW"
 
+[node name="ViewGizmo" type="VBoxContainer" parent="."]
+unique_name_in_owner=true
+offset_left=930.0
+offset_top=126.0
+offset_right=1028.0
+offset_bottom=224.0
+theme_override_constants/separation=2
+[node name="AxisRow" type="HBoxContainer" parent="ViewGizmo"]
+[node name="ViewX" type="Button" parent="ViewGizmo/AxisRow"]
+unique_name_in_owner=true
+text="X"
+tooltip_text="Align view to X axis"
+[node name="ViewY" type="Button" parent="ViewGizmo/AxisRow"]
+unique_name_in_owner=true
+text="Y"
+tooltip_text="Align view to Y axis"
+[node name="ViewZ" type="Button" parent="ViewGizmo/AxisRow"]
+unique_name_in_owner=true
+text="Z"
+tooltip_text="Align view to Z axis"
+[node name="ViewCamera" type="Button" parent="ViewGizmo"]
+unique_name_in_owner=true
+text="▣ CAM"
+tooltip_text="Return to the saved projection view"
+
 [node name="ToolRail" type="VBoxContainer" parent="."]
 unique_name_in_owner=true
 offset_left=306.0
