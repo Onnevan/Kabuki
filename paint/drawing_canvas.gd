@@ -49,31 +49,36 @@ func finish_bitmap() -> void:
 	bitmap_finished.emit(raster.duplicate())
 
 func _gui_input(event: InputEvent) -> void:
-	if not bitmap_mode: return
+	if not bitmap_mode:
+		return
 	_ensure_raster()
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed:
+
+	if event is InputEventMouseButton:
+		var mouse_button := event as InputEventMouseButton
+		if mouse_button.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if mouse_button.pressed:
 			painting = true
-			stroke_start = event.position
-			last_point = event.position
+			stroke_start = mouse_button.position
+			last_point = mouse_button.position
 			if tool == TOOL_FILL:
-				_flood_fill(Vector2i(event.position), _paint_color())
+				_flood_fill(Vector2i(mouse_button.position), _paint_color())
 				painting = false
-			elif tool in [TOOL_BRUSH, TOOL_PENCIL, TOOL_ERASER]:
-				_paint_segment(event.position, event.position)
+			elif tool == TOOL_BRUSH or tool == TOOL_PENCIL or tool == TOOL_ERASER:
+				_paint_segment(mouse_button.position, mouse_button.position)
 		else:
-			if painting and tool in [TOOL_LINE, TOOL_RECT, TOOL_ELLIPSE]:
-				_commit_shape(stroke_start, event.position)
+			if painting and (tool == TOOL_LINE or tool == TOOL_RECT or tool == TOOL_ELLIPSE):
+				_commit_shape(stroke_start, mouse_button.position)
 			painting = false
 		queue_redraw()
-	elif event is InputEventMouseMotion and painting:
-		if tool in [TOOL_BRUSH, TOOL_PENCIL, TOOL_ERASER]:
-			_paint_segment(last_point, event.position)
-			last_point = event.position
+		return
+
+	if event is InputEventMouseMotion and painting:
+		var mouse_motion := event as InputEventMouseMotion
+		if tool == TOOL_BRUSH or tool == TOOL_PENCIL or tool == TOOL_ERASER:
+			_paint_segment(last_point, mouse_motion.position)
+		last_point = mouse_motion.position
 		queue_redraw()
-		else:
-			last_point = event.position
-			queue_redraw()
 
 func _draw() -> void:
 	if not bitmap_mode: return
