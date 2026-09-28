@@ -847,8 +847,12 @@ func _on_add_drawing_plane() -> void:
 	world_root.add_child(plane)
 	if active_drawing_group != null and is_instance_valid(active_drawing_group):
 		plane.global_transform = active_drawing_group.global_transform
+		# Depth is along the reference canvas normal, not hard-wired world Z.
+		plane.global_position += active_drawing_group.global_transform.basis.z.normalized() * DRAWING_PLANE_SPACING
+	else:
+		plane.global_position = camera.global_position + -camera.global_transform.basis.z.normalized() * camera_rig.distance
+		plane.global_rotation = camera.global_rotation
 	drawing_planes.append(plane)
-	plane.position.z += DRAWING_PLANE_SPACING
 	_register_scene_object(obj, plane)
 	drawing_data_by_object[obj.id] = DrawingDataClass.new(obj.id)
 	obj.components["paint"] = {"drawing_data_id": drawing_data_by_object[obj.id].id, "animation_mode": "exposure_and_morph", "spatial_plane": true}
