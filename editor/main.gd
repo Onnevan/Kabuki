@@ -174,10 +174,13 @@ func _register_scene_object(obj: MotionObject, node: Node3D) -> void:
 
 func _refresh_scene_object_list() -> void:
 	object_list.clear()
-	for obj in ProjectStore.objects:
-		if not scene_nodes.has(obj.id): continue
+	# ProjectStore.objects is a Dictionary keyed by UUID. Iterating it directly
+	# yields String IDs, not MotionObject instances.
+	for object_id in ProjectStore.objects:
+		var obj: MotionObject = ProjectStore.objects[object_id]
+		if not scene_nodes.has(object_id): continue
 		object_list.add_item(obj.name)
-		object_list.set_item_metadata(object_list.item_count - 1, obj.id)
+		object_list.set_item_metadata(object_list.item_count - 1, object_id)
 
 func _on_add_object_type(id: int) -> void:
 	match id:
