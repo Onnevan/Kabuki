@@ -80,6 +80,12 @@ func _ready() -> void:
 	%ViewZ.pressed.connect(func(): _align_view_axis(Vector3.BACK, "Z"))
 	%ViewCamera.pressed.connect(_restore_projection_view)
 	%PlaneDelete.pressed.connect(_on_plane_delete)
+	%ClipMode.clear()
+	for clip_mode_name in ["Loop", "Ping-Pong", "Hold", "Reverse", "Once"]:
+		%ClipMode.add_item(clip_mode_name)
+	%ClipMode.item_selected.connect(_on_clip_mode_selected)
+	%LocalDuration.value_changed.connect(_on_local_duration_changed)
+	%SceneStart.value_changed.connect(_on_scene_start_changed)
 	%TessellationDialog.confirmed.connect(_commit_pending_bitmap)
 	%SculptMode.clear()
 	for label in ["Push / Pull", "Move", "Pinch", "Smooth", "Inflate"]:
@@ -612,7 +618,8 @@ func _apply_drawing_frame(frame: int) -> void:
 		if not scene_nodes.has(object_id): continue
 		var group: Node3D = scene_nodes[object_id]
 		var data: RefCounted = drawing_data_by_object[object_id]
-		var pose: Dictionary = data.call("evaluate_pose", frame)
+		var evaluation_frame: int = data.local_frame if workspace == "drawing" and object_id == active_drawing_id else data.map_scene_frame(frame)
+		var pose: Dictionary = data.call("evaluate_pose", evaluation_frame)
 		for child in group.get_children():
 			if not child is Stroke3D: continue
 			var stroke := child as Stroke3D
@@ -633,6 +640,40 @@ func _active_drawing_data() -> RefCounted:
 	if active_drawing_id.is_empty() or not drawing_data_by_object.has(active_drawing_id): return null
 	return drawing_data_by_object[active_drawing_id]
 
+func _drawing_edit_frame() -> int:
+	var data: RefCounted = _active_drawing_data()
+	if data == null: return ProjectStore.current_frame
+	return int(data.local_frame) if workspace == "drawing" else ProjectStore.current_frame
+
+func _sync_local_clip_ui() -> void:
+	var data: RefCounted = _active_drawing_data()
+	if data == null: return
+	%LocalTimelineLabel.text = "LOCAL · " + active_drawing_group.name if active_drawing_group else "LOCAL"
+	%LocalDuration.set_value_no_signal(data.local_duration)
+	%SceneStart.set_value_no_signal(data.scene_start)
+	var modes: Array[String] = ["loop","ping_pong","hold","reverse","once"]
+	%ClipMode.select(maxi(0,modes.find(String(data.playback_mode))))
+	timeline.frame_count = data.local_duration if workspace == "drawing" else 60
+	timeline.set_frame(data.local_frame if workspace == "drawing" else ProjectStore.current_frame)
+	timeline.queue_redraw()
+
+func _on_clip_mode_selected(index: int) -> void:
+	var data: RefCounted = _active_drawing_data()
+	if data == null: return
+	var modes: Array[String] = ["loop","ping_pong","hold","reverse","once"]
+	data.playback_mode = modes[clampi(index,0,modes.size()-1)]
+
+func _on_local_duration_changed(value: float) -> void:
+	var data: RefCounted = _active_drawing_data()
+	if data == null: return
+	data.local_duration = maxi(1,int(value))
+	data.set_local_frame(data.local_frame)
+	_sync_local_clip_ui()
+
+func _on_scene_start_changed(value: float) -> void:
+	var data: RefCounted = _active_drawing_data()
+	if data != null: data.scene_start = maxi(0,int(value))
+
 func _refresh_drawing_timeline() -> void:
 	var data: RefCounted = _active_drawing_data()
 	var frames: Array[int] = []
@@ -641,6 +682,7 @@ func _refresh_drawing_timeline() -> void:
 		for frame_value in raw_frames:
 			frames.append(int(frame_value))
 	timeline.set_drawing_exposures(frames)
+	_sync_local_clip_ui()
 
 func _on_drawing_new_cel() -> void:
 	var data: RefCounted = _active_drawing_data()
@@ -648,15 +690,15 @@ func _on_drawing_new_cel() -> void:
 	var empty_pose: Dictionary = {}
 	for stroke_id in data.stroke_order:
 		empty_pose[stroke_id] = {"points": (data.strokes[stroke_id]["points"] as PackedVector3Array).duplicate(), "visible": false}
-	data.set_exposure(ProjectStore.current_frame, empty_pose, "hold")
+	data.set_exposure(_drawing_edit_frame(), empty_pose, "hold")
 	_apply_drawing_frame(ProjectStore.current_frame)
 	_refresh_drawing_timeline()
-	status.text = "Empty drawing cel · frame %d" % ProjectStore.current_frame
+	status.text = "Empty drawing cel · local frame %d" % _drawing_edit_frame()
 
 func _on_drawing_duplicate_cel() -> void:
 	var data: RefCounted = _active_drawing_data()
 	if data == null: return
-	if data.duplicate_previous_exposure(ProjectStore.current_frame):
+	if data.duplicate_previous_exposure(_drawing_edit_frame()):
 		_apply_drawing_frame(ProjectStore.current_frame)
 		_refresh_drawing_timeline()
 		status.text = "Drawing cel duplicated · frame %d" % ProjectStore.current_frame
@@ -664,7 +706,7 @@ func _on_drawing_duplicate_cel() -> void:
 func _on_drawing_delete_cel() -> void:
 	var data: RefCounted = _active_drawing_data()
 	if data == null: return
-	data.remove_exposure(ProjectStore.current_frame)
+	data.remove_exposure(_drawing_edit_frame())
 	_apply_drawing_frame(ProjectStore.current_frame)
 	_refresh_drawing_timeline()
 	status.text = "Drawing cel deleted · frame %d" % ProjectStore.current_frame
@@ -672,9 +714,9 @@ func _on_drawing_delete_cel() -> void:
 func _on_drawing_hold_cel() -> void:
 	var data: RefCounted = _active_drawing_data()
 	if data == null: return
-	if not data.has_exposure(ProjectStore.current_frame):
-		data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), "hold")
-	data.set_exposure_interpolation(ProjectStore.current_frame, "hold")
+	if not data.has_exposure(_drawing_edit_frame()):
+		data.set_exposure(_drawing_edit_frame(), data.snapshot_pose(), "hold")
+	data.set_exposure_interpolation(_drawing_edit_frame(), "hold")
 	_refresh_drawing_timeline()
 	status.text = "Cel interpolation · HOLD"
 
@@ -682,8 +724,8 @@ func _on_drawing_morph_cel() -> void:
 	var data: RefCounted = _active_drawing_data()
 	if data == null: return
 	if not data.has_exposure(ProjectStore.current_frame):
-		data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), "linear")
-	data.set_exposure_interpolation(ProjectStore.current_frame, "linear")
+		data.set_exposure(_drawing_edit_frame(), data.snapshot_pose(), "linear")
+	data.set_exposure_interpolation(_drawing_edit_frame(), "linear")
 	_refresh_drawing_timeline()
 	status.text = "Cel interpolation · MORPH"
 
@@ -693,12 +735,30 @@ func _on_onion_skin_toggled(enabled: bool) -> void:
 func key_active_drawing_pose(interpolation := "hold") -> void:
 	if active_drawing_id.is_empty() or not drawing_data_by_object.has(active_drawing_id): return
 	var data: RefCounted = drawing_data_by_object[active_drawing_id]
-	data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), interpolation)
+	data.set_exposure(_drawing_edit_frame(), data.snapshot_pose(), interpolation)
 	status.text = "Drawing pose keyed at frame %d" % ProjectStore.current_frame
 
-func _on_frame_slider_value_changed(value: float) -> void: ProjectStore.set_frame(int(value))
-func _on_prev_pressed() -> void: ProjectStore.set_frame(ProjectStore.current_frame - 1)
-func _on_next_pressed() -> void: ProjectStore.set_frame(ProjectStore.current_frame + 1)
+func _on_frame_slider_value_changed(value: float) -> void:
+	if workspace == "drawing":
+		var data: RefCounted = _active_drawing_data()
+		if data != null:
+			data.set_local_frame(int(value))
+			timeline.set_frame(data.local_frame)
+			_apply_drawing_frame(ProjectStore.current_frame)
+			return
+	ProjectStore.set_frame(int(value))
+func _on_prev_pressed() -> void:
+	if workspace == "drawing":
+		var data: RefCounted = _active_drawing_data()
+		if data != null:
+			data.set_local_frame(data.local_frame-1); _sync_local_clip_ui(); _apply_drawing_frame(ProjectStore.current_frame); return
+	ProjectStore.set_frame(ProjectStore.current_frame - 1)
+func _on_next_pressed() -> void:
+	if workspace == "drawing":
+		var data: RefCounted = _active_drawing_data()
+		if data != null:
+			data.set_local_frame(data.local_frame+1); _sync_local_clip_ui(); _apply_drawing_frame(ProjectStore.current_frame); return
+	ProjectStore.set_frame(ProjectStore.current_frame + 1)
 func _on_play_pressed() -> void:
 	playing = not playing; %PlayButton.text = "❚❚" if playing else "▶"
 func _on_key_pressed() -> void:
@@ -1067,6 +1127,7 @@ func _on_drawing_plane_selected(index: int) -> void:
 			break
 	_select_scene_node(active_drawing_id, plane)
 	%DrawingCanvas.switch_canvas(active_drawing_id)
+	_sync_local_clip_ui()
 	%RightPanel.visible = true
 	_refresh_drawing_timeline()
 	status.text = "Active reference canvas · " + plane.name
