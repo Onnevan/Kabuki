@@ -51,6 +51,8 @@ var sculpt_mode := "push"
 var drawing_planes: Array[ReferenceCanvas] = []
 var selected_stroke: Stroke3D
 const DRAWING_PLANE_SPACING := 1.0
+var projection_view_transform := Transform3D.IDENTITY
+var projection_view_valid := false
 
 func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
@@ -69,6 +71,10 @@ func _ready() -> void:
 	gizmo.set_mode(active_tool)
 	_setup_workspace_tabs()
 	_setup_drawing_menus()
+	%ViewX.pressed.connect(func(): _align_view_axis(Vector3.RIGHT, "X"))
+	%ViewY.pressed.connect(func(): _align_view_axis(Vector3.UP, "Y"))
+	%ViewZ.pressed.connect(func(): _align_view_axis(Vector3.BACK, "Z"))
+	%ViewCamera.pressed.connect(_restore_projection_view)
 	%SculptMode.clear()
 	for label in ["Push / Pull", "Move", "Pinch", "Smooth", "Inflate"]:
 		%SculptMode.add_item(label)
@@ -466,6 +472,21 @@ func _screen_to_view_plane(pos: Vector2, point: Vector3) -> Vector3:
 	var t := (point - origin).dot(normal) / denom
 	return origin + dir * t
 
+func _align_view_axis(axis: Vector3, label: String) -> void:
+	camera_rig.align_axis(axis)
+	status.text = "View aligned to " + label
+
+func _capture_projection_view() -> void:
+	projection_view_transform = camera.global_transform
+	projection_view_valid = true
+
+func _restore_projection_view() -> void:
+	if not projection_view_valid:
+		status.text = "No drawing projection view saved yet"
+		return
+	camera_rig.align_transform(projection_view_transform)
+	status.text = "Drawing projection view restored"
+
 func _on_tool_move_pressed() -> void:
 	active_tool = TransformGizmo.Mode.MOVE; gizmo.set_mode(active_tool); status.text = "Move tool"
 func _on_tool_rotate_pressed() -> void:
@@ -759,6 +780,7 @@ func _on_workspace_tab_changed(tab: int) -> void:
 		%LookTitle.text = "◇  LOOK / FILTERS"
 
 func _on_draw_stroke3d_pressed() -> void:
+	_capture_projection_view()
 	drawing_3d_active = true
 	drawing_sculpt_active = false
 	drawing_erase_active = false
@@ -768,6 +790,7 @@ func _on_draw_stroke3d_pressed() -> void:
 	status.text = "Spatial stroke · active reference canvas"
 
 func _on_draw_bitmap_pressed() -> void:
+	_capture_projection_view()
 	drawing_3d_active = false
 	drawing_sculpt_active = false
 	drawing_erase_active = false
