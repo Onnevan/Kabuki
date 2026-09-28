@@ -197,6 +197,15 @@ tooltip_text="Soft brush"
 unique_name_in_owner=true
 text="✎"
 tooltip_text="Pencil"
+[node name="BitmapSmudge" type="Button" parent="DrawingBar"]
+unique_name_in_owner=true
+text="≈"
+tooltip_text="Smudge / blend paint"
+[node name="BitmapLassoFill" type="Button" parent="DrawingBar"]
+unique_name_in_owner=true
+text="⬡"
+tooltip_text="Lasso fill"
+
 [node name="BitmapEraser" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
 text="◌"
@@ -242,6 +251,27 @@ custom_minimum_size=Vector2(150,0)
 min_value=1.0
 max_value=50.0
 value=10.0
+[node name="BrushPreset" type="OptionButton" parent="DrawingBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(95,0)
+tooltip_text="Brush preset"
+[node name="BrushOpacity" type="HSlider" parent="DrawingBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(70,0)
+min_value=0.05
+max_value=1.0
+step=0.05
+value=1.0
+tooltip_text="Opacity"
+[node name="BrushHardness" type="HSlider" parent="DrawingBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(70,0)
+min_value=0.0
+max_value=1.0
+step=0.05
+value=0.78
+tooltip_text="Hardness"
+
 [node name="BrushColor" type="ColorPickerButton" parent="DrawingBar"]
 unique_name_in_owner=true
 color=Color(0.08,0.08,0.08,1)
