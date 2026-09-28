@@ -28,6 +28,9 @@ var last_point := Vector2.ZERO
 var painting := false
 var raster_texture: ImageTexture
 var lasso_points := PackedVector2Array()
+var undo_stack: Array[Image] = []
+var redo_stack: Array[Image] = []
+const MAX_UNDO := 24
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -65,9 +68,28 @@ func set_brush_preset(value: int) -> void:
 
 func clear_canvas() -> void:
 	_ensure_raster()
+	_push_undo()
 	raster.fill(Color.TRANSPARENT)
 	_refresh_texture()
 	queue_redraw()
+
+func _push_undo() -> void:
+	if raster == null: return
+	undo_stack.append(raster.duplicate())
+	if undo_stack.size()>MAX_UNDO: undo_stack.pop_front()
+	redo_stack.clear()
+
+func undo_paint() -> void:
+	if undo_stack.is_empty() or raster == null: return
+	redo_stack.append(raster.duplicate())
+	raster=undo_stack.pop_back()
+	_refresh_texture(); queue_redraw()
+
+func redo_paint() -> void:
+	if redo_stack.is_empty() or raster == null: return
+	undo_stack.append(raster.duplicate())
+	raster=redo_stack.pop_back()
+	_refresh_texture(); queue_redraw()
 
 func finish_bitmap() -> void:
 	_ensure_raster()
@@ -80,6 +102,7 @@ func _gui_input(event: InputEvent) -> void:
 		var mb := event as InputEventMouseButton
 		if mb.button_index != MOUSE_BUTTON_LEFT: return
 		if mb.pressed:
+			_push_undo()
 			painting = true
 			stroke_start = mb.position
 			last_point = mb.position
