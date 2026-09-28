@@ -22,16 +22,23 @@ func setup(obj: MotionObject, img: Image) -> void:
 	material_override = material
 	name = obj.name
 
-func setup_bitmap(obj: MotionObject, img: Image, canvas_size := Vector2(1.6, 1.0)) -> void:
-	# Bitmap layers stay bitmaps. A regular textured quad preserves every pixel
-	# and avoids Delaunay silhouette breakup on thin painted marks.
+func setup_bitmap(obj: MotionObject, img: Image, local_corners := PackedVector3Array()) -> void:
+	# Bitmap layers stay bitmaps. A four-corner textured mesh preserves every
+	# pixel and can represent the exact camera-to-reference-canvas projection.
 	model = obj
-	var aspect := float(img.get_width()) / maxf(1.0, float(img.get_height()))
-	var height := canvas_size.y
-	var width := height * aspect
-	var quad := QuadMesh.new()
-	quad.size = Vector2(width, height)
-	mesh = quad
+	if local_corners.size() == 4:
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = local_corners
+		arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(0,0),Vector2(1,0),Vector2(1,1),Vector2(0,1)])
+		arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0,2,1,0,3,2])
+		var projected := ArrayMesh.new()
+		projected.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		mesh = projected
+	else:
+		var quad := QuadMesh.new()
+		quad.size = Vector2(1.6, 1.0)
+		mesh = quad
 	texture = ImageTexture.create_from_image(img)
 	material = ShaderMaterial.new()
 	material.shader = load("res://render/cutout_material.gdshader")
