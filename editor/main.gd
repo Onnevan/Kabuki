@@ -886,7 +886,7 @@ func _sync_drawing_plane_depths() -> void:
 
 func _on_add_drawing_plane() -> void:
 	drawing_session_index += 1
-	var obj := MotionObject.new("Plane %02d" % drawing_session_index, "drawing_group", "drawing")
+	var obj := MotionObject.new("Canvas %02d" % drawing_session_index, "reference_canvas", "drawing")
 	var plane: ReferenceCanvas = ReferenceCanvasClass.new()
 	world_root.add_child(plane)
 	if active_drawing_group != null and is_instance_valid(active_drawing_group):
@@ -930,7 +930,7 @@ func _on_drawing_plane_selected(index: int) -> void:
 	_select_scene_node(active_drawing_id, plane)
 	%RightPanel.visible = true
 	_refresh_drawing_timeline()
-	status.text = "Active drawing plane · " + plane.name
+	status.text = "Active reference canvas · " + plane.name
 
 func _move_active_plane(step: int) -> void:
 	if active_drawing_group == null: return
