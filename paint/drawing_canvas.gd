@@ -21,10 +21,12 @@ var raster: Image
 var stroke_start := Vector2.ZERO
 var last_point := Vector2.ZERO
 var painting := false
+var raster_texture: ImageTexture
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	set_process_unhandled_input(false)
+	clip_contents = true
 
 func _ensure_raster() -> void:
 	var w := maxi(1, int(size.x))
@@ -35,6 +37,17 @@ func _ensure_raster() -> void:
 		if raster != null:
 			next.blit_rect(raster, Rect2i(Vector2i.ZERO, raster.get_size()), Vector2i.ZERO)
 		raster = next
+		raster_texture = ImageTexture.create_from_image(raster)
+	elif raster_texture == null:
+		raster_texture = ImageTexture.create_from_image(raster)
+
+func _refresh_texture() -> void:
+	if raster == null:
+		return
+	if raster_texture == null:
+		raster_texture = ImageTexture.create_from_image(raster)
+	else:
+		raster_texture.update(raster)
 
 func set_tool(value: int) -> void:
 	tool = value
@@ -42,6 +55,7 @@ func set_tool(value: int) -> void:
 func clear_canvas() -> void:
 	_ensure_raster()
 	raster.fill(Color.TRANSPARENT)
+	_refresh_texture()
 	queue_redraw()
 
 func finish_bitmap() -> void:
@@ -81,10 +95,12 @@ func _gui_input(event: InputEvent) -> void:
 		queue_redraw()
 
 func _draw() -> void:
-	if not bitmap_mode: return
+	if not bitmap_mode:
+		return
 	_ensure_raster()
-	var tex := ImageTexture.create_from_image(raster)
-	draw_texture(tex, Vector2.ZERO)
+	_refresh_texture()
+	if raster_texture != null:
+		draw_texture(raster_texture, Vector2.ZERO)
 	if painting:
 		var c := brush_color
 		if tool == TOOL_LINE:
