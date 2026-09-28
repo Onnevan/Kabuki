@@ -54,6 +54,7 @@ const DRAWING_PLANE_SPACING := 1.0
 var projection_view_transform := Transform3D.IDENTITY
 var projection_view_valid := false
 var _pending_bitmap_image: Image
+var _pending_bitmap_batch: Dictionary = {}
 
 func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
@@ -949,25 +950,36 @@ func _apply_selected_stroke_style() -> void:
 func _apply_active_drawing_style() -> void:
 	_apply_selected_stroke_style()
 
-func _on_bitmap_finished(image: Image) -> void:
+func _on_bitmap_finished(_image: Image) -> void:
 	_ensure_drawing_group()
-	_pending_bitmap_image = image.duplicate()
+	_pending_bitmap_batch = %DrawingCanvas.committed_canvas_images()
+	if _pending_bitmap_batch.is_empty(): return
+	%TessellationDialog.dialog_text = "Choose tessellation density for all painted canvases."
 	%TessellationDialog.popup_centered()
 	return
 
 func _commit_pending_bitmap() -> void:
-	if _pending_bitmap_image == null: return
-	var image: Image = _pending_bitmap_image
-	_pending_bitmap_image = null
+	if _pending_bitmap_batch.is_empty(): return
+	var batch: Dictionary = _pending_bitmap_batch.duplicate()
+	_pending_bitmap_batch.clear()
+	for canvas_id in batch:
+		if not scene_nodes.has(canvas_id): continue
+		var target_canvas := scene_nodes[canvas_id] as ReferenceCanvas
+		if target_canvas == null or not is_instance_valid(target_canvas): continue
+		var image: Image = batch[canvas_id]
+		_commit_bitmap_to_canvas(target_canvas, String(canvas_id), image)
+		%DrawingCanvas.clear_canvas_session(String(canvas_id))
+	%DrawingCanvas.visible = false
+	%DrawingCanvas.bitmap_mode = false
+	status.text = "Bitmap meshes created for all painted canvases"
+
+func _commit_bitmap_to_canvas(target_canvas: ReferenceCanvas, canvas_id: String, image: Image) -> void:
 	var obj := MotionObject.new("Bitmap Layer", "bitmap_layer", "drawing")
-	obj.parent_id = active_drawing_id
+	obj.parent_id = canvas_id
 	ProjectStore.add_object(obj)
 	var runtime := RuntimeObject.new()
-	active_drawing_group.add_child(runtime)
+	target_canvas.add_child(runtime)
 	var local_corners := PackedVector3Array()
-	# DrawingCanvas uses editor-global coordinates, while Camera3D projection
-	# expects coordinates local to the SubViewport. Convert the four bitmap
-	# corners into viewport space before intersecting the reference canvas.
 	var viewport_rect: Rect2 = %ViewportContainer.get_global_rect()
 	var canvas_rect: Rect2 = %DrawingCanvas.get_global_rect()
 	var global_corners: Array[Vector2] = [
@@ -978,15 +990,10 @@ func _commit_pending_bitmap() -> void:
 	]
 	for global_corner in global_corners:
 		var viewport_corner: Vector2 = global_corner - viewport_rect.position
-		var world_corner: Vector3 = _ray_to_drawing_plane(viewport_corner, active_drawing_group)
-		local_corners.append(active_drawing_group.to_local(world_corner))
+		var world_corner: Vector3 = _ray_to_drawing_plane(viewport_corner, target_canvas)
+		local_corners.append(target_canvas.to_local(world_corner))
 	runtime.setup_bitmap(obj, image, local_corners, int(%TessellationSamples.value))
 	runtime_objects.append(runtime)
-	%DrawingCanvas.clear_canvas()
-	%DrawingCanvas.visible = false
-	%DrawingCanvas.bitmap_mode = false
-	_select_scene_node(active_drawing_id, active_drawing_group)
-	status.text = "Bitmap layer projected onto " + active_drawing_group.name
 
 func _ray_to_drawing_plane(screen_pos: Vector2, plane: Node3D) -> Vector3:
 	# Reference canvases are mathematical XY planes. They have no rendered
@@ -1034,6 +1041,7 @@ func _on_add_drawing_plane() -> void:
 	obj.components["paint"] = {"drawing_data_id": drawing_data_by_object[obj.id].id, "animation_mode": "exposure_and_morph", "reference_canvas": true, "supports_strokes": true, "supports_bitmap": true}
 	active_drawing_group = plane
 	active_drawing_id = obj.id
+	%DrawingCanvas.switch_canvas(active_drawing_id)
 	selected_stroke = null
 	_refresh_drawing_planes()
 	_refresh_scene_object_list()
@@ -1052,15 +1060,13 @@ func _on_drawing_plane_selected(index: int) -> void:
 	var plane: ReferenceCanvas = %DrawingPlaneList.get_item_metadata(index)
 	if plane == null: return
 	active_drawing_group = plane
-	# Bitmap sessions are canvas-local. Never carry an unfinished raster to
-	# another reference canvas.
-	%DrawingCanvas.clear_canvas_without_history()
 	selected_stroke = null
 	for id in scene_nodes:
 		if scene_nodes[id] == plane:
 			active_drawing_id = id
 			break
 	_select_scene_node(active_drawing_id, plane)
+	%DrawingCanvas.switch_canvas(active_drawing_id)
 	%RightPanel.visible = true
 	_refresh_drawing_timeline()
 	status.text = "Active reference canvas · " + plane.name
@@ -1094,6 +1100,7 @@ func _delete_reference_canvas(plane: ReferenceCanvas) -> void:
 		ProjectStore.objects.erase(id)
 		scene_nodes.erase(id)
 		drawing_data_by_object.erase(id)
+		%DrawingCanvas.clear_canvas_session(id)
 	plane.queue_free()
 	active_drawing_group = drawing_planes[-1] if not drawing_planes.is_empty() else null
 	active_drawing_id = _reference_canvas_id(active_drawing_group) if active_drawing_group else ""
