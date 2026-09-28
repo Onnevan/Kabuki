@@ -743,7 +743,7 @@ func _setup_drawing_menus() -> void:
 	%BitmapClear.pressed.connect(%DrawingCanvas.clear_canvas)
 	%BitmapCommit.pressed.connect(%DrawingCanvas.finish_bitmap)
 	%BrushPreset.clear()
-	for preset_name in ["Ink", "Soft", "Airbrush", "Chalk"]:
+	for preset_name in ["Ink", "Soft", "Airbrush", "Chalk", "Graphite HB", "Graphite 4B"]:
 		%BrushPreset.add_item(preset_name)
 	%BrushPreset.item_selected.connect(func(index: int): %DrawingCanvas.set_brush_preset(index))
 	%BrushOpacity.value_changed.connect(func(value: float): %DrawingCanvas.opacity = value)
