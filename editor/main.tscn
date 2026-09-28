@@ -40,6 +40,15 @@ unique_name_in_owner=true
 custom_minimum_size=Vector2(520,44)
 [node name="TopSpacer" type="Control" parent="TopBar"]
 size_flags_horizontal=3
+[node name="UndoPaint" type="Button" parent="TopBar"]
+unique_name_in_owner=true
+text="↶"
+tooltip_text="Undo paint (Ctrl+Z)"
+[node name="RedoPaint" type="Button" parent="TopBar"]
+unique_name_in_owner=true
+text="↷"
+tooltip_text="Redo paint (Ctrl+Shift+Z)"
+
 [node name="ProjectName" type="Label" parent="TopBar"]
 text="Project Demo"
 vertical_alignment=1
