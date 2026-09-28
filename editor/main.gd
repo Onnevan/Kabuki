@@ -720,12 +720,20 @@ func _setup_drawing_menus() -> void:
 	%BitmapBrush.pressed.connect(func(): _set_bitmap_tool(0))
 	%BitmapPencil.pressed.connect(func(): _set_bitmap_tool(1))
 	%BitmapEraser.pressed.connect(func(): _set_bitmap_tool(2))
+	%BitmapSmudge.pressed.connect(func(): _set_bitmap_tool(7))
+	%BitmapLassoFill.pressed.connect(func(): _set_bitmap_tool(8))
 	%BitmapLine.pressed.connect(func(): _set_bitmap_tool(3))
 	%BitmapRect.pressed.connect(func(): _set_bitmap_tool(4))
 	%BitmapEllipse.pressed.connect(func(): _set_bitmap_tool(5))
 	%BitmapFillTool.pressed.connect(func(): _set_bitmap_tool(6))
 	%BitmapClear.pressed.connect(%DrawingCanvas.clear_canvas)
 	%BitmapCommit.pressed.connect(%DrawingCanvas.finish_bitmap)
+	%BrushPreset.clear()
+	for preset_name in ["Ink", "Soft", "Airbrush", "Chalk"]:
+		%BrushPreset.add_item(preset_name)
+	%BrushPreset.item_selected.connect(func(index: int): %DrawingCanvas.set_brush_preset(index))
+	%BrushOpacity.value_changed.connect(func(value: float): %DrawingCanvas.opacity = value)
+	%BrushHardness.value_changed.connect(func(value: float): %DrawingCanvas.hardness = value)
 	var cel_popup: PopupMenu = %CelMenu.get_popup()
 	cel_popup.clear()
 	for label in ["New Empty Cel", "Duplicate Previous Cel", "Delete Cel", "Hold", "Morph"]:
@@ -736,12 +744,12 @@ func _setup_drawing_menus() -> void:
 func _set_bitmap_tool(tool: int) -> void:
 	_on_draw_bitmap_pressed()
 	%DrawingCanvas.set_tool(tool)
-	status.text = ["Brush", "Pencil", "Bitmap Eraser", "Line", "Rectangle", "Ellipse", "Fill"][tool]
+	status.text = ["Brush", "Pencil", "Bitmap Eraser", "Line", "Rectangle", "Ellipse", "Fill", "Smudge", "Lasso Fill"][tool]
 	_update_drawing_tool_ui()
 
 func _update_drawing_tool_ui() -> void:
 	var bitmap: bool = bool(%DrawingCanvas.bitmap_mode)
-	for control in [%BitmapBrush,%BitmapPencil,%BitmapEraser,%BitmapLine,%BitmapRect,%BitmapEllipse,%BitmapFillTool,%BitmapClear,%BitmapCommit]:
+	for control in [%BitmapBrush,%BitmapPencil,%BitmapSmudge,%BitmapLassoFill,%BitmapEraser,%BitmapLine,%BitmapRect,%BitmapEllipse,%BitmapFillTool,%BitmapClear,%BitmapCommit,%BrushPreset,%BrushOpacity,%BrushHardness]:
 		control.visible = bitmap
 	%SculptMode.visible = drawing_sculpt_active
 	%SculptStrength.visible = drawing_sculpt_active
