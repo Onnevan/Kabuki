@@ -932,25 +932,21 @@ func _ray_to_drawing_plane(screen_pos: Vector2, plane: Node3D) -> Vector3:
 	return ray_origin + ray_dir * distance
 
 func _sync_drawing_plane_depths() -> void:
-	# Default theatre stack: each reference canvas starts one world unit deeper.
-	# Once moved/rotated by the user it remains a normal spatial reference frame.
-	for i in range(drawing_planes.size()):
-		var plane := drawing_planes[i]
-		if is_instance_valid(plane):
-			plane.position.z = float(i) * DRAWING_PLANE_SPACING
+	# Reference canvases are spatial work planes, not a forced Z stack.
+	# Their transform is defined by the view/projection used when created.
+	pass
 
 func _on_add_drawing_plane() -> void:
 	drawing_session_index += 1
 	var obj := MotionObject.new("Canvas %02d" % drawing_session_index, "reference_canvas", "drawing")
 	var plane: ReferenceCanvas = ReferenceCanvasClass.new()
 	world_root.add_child(plane)
-	if active_drawing_group != null and is_instance_valid(active_drawing_group):
-		plane.global_transform = active_drawing_group.global_transform
-		# Depth is along the reference canvas normal, not hard-wired world Z.
-		plane.global_position += active_drawing_group.global_transform.basis.z.normalized() * DRAWING_PLANE_SPACING
-	else:
-		plane.global_position = camera.global_position + -camera.global_transform.basis.z.normalized() * camera_rig.distance
-		plane.global_rotation = camera.global_rotation
+	# A new reference canvas belongs to the CURRENT drawing projection.
+	# Default/front view produces an XY canvas (normal Z). If the user snaps
+	# to Z/top before creating it, the canvas becomes a floor (XZ), etc.
+	var target_position: Vector3 = camera_rig.pivot
+	var view_basis: Basis = camera.global_transform.basis.orthonormalized()
+	plane.global_transform = Transform3D(view_basis, target_position)
 	drawing_planes.append(plane)
 	plane.setup(obj)
 	plane.set_guide_visible(workspace == "scene")
@@ -970,7 +966,7 @@ func _refresh_drawing_planes() -> void:
 	%DrawingPlaneList.clear()
 	for plane in drawing_planes:
 		if not is_instance_valid(plane): continue
-		%DrawingPlaneList.add_item("▱  " + plane.name + "   z %.2f" % plane.global_position.z)
+		%DrawingPlaneList.add_item("▱  " + plane.name)
 		%DrawingPlaneList.set_item_metadata(%DrawingPlaneList.item_count - 1, plane)
 
 func _on_drawing_plane_selected(index: int) -> void:
