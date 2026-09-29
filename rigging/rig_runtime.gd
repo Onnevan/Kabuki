@@ -120,10 +120,15 @@ func bind_mesh(mesh_instance: MeshInstance3D, weights_by_surface: Array) -> bool
 	if mesh_instance.get_parent() != self:
 		mesh_instance.reparent(self,true)
 	var mesh_bind_transform: Transform3D = mesh_instance.transform
+	# Godot's skin formula applies bone_pose * bind to vertices that are already
+	# in MeshInstance local space. To make the freshly bound mesh provably
+	# neutral, each bind must cancel the current skeleton rest in that SAME
+	# mesh-local space: inverse(mesh^-1 * bone_rest).
 	var skin := Skin.new()
 	for i in range(rig.bones.size()):
-		var global_rest: Transform3D = skeleton.get_bone_global_rest(i)
-		skin.add_bind(i,global_rest.affine_inverse() * mesh_bind_transform)
+		var bone_rest_in_rig: Transform3D = skeleton.get_bone_global_rest(i)
+		var bone_rest_in_mesh: Transform3D = mesh_bind_transform.affine_inverse() * bone_rest_in_rig
+		skin.add_bind(i,bone_rest_in_mesh.affine_inverse())
 	mesh_instance.skin = skin
 	# Skeleton paths are resolved from the MeshInstance. Both nodes currently
 	# live under WorldRoot, so this is typically ../Armature/_Skeleton.
