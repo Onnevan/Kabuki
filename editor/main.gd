@@ -343,13 +343,42 @@ func _toggle_render_camera_view() -> void:
 		editor_view_before_camera = camera_rig.get_state()
 		_set_render_camera_gizmo_visible(false)
 		_sync_editor_view_to_render_camera()
+		_update_camera_frame_overlay()
 		%ViewCamera.text = "▣ CAM ●"
 		status.text = "Camera view · final render framing"
 	else:
 		_set_render_camera_gizmo_visible(true)
+		%CameraFrame.visible = false
 		camera_rig.set_state(editor_view_before_camera)
 		%ViewCamera.text = "▣ CAM"
 		status.text = "Perspective editor view"
+
+func _update_camera_frame_overlay() -> void:
+	if not camera_view_active or render_camera_id.is_empty() or not ProjectStore.objects.has(render_camera_id):
+		%CameraFrame.visible = false
+		return
+	var obj: MotionObject = ProjectStore.objects[render_camera_id]
+	var rx: float = maxf(1.0,float(obj.properties.get("camera.resolution_x",1920)))
+	var ry: float = maxf(1.0,float(obj.properties.get("camera.resolution_y",1080)))
+	var viewport_rect: Rect2 = %ViewportFrame.get_global_rect()
+	var available := viewport_rect.size
+	var target_aspect: float = rx / ry
+	var frame_size := Vector2(available.x, available.x / target_aspect)
+	if frame_size.y > available.y:
+		frame_size = Vector2(available.y * target_aspect, available.y)
+	var local_pos := (available - frame_size) * 0.5
+	%CameraFrame.position = viewport_rect.position + local_pos
+	%CameraFrame.size = frame_size
+	%CameraFrame.visible = true
+	var thickness := 2.0
+	var top: ColorRect = %CameraFrame.get_node("Top")
+	var bottom: ColorRect = %CameraFrame.get_node("Bottom")
+	var left: ColorRect = %CameraFrame.get_node("Left")
+	var right: ColorRect = %CameraFrame.get_node("Right")
+	top.position = Vector2.ZERO; top.size = Vector2(frame_size.x,thickness)
+	bottom.position = Vector2(0,frame_size.y-thickness); bottom.size = Vector2(frame_size.x,thickness)
+	left.position = Vector2.ZERO; left.size = Vector2(thickness,frame_size.y)
+	right.position = Vector2(frame_size.x-thickness,0); right.size = Vector2(thickness,frame_size.y)
 
 func _set_render_camera_gizmo_visible(enabled: bool) -> void:
 	if render_camera_id.is_empty() or not scene_nodes.has(render_camera_id): return
@@ -389,6 +418,7 @@ func _on_camera_resolution_changed(_value: float) -> void:
 	if obj.technical_type != "camera": return
 	obj.properties["camera.resolution_x"] = int(%CameraResX.value)
 	obj.properties["camera.resolution_y"] = int(%CameraResY.value)
+	if camera_view_active and selected_object_id == render_camera_id: _update_camera_frame_overlay()
 
 func _on_camera_dof_changed(_value: Variant = null) -> void:
 	if selected_object_id.is_empty() or not ProjectStore.objects.has(selected_object_id): return
@@ -1779,6 +1809,7 @@ func _responsive_layout() -> void:
 	var gizmo_size: Vector2 = %ViewGizmo.size
 	if gizmo_size.x <= 1.0: gizmo_size.x = 98.0
 	%ViewGizmo.position = %ViewportFrame.position + Vector2(%ViewportFrame.size.x - gizmo_size.x - 18.0, 60.0)
+	if camera_view_active: _update_camera_frame_overlay()
 	%DrawingCanvas.position = %ViewportFrame.position
 	%DrawingCanvas.size = %ViewportFrame.size
 	%DrawingBar.position = %ViewportFrame.position + Vector2(12.0, 10.0)
