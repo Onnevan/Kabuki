@@ -47,7 +47,7 @@ var active_stroke_3d: Stroke3D
 var active_drawing_group: ReferenceCanvas
 var active_drawing_id := ""
 var drawing_session_index := 0
-var drawing_controller: DrawingController = DrawingControllerClass.new()
+var drawing_controller: RefCounted = DrawingControllerClass.new()
 var drawing_data_by_object: Dictionary:
 	get: return drawing_controller.data_by_object
 var sculpt_mode := "push"
