@@ -92,6 +92,10 @@ func bind_mesh(mesh_instance: MeshInstance3D, weights_by_surface: Array) -> bool
 		arrays[Mesh.ARRAY_WEIGHTS] = weights
 		skinned.add_surface_from_arrays(source.surface_get_primitive_type(surface_index),arrays)
 	mesh_instance.mesh = skinned
+	# Once artwork is bound, the armature becomes its spatial owner too.
+	# Reparent with keep_global=true so binding never makes the artwork jump.
+	if mesh_instance.get_parent() != self:
+		mesh_instance.reparent(self,true)
 	var skin := Skin.new()
 	for i in range(rig.bones.size()):
 		skin.add_bind(i,skeleton.get_bone_rest(i).affine_inverse())
