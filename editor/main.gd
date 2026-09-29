@@ -56,6 +56,7 @@ var drawing_controller: RefCounted = DrawingControllerClass.new()
 var rigging_controller: RefCounted = RiggingControllerClass.new()
 var active_rig_id := ""
 var active_rig_runtime: Node3D
+var pending_parent_child_id := ""
 var drawing_data_by_object: Dictionary:
 	get: return drawing_controller.data_by_object
 var sculpt_mode := "push"
@@ -605,6 +606,8 @@ func _select(obj: RuntimeObject) -> void:
 	timeline.set_object(obj.model.id)
 
 func _select_scene_node(id: String, node: Node3D) -> void:
+	if workspace == "rigging" and not pending_parent_child_id.is_empty() and id != pending_parent_child_id:
+		if _try_complete_rig_parenting(id): return
 	selected = null
 	selected_scene_node = node
 	selected_object_id = id
@@ -659,6 +662,8 @@ func _process_transform_fields() -> void:
 
 func _on_object_selected(index: int) -> void:
 	var id: String = object_list.get_item_metadata(index)
+	if workspace == "rigging" and not pending_parent_child_id.is_empty():
+		if _try_complete_rig_parenting(id): return
 	for r in runtime_objects:
 		if r.model.id == id: _select(r); return
 	if scene_nodes.has(id):
@@ -1311,7 +1316,8 @@ func _setup_workspace_tabs() -> void:
 	%WorkspaceTabs.current_tab = 0
 
 func _setup_rigging_workspace() -> void:
-	%SetRigParent.pressed.connect(_on_set_rig_parent)
+	%PickRigParent.pressed.connect(_on_pick_rig_parent)
+	%CancelRigParent.pressed.connect(_cancel_rig_parenting)
 	%ClearRigParent.pressed.connect(_on_clear_rig_parent)
 	%PivotHere.pressed.connect(_on_pivot_here)
 	%AddBone.pressed.connect(_on_add_rig_bone)
@@ -1319,27 +1325,39 @@ func _setup_rigging_workspace() -> void:
 	_refresh_rig_parent_choices()
 
 func _refresh_rig_parent_choices() -> void:
-	%RigParent.clear()
-	%RigParent.add_item("No parent")
-	%RigParent.set_item_metadata(0, "")
-	for object_id in ProjectStore.objects:
-		if object_id == selected_object_id: continue
-		var obj: MotionObject = ProjectStore.objects[object_id]
-		if not scene_nodes.has(object_id): continue
-		%RigParent.add_item(obj.name)
-		%RigParent.set_item_metadata(%RigParent.item_count - 1, object_id)
+	if pending_parent_child_id.is_empty():
+		%RigSelectionHint.text = "Select child, then PICK PARENT"
+	else:
+		var child: MotionObject = ProjectStore.objects.get(pending_parent_child_id)
+		%RigSelectionHint.text = "Child: %s\nNow select the parent object" % (child.name if child != null else "Object")
+	%CancelRigParent.visible = not pending_parent_child_id.is_empty()
 
-func _on_set_rig_parent() -> void:
-	if selected_object_id.is_empty() or selected_scene_node == null: return
-	var index: int = %RigParent.selected
-	if index < 0: return
-	var parent_id: String = String(%RigParent.get_item_metadata(index))
-	if parent_id.is_empty() or not ProjectStore.objects.has(parent_id) or not scene_nodes.has(parent_id): return
-	var child_model: MotionObject = ProjectStore.objects[selected_object_id]
+func _on_pick_rig_parent() -> void:
+	if selected_object_id.is_empty() or not ProjectStore.objects.has(selected_object_id): return
+	pending_parent_child_id = selected_object_id
+	_refresh_rig_parent_choices()
+	status.text = "Select the parent object from OBJECTS"
+
+func _cancel_rig_parenting() -> void:
+	pending_parent_child_id = ""
+	_refresh_rig_parent_choices()
+	status.text = "Parenting cancelled"
+
+func _try_complete_rig_parenting(parent_id: String) -> bool:
+	if pending_parent_child_id.is_empty() or parent_id == pending_parent_child_id: return false
+	if not ProjectStore.objects.has(pending_parent_child_id) or not ProjectStore.objects.has(parent_id): return false
+	if not scene_nodes.has(pending_parent_child_id) or not scene_nodes.has(parent_id): return false
+	var child_model: MotionObject = ProjectStore.objects[pending_parent_child_id]
 	var parent_model: MotionObject = ProjectStore.objects[parent_id]
-	if rigging_controller.set_parent(child_model, parent_model, selected_scene_node, scene_nodes[parent_id], true):
-		_refresh_scene_object_list()
-		status.text = child_model.name + " parented to " + parent_model.name
+	var child_node: Node3D = scene_nodes[pending_parent_child_id]
+	var parent_node: Node3D = scene_nodes[parent_id]
+	if not rigging_controller.set_parent(child_model,parent_model,child_node,parent_node,true): return false
+	pending_parent_child_id = ""
+	_refresh_scene_object_list()
+	_refresh_rig_parent_choices()
+	_select_scene_node(child_model.id,child_node)
+	status.text = child_model.name + " parented to " + parent_model.name
+	return true
 
 func _on_clear_rig_parent() -> void:
 	if selected_object_id.is_empty() or selected_scene_node == null: return
