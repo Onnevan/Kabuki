@@ -77,8 +77,23 @@ func show_flipbook_image(image: Image) -> void:
 	if flipbook_preview == null:
 		flipbook_preview = MeshInstance3D.new()
 		flipbook_preview.name = "_BitmapFlipbook"
-		var quad := QuadMesh.new()
-		quad.size = guide_size
+		# QuadMesh UV orientation is opposite to Control/Image coordinates.
+		# Build the preview explicitly so drawings keep the same top/bottom
+		# orientation in Drawing, Scene, Animation and Rigging.
+		var hx: float = guide_size.x * 0.5
+		var hy: float = guide_size.y * 0.5
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([
+			Vector3(-hx, hy,0), Vector3(hx, hy,0), Vector3(hx,-hy,0),
+			Vector3(-hx, hy,0), Vector3(hx,-hy,0), Vector3(-hx,-hy,0)
+		])
+		arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([
+			Vector2(0,0),Vector2(1,0),Vector2(1,1),
+			Vector2(0,0),Vector2(1,1),Vector2(0,1)
+		])
+		var quad := ArrayMesh.new()
+		quad.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
 		flipbook_preview.mesh = quad
 		var mat := StandardMaterial3D.new()
 		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
