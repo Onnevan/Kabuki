@@ -393,6 +393,25 @@ size_flags_horizontal=3
 [node name="PreviewChip" type="Label" parent="ViewportTop"]
 text="PREVIEW"
 
+[node name="CameraFrame" type="Control" parent="."]
+unique_name_in_owner=true
+visible=false
+mouse_filter=2
+z_index=20
+[node name="Top" type="ColorRect" parent="CameraFrame"]
+unique_name_in_owner=false
+color=Color(0.85,0.9,1,0.9)
+mouse_filter=2
+[node name="Bottom" type="ColorRect" parent="CameraFrame"]
+color=Color(0.85,0.9,1,0.9)
+mouse_filter=2
+[node name="Left" type="ColorRect" parent="CameraFrame"]
+color=Color(0.85,0.9,1,0.9)
+mouse_filter=2
+[node name="Right" type="ColorRect" parent="CameraFrame"]
+color=Color(0.85,0.9,1,0.9)
+mouse_filter=2
+
 [node name="ViewGizmo" type="VBoxContainer" parent="."]
 unique_name_in_owner=true
 offset_left=930.0
