@@ -1240,6 +1240,19 @@ func _on_new_drawing_pressed() -> void:
 
 func _begin_3d_stroke(pos: Vector2) -> void:
 	_ensure_drawing_group()
+	var data: RefCounted = _active_drawing_data()
+	var frame: int = _drawing_edit_frame()
+	if data != null and not data.has_exposure(frame):
+		var empty_pose: Dictionary = {}
+		for stroke_id in data.stroke_order:
+			var record: Dictionary = data.strokes[stroke_id]
+			empty_pose[stroke_id] = {
+				"points": (record["points"] as PackedVector3Array).duplicate(),
+				"visible": false
+			}
+		data.set_exposure(frame, empty_pose, "hold")
+		_apply_drawing_frame(ProjectStore.current_frame)
+		_refresh_drawing_timeline()
 	active_stroke_3d = Stroke3DClass.new()
 	active_stroke_3d.stroke_color = %BrushColor.color
 	active_stroke_3d.radius = %BrushSize.value * 0.0012
