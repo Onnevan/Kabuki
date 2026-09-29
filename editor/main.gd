@@ -1338,6 +1338,7 @@ func _on_set_rig_parent() -> void:
 	var child_model: MotionObject = ProjectStore.objects[selected_object_id]
 	var parent_model: MotionObject = ProjectStore.objects[parent_id]
 	if rigging_controller.set_parent(child_model, parent_model, selected_scene_node, scene_nodes[parent_id], true):
+		_refresh_scene_object_list()
 		status.text = child_model.name + " parented to " + parent_model.name
 
 func _on_clear_rig_parent() -> void:
@@ -1349,6 +1350,7 @@ func _on_clear_rig_parent() -> void:
 	selected_scene_node.global_transform = global_before
 	obj.parent_id = ""
 	obj.transform = selected_scene_node.transform
+	_refresh_scene_object_list()
 	status.text = obj.name + " parent cleared"
 
 func _on_pivot_here() -> void:
@@ -1364,9 +1366,14 @@ func _ensure_active_rig() -> RefCounted:
 	if active_rig_id.is_empty():
 		active_rig_id = "rig-" + str(ResourceUID.create_id())
 		var created: RefCounted = rigging_controller.create_rig(active_rig_id)
+		var rig_obj := MotionObject.new("Armature", "rig", "character")
+		rig_obj.id = active_rig_id
+		rig_obj.components["deform"]["rig_id"] = active_rig_id
 		active_rig_runtime = RigRuntimeClass.new()
 		world_root.add_child(active_rig_runtime)
 		active_rig_runtime.setup(created)
+		scene_object_controller.register(rig_obj,active_rig_runtime)
+		_refresh_scene_object_list()
 		return created
 	var existing: RefCounted = rigging_controller.rigs.get(active_rig_id)
 	if active_rig_runtime == null and existing != null:
