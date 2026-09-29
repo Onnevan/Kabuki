@@ -1421,10 +1421,23 @@ func _ensure_active_rig() -> RefCounted:
 
 func _on_create_skeleton() -> void:
 	if selected_object_id.is_empty() or selected_scene_node == null:
-		status.text = "Select artwork first"
+		status.text = "Select a drawing first"
 		return
+	# A Canvas is only the spatial reference. Rigging belongs to its tessellated
+	# drawing child. Accepting a selected Canvas here is just a convenience:
+	# resolve its single static drawing child, then make that child the target.
+	if selected_scene_node is ReferenceCanvas:
+		var canvas_id: String = selected_object_id
+		if static_bitmap_runtime.has(canvas_id):
+			var drawing_runtime: RuntimeObject = static_bitmap_runtime[canvas_id]
+			if is_instance_valid(drawing_runtime) and drawing_runtime.model != null:
+				_select(drawing_runtime)
 	if not selected_scene_node is MeshInstance3D:
-		status.text = "Select a tessellated drawing or plane first"
+		status.text = "Select a tessellated drawing"
+		return
+	var selected_model: MotionObject = ProjectStore.objects.get(selected_object_id)
+	if selected_model == null or selected_model.technical_type != "bitmap_layer":
+		status.text = "Select a tessellated drawing"
 		return
 	rig_target_object_id = selected_object_id
 	_on_add_rig_bone()
@@ -1735,6 +1748,7 @@ func _rebuild_static_bitmap_cache(target_canvas: ReferenceCanvas, canvas_id: Str
 	ProjectStore.add_object(obj)
 	var runtime := RuntimeObject.new()
 	target_canvas.add_child(runtime)
+	_register_scene_object(obj,runtime)
 	# Static bitmap uses the canvas itself as its spatial support.
 	var hx: float = target_canvas.guide_size.x * 0.5
 	var hy: float = target_canvas.guide_size.y * 0.5
@@ -1782,6 +1796,7 @@ func _commit_bitmap_to_canvas(target_canvas: ReferenceCanvas, canvas_id: String,
 	ProjectStore.add_object(obj)
 	var runtime := RuntimeObject.new()
 	target_canvas.add_child(runtime)
+	_register_scene_object(obj,runtime)
 	var local_corners := PackedVector3Array()
 	var viewport_rect: Rect2 = %ViewportContainer.get_global_rect()
 	var canvas_rect: Rect2 = %DrawingCanvas.get_global_rect()
