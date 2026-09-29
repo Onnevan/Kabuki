@@ -145,6 +145,10 @@ custom_minimum_size=Vector2(0,240)
 [node name="RiggingTitle" type="Label" parent="LeftPanel/RiggingPanel/RiggingBox"]
 text="RIGGING"
 theme_override_font_sizes/font_size=16
+[node name="CreateSkeleton" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
+unique_name_in_owner=true
+text="CREATE SKELETON"
+tooltip_text="Draw a skeleton directly on the selected artwork; skinning is applied automatically when finished"
 [node name="RiggingHint" type="Label" parent="LeftPanel/RiggingPanel/RiggingBox"]
 text="Hierarchy · Pivot · Bones · Skin"
 [node name="RigSelectionHint" type="Label" parent="LeftPanel/RiggingPanel/RiggingBox"]
@@ -173,9 +177,11 @@ tooltip_text="Move pivot to the current editor orbit pivot without moving visibl
 [node name="BonesSeparator" type="HSeparator" parent="LeftPanel/RiggingPanel/RiggingBox"]
 [node name="AddBone" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
+visible=false
 text="＋ BONE"
 [node name="AutoWeights" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
+visible=false
 text="AUTO WEIGHTS"
 tooltip_text="Automatic vertex assignment for tessellated meshes"
 
