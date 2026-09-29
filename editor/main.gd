@@ -723,8 +723,15 @@ func _apply_drawing_frame(frame: int) -> void:
 		if group is ReferenceCanvas:
 			var reference_canvas := group as ReferenceCanvas
 			if %DrawingCanvas.is_animated_bitmap(object_id):
-				var bitmap_image: Image = %DrawingCanvas.flipbook_image(object_id, evaluation_frame)
-				reference_canvas.show_flipbook_image(bitmap_image)
+				# The active bitmap is already drawn by the full-size DrawingCanvas
+				# editor overlay. Showing its 3D flipbook quad at the same time
+				# produces a second, smaller copy at the ReferenceCanvas origin.
+				var editing_active_bitmap: bool = workspace == "drawing" and object_id == active_drawing_id and %DrawingCanvas.bitmap_mode
+				if editing_active_bitmap:
+					reference_canvas.hide_flipbook_image()
+				else:
+					var bitmap_image: Image = %DrawingCanvas.flipbook_image(object_id, evaluation_frame)
+					reference_canvas.show_flipbook_image(bitmap_image)
 				if static_bitmap_runtime.has(object_id):
 					var cached_static: RuntimeObject = static_bitmap_runtime[object_id]
 					if is_instance_valid(cached_static): cached_static.visible = false
