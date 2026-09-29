@@ -82,3 +82,11 @@ func set_state(state: Dictionary) -> void:
 	yaw = float(state.get("yaw", yaw))
 	pitch = float(state.get("pitch", pitch))
 	_update_camera()
+
+
+func sync_from_camera_transform(value: Transform3D) -> void:
+	if camera == null: return
+	camera.global_transform = value
+	var forward := -value.basis.z.normalized()
+	pivot = value.origin + forward * distance
+	_sync_angles_from_camera()
