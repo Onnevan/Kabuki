@@ -41,9 +41,21 @@ func evaluate(object_id: String, property_path: String, frame: int, fallback: Va
 	if arr.is_empty(): return fallback
 	var left = arr[0]
 	var right = arr[-1]
-	for k in arr:
-		if k.frame <= frame: left = k
-		if k.frame >= frame: right = k; break
+	# Channels are kept sorted. Binary search avoids scanning every key for
+	# every animated property on every playback frame.
+	var lo: int = 0
+	var hi: int = arr.size() - 1
+	while lo <= hi:
+		var mid: int = (lo + hi) >> 1
+		var mf: int = int(arr[mid].frame)
+		if mf <= frame:
+			left = arr[mid]
+			lo = mid + 1
+		else:
+			right = arr[mid]
+			hi = mid - 1
+	if int(left.frame) < frame and lo < arr.size(): right = arr[lo]
+	elif int(left.frame) >= frame: right = left
 	if left.frame == right.frame or left.interpolation == "hold": return left.value
 	var t: float = float(frame - left.frame) / float(right.frame - left.frame)
 	t = _apply_interpolation(t, String(left.interpolation))
