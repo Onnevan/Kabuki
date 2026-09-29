@@ -118,6 +118,64 @@ func move_key(object_id: String, property_path: String, old_frame: int, new_fram
 	key_changed.emit(object_id, property_path, new_frame)
 	project_changed.emit()
 
+func get_object_key_frames(object_id: String) -> Array[int]:
+	var seen: Dictionary = {}
+	for key in channels:
+		var prefix := object_id + "::"
+		if not String(key).begins_with(prefix): continue
+		for k in channels[key]:
+			seen[int(k.frame)] = true
+	var result: Array[int] = []
+	for frame in seen.keys(): result.append(int(frame))
+	result.sort()
+	return result
+
+func delete_key(object_id: String, property_path: String, frame: int) -> void:
+	var key := channel_key(object_id, property_path)
+	if not channels.has(key): return
+	var arr: Array = channels[key]
+	for i in range(arr.size()-1,-1,-1):
+		if int(arr[i].frame) == frame: arr.remove_at(i)
+	key_changed.emit(object_id,property_path,frame); project_changed.emit()
+
+func move_object_keys_at_frame(object_id: String, old_frame: int, new_frame: int) -> void:
+	var prefix := object_id + "::"
+	var target := clampi(new_frame,0,duration_frames)
+	for key in channels:
+		if not String(key).begins_with(prefix): continue
+		var arr: Array = channels[key]
+		for k in arr:
+			if int(k.frame) == old_frame: k.frame = target
+		arr.sort_custom(func(a,b): return int(a.frame) < int(b.frame))
+	key_changed.emit(object_id,"*",target); project_changed.emit()
+
+func copy_keys(object_id: String, refs: Array) -> Array:
+	var result: Array = []
+	for ref in refs:
+		var path := String(ref.get("path",""))
+		var frame := int(ref.get("frame",-1))
+		if path == "*":
+			var prefix := object_id + "::"
+			for key in channels:
+				if not String(key).begins_with(prefix): continue
+				var property_path := String(key).trim_prefix(prefix)
+				for k in channels[key]:
+					if int(k.frame) == frame:
+						result.append({"path":property_path,"frame":frame,"value":k.value,"interpolation":k.interpolation})
+		else:
+			for k in get_keys(object_id,path):
+				if int(k.frame) == frame:
+					result.append({"path":path,"frame":frame,"value":k.value,"interpolation":k.interpolation})
+	return result
+
+func paste_keys(object_id: String, copied: Array, target_frame: int) -> void:
+	if copied.is_empty(): return
+	var min_frame := 2147483647
+	for item in copied: min_frame = mini(min_frame,int(item.frame))
+	for item in copied:
+		var frame := target_frame + int(item.frame) - min_frame
+		set_key(object_id,String(item.path),clampi(frame,0,duration_frames),item.value,String(item.interpolation))
+
 func set_key_interpolation(object_id: String, property_path: String, frame: int, interpolation: String) -> void:
 	var arr: Array = channels.get(channel_key(object_id, property_path), [])
 	for k in arr:
