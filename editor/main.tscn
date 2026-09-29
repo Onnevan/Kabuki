@@ -147,11 +147,21 @@ text="RIGGING"
 theme_override_font_sizes/font_size=16
 [node name="RiggingHint" type="Label" parent="LeftPanel/RiggingPanel/RiggingBox"]
 text="Hierarchy · Pivot · Bones · Skin"
-[node name="RigParent" type="OptionButton" parent="LeftPanel/RiggingPanel/RiggingBox"]
+[node name="RigSelectionHint" type="Label" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
-tooltip_text="Parent object"
+text="Select child, then PICK PARENT"
+autowrap_mode=2
+[node name="PickRigParent" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
+unique_name_in_owner=true
+text="PICK PARENT"
+tooltip_text="Keep the current object as child, then select its parent in the Objects list"
+[node name="CancelRigParent" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
+unique_name_in_owner=true
+visible=false
+text="CANCEL PARENTING"
 [node name="SetRigParent" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
+visible=false
 text="SET PARENT"
 [node name="ClearRigParent" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
