@@ -13,8 +13,18 @@ var _sculpt_last_mouse := Vector2.ZERO
 var _sculpt_has_last := false
 
 func set_points(value: PackedVector3Array) -> void:
+	# Playback frequently evaluates the same held cel for many consecutive
+	# frames. Rebuilding SurfaceTool geometry when the points are unchanged is
+	# one of the most expensive operations in the drawing path.
+	if _points_equal(points, value): return
 	points = value.duplicate()
 	rebuild()
+
+func _points_equal(a: PackedVector3Array, b: PackedVector3Array) -> bool:
+	if a.size() != b.size(): return false
+	for i in range(a.size()):
+		if not a[i].is_equal_approx(b[i]): return false
+	return true
 
 func style_dict() -> Dictionary:
 	return {"radius": radius, "color": stroke_color, "fill_enabled": fill_enabled, "fill_color": fill_color}
@@ -74,6 +84,7 @@ func sculpt_screen(brush_pos: Vector2, camera: Camera3D, brush_radius_px: float,
 	return changed
 
 func set_style(line_color: Color, use_fill: bool, new_fill_color: Color) -> void:
+	if stroke_color == line_color and fill_enabled == use_fill and fill_color == new_fill_color: return
 	stroke_color = line_color
 	fill_enabled = use_fill
 	fill_color = new_fill_color
