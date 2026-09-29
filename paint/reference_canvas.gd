@@ -9,6 +9,7 @@ var guide_size := Vector2(1.6, 1.0)
 var guide_visible := true
 var flipbook_preview: MeshInstance3D
 var flipbook_texture: ImageTexture
+var flipbook_source_image: Image
 
 func setup(obj: MotionObject) -> void:
 	model = obj
@@ -87,13 +88,17 @@ func show_flipbook_image(image: Image) -> void:
 		flipbook_preview.material_override = mat
 		flipbook_preview.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(flipbook_preview)
-	if flipbook_texture == null:
-		flipbook_texture = ImageTexture.create_from_image(image)
-	else:
-		if flipbook_texture.get_width() == image.get_width() and flipbook_texture.get_height() == image.get_height():
-			flipbook_texture.update(image)
-		else:
+	# HOLD frames call this repeatedly with the exact same Image resource.
+	# Avoid re-uploading unchanged pixels to the GPU every animation frame.
+	if flipbook_source_image != image:
+		flipbook_source_image = image
+		if flipbook_texture == null:
 			flipbook_texture = ImageTexture.create_from_image(image)
+		else:
+			if flipbook_texture.get_width() == image.get_width() and flipbook_texture.get_height() == image.get_height():
+				flipbook_texture.update(image)
+			else:
+				flipbook_texture = ImageTexture.create_from_image(image)
 	var material := flipbook_preview.material_override as StandardMaterial3D
 	material.albedo_texture = flipbook_texture
 	flipbook_preview.visible = true
