@@ -1577,11 +1577,23 @@ func _on_auto_weights() -> void:
 			tail = active_rig_runtime.global_transform.affine_inverse() * active_rig_runtime.terminal_tip
 		segments.append({"a":head,"b":tail})
 	var weights: Array = rigging_controller.auto_weight_vertices(weight_proxy,segments)
+	# TEMP DIAGNOSTIC: remove auto-weighting from the equation. Every vertex is
+	# influenced 100% by Bone 01. If rest pose still changes the silhouette,
+	# the fault is in Skin/Skeleton/rest-space handling, not weight assignment.
+	var diagnostic_weights: Array = []
+	for surface_index in range(weight_proxy.mesh.get_surface_count()):
+		var arrays: Array = weight_proxy.mesh.surface_get_arrays(surface_index)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var surface_weights: Array = []
+		for _vi in range(vertices.size()):
+			surface_weights.append([{"bone":0,"weight":1.0}])
+		diagnostic_weights.append(surface_weights)
+	weights = diagnostic_weights
 	rig.bindings[selected_object_id] = {"bone_weights": weights, "auto_bound": true}
 	var obj: MotionObject = ProjectStore.objects.get(selected_object_id)
 	if obj != null: obj.components["deform"]["rig_id"] = active_rig_id
 	if active_rig_runtime != null and active_rig_runtime.bind_mesh(selected_scene_node as MeshInstance3D, weights):
-		status.text = "Automatic weights assigned · mesh skinned"
+		status.text = "DIAGNOSTIC · 100% vertices → Bone 01 · mesh skinned"
 	else:
 		status.text = "Automatic weights assigned"
 
