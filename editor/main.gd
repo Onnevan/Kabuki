@@ -1167,7 +1167,9 @@ func _on_drawing_morph_cel() -> void:
 	status.text = "Cel interpolation · MORPH"
 
 func _on_onion_skin_toggled(enabled: bool) -> void:
-	status.text = "Onion skin prepared · preview pass next" if enabled else "Onion skin off"
+	%DrawingCanvas.set_onion_skin_enabled(enabled)
+	_apply_drawing_frame(ProjectStore.current_frame)
+	status.text = "Onion skin on" if enabled else "Onion skin off"
 
 func key_active_drawing_pose(interpolation := "hold") -> void:
 	if active_drawing_id.is_empty() or not drawing_data_by_object.has(active_drawing_id): return
