@@ -4,6 +4,7 @@ const KabukiThemeBuilder = preload("res://editor/kabuki_theme.gd")
 const Stroke3DClass = preload("res://paint/stroke3d.gd")
 const DrawingDataClass = preload("res://paint/drawing_data.gd")
 const ReferenceCanvasClass = preload("res://paint/reference_canvas.gd")
+const DrawingControllerClass = preload("res://drawing/drawing_controller.gd")
 
 @onready var viewport: SubViewport = %SceneViewport
 @onready var world_root: Node3D = %WorldRoot
@@ -46,18 +47,21 @@ var active_stroke_3d: Stroke3D
 var active_drawing_group: ReferenceCanvas
 var active_drawing_id := ""
 var drawing_session_index := 0
-var drawing_data_by_object: Dictionary = {}
+var drawing_controller: DrawingController = DrawingControllerClass.new()
+var drawing_data_by_object: Dictionary:
+	get: return drawing_controller.data_by_object
 var sculpt_mode := "push"
-var drawing_planes: Array[ReferenceCanvas] = []
+var drawing_planes: Array[ReferenceCanvas]:
+	get: return drawing_controller.reference_canvases
 var selected_stroke: Stroke3D
 const DRAWING_PLANE_SPACING := 1.0
 var projection_view_transform := Transform3D.IDENTITY
 var projection_view_valid := false
 var _pending_bitmap_image: Image
 var _pending_bitmap_batch: Dictionary = {}
-var static_bitmap_runtime: Dictionary = {} # canvas id -> tessellated RuntimeObject
+var static_bitmap_runtime: Dictionary:
+	get: return drawing_controller.static_bitmap_runtime
 var workspace_camera_states: Dictionary = {}
-var drawing_eval_cache: Dictionary = {} # object_id -> last evaluated local frame
 var current_project_path := ""
 var render_camera_id := ""
 var camera_view_active := false
@@ -499,9 +503,7 @@ func _clear_runtime_project() -> void:
 		child.queue_free()
 	runtime_objects.clear()
 	scene_nodes.clear()
-	drawing_planes.clear()
-	drawing_data_by_object.clear()
-	static_bitmap_runtime.clear()
+	drawing_controller.clear()
 	active_drawing_group = null
 	active_drawing_id = ""
 	selected = null
@@ -1024,10 +1026,9 @@ func _apply_drawing_frame(frame: int) -> void:
 		if not scene_nodes.has(object_id): continue
 		var group: Node3D = scene_nodes[object_id]
 		var data: RefCounted = drawing_data_by_object[object_id]
-		var evaluation_frame: int = data.local_frame if workspace == "drawing" and object_id == active_drawing_id else data.map_scene_frame(frame)
-		var pose: Dictionary = data.call("flipbook_pose", evaluation_frame)
-		var same_drawing_frame: bool = int(drawing_eval_cache.get(object_id, -2147483648)) == evaluation_frame
-		drawing_eval_cache[object_id] = evaluation_frame
+		var evaluation_frame: int = drawing_controller.local_frame(object_id, frame, workspace == "drawing" and object_id == active_drawing_id)
+		var pose: Dictionary = drawing_controller.pose(object_id, evaluation_frame)
+		var same_drawing_frame: bool = not drawing_controller.needs_pose_update(object_id, evaluation_frame)
 		# Bitmap drawings are cached as discrete images and played as a texture
 		# sequence on the ReferenceCanvas plane. No tessellation is required.
 		if group is ReferenceCanvas:
@@ -1071,8 +1072,8 @@ func _apply_drawing_frame(frame: int) -> void:
 			stroke.set_points(state.get("points", stroke.points))
 
 func _active_drawing_data() -> RefCounted:
-	if active_drawing_id.is_empty() or not drawing_data_by_object.has(active_drawing_id): return null
-	return drawing_data_by_object[active_drawing_id]
+	if active_drawing_id.is_empty(): return null
+	return drawing_controller.active_data(active_drawing_id)
 
 func _drawing_edit_frame() -> int:
 	var data: RefCounted = _active_drawing_data()
