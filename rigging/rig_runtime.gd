@@ -33,6 +33,11 @@ func rebuild_bones() -> void:
 			var parent_in_rig: Transform3D = global_transform.affine_inverse() * parent_global
 			rest_local = parent_in_rig.affine_inverse() * rest_in_rig
 		skeleton.set_bone_rest(i,rest_local)
+		# Godot 4 bone poses are absolute local transforms, not offsets from rest.
+		# A newly-created bone otherwise keeps the default identity pose, so the
+		# Skin evaluates pose * inverse(rest) immediately and displaces artwork
+		# even before the user poses a bone. Initialize pose exactly to REST.
+		skeleton.set_bone_pose(i,rest_local)
 		_create_bone_gizmo(i,rest_in_rig.origin,parent_index)
 
 func _create_bone_gizmo(index: int, head: Vector3, parent_index: int) -> void:
