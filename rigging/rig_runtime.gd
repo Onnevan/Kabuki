@@ -7,6 +7,7 @@ var bone_gizmos: Array[MeshInstance3D] = []
 var bound_meshes: Dictionary = {}
 var terminal_tip_valid := false
 var terminal_tip := Vector3.ZERO
+var weight_debug_overlays: Array[MeshInstance3D] = []
 
 func setup(value: RigData) -> void:
 	rig = value
@@ -135,6 +136,55 @@ func bind_mesh(mesh_instance: MeshInstance3D, weights_by_surface: Array) -> bool
 	mesh_instance.skeleton = mesh_instance.get_path_to(skeleton)
 	bound_meshes[mesh_instance.get_instance_id()] = mesh_instance
 	return true
+
+func show_weight_debug(mesh_instance: MeshInstance3D, weights_by_surface: Array, bone_index: int = 0) -> void:
+	clear_weight_debug()
+	if mesh_instance == null or mesh_instance.mesh == null: return
+	var source: Mesh = mesh_instance.mesh
+	for surface_index in range(source.get_surface_count()):
+		var arrays: Array = source.surface_get_arrays(surface_index)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var colors := PackedColorArray()
+		colors.resize(vertices.size())
+		var surface_weights: Array = weights_by_surface[surface_index] if surface_index < weights_by_surface.size() else []
+		for vi in range(vertices.size()):
+			var weight: float = 0.0
+			var influences: Array = surface_weights[vi] if vi < surface_weights.size() else []
+			for influence in influences:
+				if int(influence.get("bone",-1)) == bone_index:
+					weight = float(influence.get("weight",0.0))
+					break
+			# Black = 0, blue/cyan = low-mid, yellow/white = strongest.
+			colors[vi] = _weight_debug_color(weight)
+		arrays[Mesh.ARRAY_COLOR] = colors
+		# Debug overlay must not contain skin arrays: show the undeformed source
+		# topology and its computed weights independently from Skeleton3D.
+		arrays[Mesh.ARRAY_BONES] = null
+		arrays[Mesh.ARRAY_WEIGHTS] = null
+		var debug_mesh := ArrayMesh.new()
+		debug_mesh.add_surface_from_arrays(source.surface_get_primitive_type(surface_index),arrays)
+		var overlay := MeshInstance3D.new()
+		overlay.mesh = debug_mesh
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.vertex_color_use_as_albedo = true
+		mat.no_depth_test = true
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		overlay.material_override = mat
+		mesh_instance.add_child(overlay)
+		overlay.position.z = 0.01
+		weight_debug_overlays.append(overlay)
+
+func clear_weight_debug() -> void:
+	for overlay in weight_debug_overlays:
+		if is_instance_valid(overlay): overlay.queue_free()
+	weight_debug_overlays.clear()
+
+func _weight_debug_color(weight: float) -> Color:
+	var w: float = clampf(weight,0.0,1.0)
+	if w <= 0.0: return Color(0.02,0.02,0.03,1.0)
+	if w < 0.5: return Color(0.0,w * 2.0,1.0,1.0)
+	return Color((w - 0.5) * 2.0,1.0,2.0 - w * 2.0,1.0)
 
 func set_bone_pose(index: int, pose: Transform3D) -> void:
 	if index < 0 or index >= skeleton.get_bone_count(): return
