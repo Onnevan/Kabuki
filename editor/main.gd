@@ -1015,7 +1015,8 @@ func _on_frame_changed(frame: int) -> void:
 		reference_canvas.rotation = ProjectStore.evaluate(reference_canvas.model.id, "transform.rotation", frame, reference_canvas.rotation)
 		reference_canvas.scale = ProjectStore.evaluate(reference_canvas.model.id, "transform.scale", frame, reference_canvas.scale)
 	_apply_drawing_frame(frame)
-	_refresh_drawing_timeline()
+	# Timeline exposure markers only change when editing cels, not while merely
+	# playing/scrubbing frames. Avoid rebuilding them every playback tick.
 
 func _apply_drawing_frame(frame: int) -> void:
 	for object_id in drawing_data_by_object.keys():
