@@ -137,6 +137,38 @@ text="Nothing selected"
 text="Duplicate"
 [node name="Delete" type="Button" parent="LeftPanel/ScenePanel/SceneBox/Actions"]
 text="Delete"
+[node name="RiggingPanel" type="PanelContainer" parent="LeftPanel"]
+unique_name_in_owner=true
+visible=false
+custom_minimum_size=Vector2(0,240)
+[node name="RiggingBox" type="VBoxContainer" parent="LeftPanel/RiggingPanel"]
+[node name="RiggingTitle" type="Label" parent="LeftPanel/RiggingPanel/RiggingBox"]
+text="RIGGING"
+theme_override_font_sizes/font_size=16
+[node name="RiggingHint" type="Label" parent="LeftPanel/RiggingPanel/RiggingBox"]
+text="Hierarchy · Pivot · Bones · Skin"
+[node name="RigParent" type="OptionButton" parent="LeftPanel/RiggingPanel/RiggingBox"]
+unique_name_in_owner=true
+tooltip_text="Parent object"
+[node name="SetRigParent" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
+unique_name_in_owner=true
+text="SET PARENT"
+[node name="ClearRigParent" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
+unique_name_in_owner=true
+text="CLEAR PARENT"
+[node name="PivotHere" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
+unique_name_in_owner=true
+text="PIVOT TO VIEW CURSOR"
+tooltip_text="Move pivot to the current editor orbit pivot without moving visible geometry"
+[node name="BonesSeparator" type="HSeparator" parent="LeftPanel/RiggingPanel/RiggingBox"]
+[node name="AddBone" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
+unique_name_in_owner=true
+text="＋ BONE"
+[node name="AutoWeights" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
+unique_name_in_owner=true
+text="AUTO WEIGHTS"
+tooltip_text="Automatic vertex assignment for tessellated meshes"
+
 [node name="AssetsPanel" type="PanelContainer" parent="LeftPanel"]
 custom_minimum_size=Vector2(0,180)
 [node name="Assets" type="VBoxContainer" parent="LeftPanel/AssetsPanel"]
