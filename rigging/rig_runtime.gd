@@ -117,10 +117,14 @@ func bind_mesh(mesh_instance: MeshInstance3D, weights_by_surface: Array) -> bool
 	# Reparent with keep_global=true so binding never makes the artwork jump.
 	if mesh_instance.get_parent() != self:
 		mesh_instance.reparent(self,true)
-	# Godot builds the Skin bind matrices from the Skeleton rest pose. This is
-	# safer than manually composing mesh/skeleton spaces, especially after the
-	# artwork has been reparented with keep_global=true.
-	var skin: Skin = skeleton.create_skin_from_rest_transforms()
+	# The mesh is a child of RigRuntime while Skeleton3D is another child, so
+	# skinning happens in their shared RigRuntime coordinate space. Bind against
+	# each accumulated GLOBAL bone rest in skeleton space. At rest this makes
+	# every weighted vertex evaluate to its original position exactly.
+	var skin := Skin.new()
+	for i in range(rig.bones.size()):
+		var global_rest: Transform3D = skeleton.get_bone_global_rest(i)
+		skin.add_bind(i,global_rest.affine_inverse())
 	mesh_instance.skin = skin
 	# Skeleton paths are resolved from the MeshInstance. Both nodes currently
 	# live under WorldRoot, so this is typically ../Armature/_Skeleton.
