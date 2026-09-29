@@ -528,10 +528,9 @@ func _load_project_payload(payload: Dictionary, path: String) -> void:
 			plane.transform = obj.transform
 			plane.set_guide_visible(workspace == "scene")
 			scene_nodes[obj.id] = plane
-			drawing_planes.append(plane)
-			var data: RefCounted = DrawingDataClass.new(obj.id)
+			var data: DrawingData = DrawingDataClass.new(obj.id)
 			if drawings.has(obj.id): data.load_dict(drawings[obj.id])
-			drawing_data_by_object[obj.id] = data
+			drawing_controller.register_canvas(obj.id, plane, data)
 			for stroke_id in data.stroke_order:
 				if not data.strokes.has(stroke_id): continue
 				var rec: Dictionary = data.strokes[stroke_id]
@@ -1638,12 +1637,12 @@ func _on_add_drawing_plane() -> void:
 			stack_index += 1
 	target_position += -new_normal * DRAWING_PLANE_SPACING * float(stack_index)
 	plane.global_transform = Transform3D(view_basis, target_position)
-	drawing_planes.append(plane)
 	plane.setup(obj)
 	plane.set_guide_visible(workspace == "scene")
 	_register_scene_object(obj, plane)
-	drawing_data_by_object[obj.id] = DrawingDataClass.new(obj.id)
-	obj.components["paint"] = {"drawing_data_id": drawing_data_by_object[obj.id].id, "animation_mode": "exposure_and_morph", "reference_canvas": true, "supports_strokes": true, "supports_bitmap": true}
+	var drawing_data: DrawingData = DrawingDataClass.new(obj.id)
+	drawing_controller.register_canvas(obj.id, plane, drawing_data)
+	obj.components["paint"] = {"drawing_data_id": drawing_data.id, "animation_mode": "exposure_and_morph", "reference_canvas": true, "supports_strokes": true, "supports_bitmap": true}
 	active_drawing_group = plane
 	active_drawing_id = obj.id
 	%DrawingCanvas.switch_canvas(active_drawing_id)
@@ -1701,13 +1700,11 @@ func _delete_reference_canvas(plane: ReferenceCanvas) -> void:
 	for child in plane.get_children():
 		if child is RuntimeObject:
 			runtime_objects.erase(child as RuntimeObject)
-	drawing_planes.erase(plane)
 	if not id.is_empty():
 		ProjectStore.objects.erase(id)
 		scene_nodes.erase(id)
-		drawing_data_by_object.erase(id)
+		drawing_controller.unregister_canvas(id, plane)
 		%DrawingCanvas.clear_canvas_session(id)
-		static_bitmap_runtime.erase(id)
 	plane.queue_free()
 	active_drawing_group = drawing_planes[-1] if not drawing_planes.is_empty() else null
 	active_drawing_id = _reference_canvas_id(active_drawing_group) if active_drawing_group else ""
