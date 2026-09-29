@@ -5,6 +5,8 @@ var rig: RigData
 var skeleton := Skeleton3D.new()
 var bone_gizmos: Array[MeshInstance3D] = []
 var bound_meshes: Dictionary = {}
+var terminal_tip_valid := false
+var terminal_tip := Vector3.ZERO
 
 func setup(value: RigData) -> void:
 	rig = value
@@ -34,6 +36,8 @@ func rebuild_bones() -> void:
 
 func _create_bone_gizmo(index: int, head: Vector3, parent_index: int) -> void:
 	var tail := head + Vector3(0.0,0.45,0.0)
+	if terminal_tip_valid and index == rig.bones.size() - 1:
+		tail = global_transform.affine_inverse() * terminal_tip
 	if parent_index >= 0 and parent_index < rig.bones.size():
 		var parent_rest: Transform3D = rig.bones[parent_index].get("rest",Transform3D.IDENTITY)
 		var parent_local: Vector3 = (global_transform.affine_inverse() * parent_rest).origin
@@ -70,6 +74,11 @@ func _create_bone_gizmo(index: int, head: Vector3, parent_index: int) -> void:
 		gizmo.quaternion = Quaternion(Vector3.UP,direction.normalized())
 	add_child(gizmo)
 	bone_gizmos.append(gizmo)
+
+func set_terminal_tip(world_tip: Vector3) -> void:
+	terminal_tip = world_tip
+	terminal_tip_valid = true
+	rebuild_bones()
 
 func bind_mesh(mesh_instance: MeshInstance3D, weights_by_surface: Array) -> bool:
 	if mesh_instance == null or mesh_instance.mesh == null or rig == null: return false
