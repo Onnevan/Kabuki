@@ -171,8 +171,12 @@ func show_weight_debug(mesh_instance: MeshInstance3D, weights_by_surface: Array,
 		mat.no_depth_test = true
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 		overlay.material_override = mat
-		mesh_instance.add_child(overlay)
-		overlay.position.z = 0.01
+		# Keep the diagnostic copy outside the skinned MeshInstance hierarchy.
+		# As a child it inherited the already-skinned parent's transform and could
+		# look like an extra displaced blob, confusing the diagnostic.
+		add_child(overlay)
+		overlay.transform = mesh_instance.transform
+		overlay.position += Vector3(0.0,0.0,0.01)
 		weight_debug_overlays.append(overlay)
 
 func clear_weight_debug() -> void:
