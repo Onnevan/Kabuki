@@ -66,3 +66,19 @@ func _sync_angles_from_camera() -> void:
 	var dir := offset.normalized()
 	yaw = atan2(dir.x, dir.z)
 	pitch = asin(clampf(dir.y, -1.0, 1.0))
+
+
+func get_state() -> Dictionary:
+	return {
+		"pivot": pivot,
+		"distance": distance,
+		"yaw": yaw,
+		"pitch": pitch
+	}
+
+func set_state(state: Dictionary) -> void:
+	pivot = state.get("pivot", pivot)
+	distance = float(state.get("distance", distance))
+	yaw = float(state.get("yaw", yaw))
+	pitch = float(state.get("pitch", pitch))
+	_update_camera()
