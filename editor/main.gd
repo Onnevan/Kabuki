@@ -308,10 +308,16 @@ func _build_scene_camera(obj: MotionObject) -> Node3D:
 	for i in 4:
 		im.surface_add_vertex(corners[i])
 		im.surface_add_vertex(corners[(i + 1) % 4])
-	var tip := Vector3(0.0,0.0,-0.75)
-	for p in corners:
-		im.surface_add_vertex(p)
-		im.surface_add_vertex(tip)
+	var forward_z: float = -0.75
+	var forward_corners := [
+		Vector3(-0.46,-0.30,forward_z),Vector3(0.46,-0.30,forward_z),
+		Vector3(0.46,0.30,forward_z),Vector3(-0.46,0.30,forward_z)
+	]
+	for i in 4:
+		im.surface_add_vertex(corners[i])
+		im.surface_add_vertex(forward_corners[i])
+		im.surface_add_vertex(forward_corners[i])
+		im.surface_add_vertex(forward_corners[(i + 1) % 4])
 	im.surface_add_vertex(Vector3(-0.09,hy,z))
 	im.surface_add_vertex(Vector3(0.0,hy + 0.14,z))
 	im.surface_add_vertex(Vector3(0.0,hy + 0.14,z))
@@ -358,6 +364,8 @@ func _on_camera_fov_changed(value: float) -> void:
 	var obj: MotionObject = ProjectStore.objects[selected_object_id]
 	if obj.technical_type != "camera": return
 	obj.properties["camera.fov"] = value
+	if auto_key.button_pressed:
+		ProjectStore.set_key(selected_object_id,"camera.fov",ProjectStore.current_frame,value,_interp_name())
 	var cam := _scene_camera_node(selected_object_id)
 	if cam: cam.fov = value
 	if camera_view_active and selected_object_id == render_camera_id: camera.fov = value
@@ -376,6 +384,9 @@ func _on_camera_dof_changed(_value: Variant = null) -> void:
 	obj.properties["camera.dof_enabled"] = %CameraDofEnabled.button_pressed
 	obj.properties["camera.focus_distance"] = %CameraFocusDistance.value
 	obj.properties["camera.aperture"] = %CameraAperture.value
+	if auto_key.button_pressed:
+		ProjectStore.set_key(selected_object_id,"camera.focus_distance",ProjectStore.current_frame,%CameraFocusDistance.value,_interp_name())
+		ProjectStore.set_key(selected_object_id,"camera.aperture",ProjectStore.current_frame,%CameraAperture.value,_interp_name())
 	var cam := _scene_camera_node(selected_object_id)
 	if cam:
 		cam.attributes = CameraAttributesPractical.new()
@@ -637,7 +648,8 @@ func _on_interpolation_item_selected(_index: int) -> void:
 	timeline.set_selected_interpolation(_interp_name())
 
 func _key_position() -> void:
-	if selected: ProjectStore.set_key(selected.model.id,"transform.position",ProjectStore.current_frame,selected.position,_interp_name())
+	if selected_scene_node == null or selected_object_id.is_empty(): return
+	ProjectStore.set_key(selected_object_id,"transform.position",ProjectStore.current_frame,selected_scene_node.position,_interp_name())
 
 func _on_canvas_gui_input(event: InputEvent) -> void:
 	if workspace == "drawing":
@@ -887,6 +899,26 @@ func _on_frame_changed(frame: int) -> void:
 	frame_slider.set_value_no_signal(frame)
 	timeline.set_frame(frame)
 	for r in runtime_objects: r.apply_frame(frame)
+	# Generic scene anchors (camera, lights, audio...) also live on the global
+	# timeline. RuntimeObject already evaluates itself above.
+	for object_id in scene_nodes:
+		var node: Node3D = scene_nodes[object_id]
+		if not is_instance_valid(node) or node is RuntimeObject or node is ReferenceCanvas: continue
+		if not ProjectStore.objects.has(object_id): continue
+		var model: MotionObject = ProjectStore.objects[object_id]
+		node.position = ProjectStore.evaluate(object_id, "transform.position", frame, model.transform.origin)
+		node.rotation = ProjectStore.evaluate(object_id, "transform.rotation", frame, model.transform.basis.get_euler())
+		node.scale = ProjectStore.evaluate(object_id, "transform.scale", frame, model.transform.basis.get_scale())
+		if model.technical_type == "camera":
+			var scene_cam := _scene_camera_node(object_id)
+			if scene_cam:
+				scene_cam.fov = float(ProjectStore.evaluate(object_id, "camera.fov", frame, model.properties.get("camera.fov",70.0)))
+				var attrs := scene_cam.attributes as CameraAttributesPractical
+				if attrs:
+					attrs.dof_blur_far_distance = float(ProjectStore.evaluate(object_id, "camera.focus_distance", frame, model.properties.get("camera.focus_distance",3.0)))
+					attrs.dof_blur_near_distance = attrs.dof_blur_far_distance
+					attrs.dof_blur_amount = float(ProjectStore.evaluate(object_id, "camera.aperture", frame, model.properties.get("camera.aperture",0.2)))
+			if camera_view_active and object_id == render_camera_id: _sync_editor_view_to_render_camera()
 	for reference_canvas in drawing_planes:
 		if not is_instance_valid(reference_canvas) or reference_canvas.model == null: continue
 		reference_canvas.position = ProjectStore.evaluate(reference_canvas.model.id, "transform.position", frame, reference_canvas.model.transform.origin)
