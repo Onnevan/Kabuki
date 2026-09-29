@@ -57,6 +57,9 @@ var rigging_controller: RefCounted = RiggingControllerClass.new()
 var active_rig_id := ""
 var active_rig_runtime: Node3D
 var pending_parent_child_id := ""
+var rig_bone_draw_active := false
+var rig_bone_draw_parent := -1
+var rig_bone_draw_depth_point := Vector3.ZERO
 var drawing_data_by_object: Dictionary:
 	get: return drawing_controller.data_by_object
 var sculpt_mode := "push"
@@ -131,6 +134,12 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if not event is InputEventKey: return
 	var key_event := event as InputEventKey
 	if not key_event.pressed or key_event.echo: return
+	if workspace == "rigging" and rig_bone_draw_active and (key_event.keycode == KEY_ENTER or key_event.keycode == KEY_KP_ENTER):
+		_finish_rig_bone_drawing()
+		return
+	if workspace == "rigging" and rig_bone_draw_active and key_event.keycode == KEY_ESCAPE:
+		_finish_rig_bone_drawing()
+		return
 	if key_event.ctrl_pressed and key_event.keycode == KEY_Z:
 		if key_event.shift_pressed: %DrawingCanvas.redo_paint()
 		else: %DrawingCanvas.undo_paint()
@@ -764,6 +773,9 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 				else: orbiting = event.pressed
 				return
 			elif event.button_index == MOUSE_BUTTON_LEFT:
+				if workspace == "rigging" and rig_bone_draw_active:
+					if event.pressed: _add_rig_bone_point(event.position)
+					return
 				if drawing_3d_active:
 					if event.pressed: _begin_3d_stroke(event.position)
 					else: _finish_3d_stroke()
@@ -800,6 +812,9 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 			if Input.is_key_pressed(KEY_SHIFT): panning = event.pressed
 			else: orbiting = event.pressed
 		elif event.button_index == MOUSE_BUTTON_LEFT:
+			if workspace == "rigging" and rig_bone_draw_active:
+				if event.pressed: _add_rig_bone_point(event.position)
+				return
 			if event.pressed:
 				gizmo_axis = gizmo.pick_axis(event.position, camera) if selected_scene_node else TransformGizmo.Axis.NONE
 				if gizmo_axis != TransformGizmo.Axis.NONE:
@@ -1402,12 +1417,28 @@ func _ensure_active_rig() -> RefCounted:
 
 func _on_add_rig_bone() -> void:
 	var rig: RefCounted = _ensure_active_rig()
+	rig_bone_draw_active = true
+	rig_bone_draw_parent = -1
+	rig_bone_draw_depth_point = selected_scene_node.global_position if selected_scene_node != null else camera_rig.pivot
+	status.text = "Draw bones · click joints on the artwork · Enter to finish"
+
+func _add_rig_bone_point(screen_pos: Vector2) -> void:
+	if not rig_bone_draw_active: return
+	var rig: RefCounted = _ensure_active_rig()
+	var world_point: Vector3 = _screen_to_view_plane(screen_pos,rig_bone_draw_depth_point)
 	var rest := Transform3D.IDENTITY
-	rest.origin = selected_scene_node.global_position if selected_scene_node != null else camera_rig.pivot
-	var parent_index: int = rig.bones.size() - 1
-	var index: int = rig.add_bone("Bone %02d" % (rig.bones.size() + 1), parent_index, rest)
+	rest.origin = world_point
+	var index: int = rig.add_bone("Bone %02d" % (rig.bones.size() + 1),rig_bone_draw_parent,rest)
+	rig_bone_draw_parent = index
+	rig_bone_draw_depth_point = world_point
 	if active_rig_runtime != null: active_rig_runtime.rebuild_bones()
-	status.text = "Bone %02d created" % (index + 1)
+	status.text = "Bone %02d · click next joint · Enter to finish" % (index + 1)
+
+func _finish_rig_bone_drawing() -> void:
+	if not rig_bone_draw_active: return
+	rig_bone_draw_active = false
+	rig_bone_draw_parent = -1
+	status.text = "Bone chain finished"
 
 func _on_auto_weights() -> void:
 	if not selected_scene_node is MeshInstance3D:
