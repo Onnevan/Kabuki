@@ -5,6 +5,7 @@ const Stroke3DClass = preload("res://paint/stroke3d.gd")
 const DrawingDataClass = preload("res://paint/drawing_data.gd")
 const ReferenceCanvasClass = preload("res://paint/reference_canvas.gd")
 const DrawingControllerClass = preload("res://drawing/drawing_controller.gd")
+const RiggingControllerClass = preload("res://rigging/rigging_controller.gd")
 
 @onready var viewport: SubViewport = %SceneViewport
 @onready var world_root: Node3D = %WorldRoot
@@ -48,6 +49,8 @@ var active_drawing_group: ReferenceCanvas
 var active_drawing_id := ""
 var drawing_session_index := 0
 var drawing_controller: RefCounted = DrawingControllerClass.new()
+var rigging_controller: RefCounted = RiggingControllerClass.new()
+var active_rig_id := ""
 var drawing_data_by_object: Dictionary:
 	get: return drawing_controller.data_by_object
 var sculpt_mode := "push"
@@ -86,6 +89,7 @@ func _ready() -> void:
 	gizmo.set_mode(active_tool)
 	_setup_workspace_tabs()
 	_setup_drawing_menus()
+	_setup_rigging_workspace()
 	%SaveProject.pressed.connect(_on_save_project_pressed)
 	%LoadProject.pressed.connect(_on_load_project_pressed)
 	%UndoPaint.pressed.connect(%DrawingCanvas.undo_paint)
@@ -1304,9 +1308,90 @@ func _on_reset_filters_pressed() -> void:
 func _setup_workspace_tabs() -> void:
 	while %WorkspaceTabs.tab_count > 0:
 		%WorkspaceTabs.remove_tab(0)
-	for label in ["SCENE", "ANIMATION", "DRAWING", "COMPOSITOR"]:
+	for label in ["SCENE", "ANIMATION", "DRAWING", "RIGGING", "COMPOSITOR"]:
 		%WorkspaceTabs.add_tab(label)
 	%WorkspaceTabs.current_tab = 0
+
+func _setup_rigging_workspace() -> void:
+	%SetRigParent.pressed.connect(_on_set_rig_parent)
+	%ClearRigParent.pressed.connect(_on_clear_rig_parent)
+	%PivotHere.pressed.connect(_on_pivot_here)
+	%AddBone.pressed.connect(_on_add_rig_bone)
+	%AutoWeights.pressed.connect(_on_auto_weights)
+	_refresh_rig_parent_choices()
+
+func _refresh_rig_parent_choices() -> void:
+	%RigParent.clear()
+	%RigParent.add_item("No parent")
+	%RigParent.set_item_metadata(0, "")
+	for object_id in ProjectStore.objects:
+		if object_id == selected_object_id: continue
+		var obj: MotionObject = ProjectStore.objects[object_id]
+		if not scene_nodes.has(object_id): continue
+		%RigParent.add_item(obj.name)
+		%RigParent.set_item_metadata(%RigParent.item_count - 1, object_id)
+
+func _on_set_rig_parent() -> void:
+	if selected_object_id.is_empty() or selected_scene_node == null: return
+	var index: int = %RigParent.selected
+	if index < 0: return
+	var parent_id: String = String(%RigParent.get_item_metadata(index))
+	if parent_id.is_empty() or not ProjectStore.objects.has(parent_id) or not scene_nodes.has(parent_id): return
+	var child_model: MotionObject = ProjectStore.objects[selected_object_id]
+	var parent_model: MotionObject = ProjectStore.objects[parent_id]
+	if rigging_controller.set_parent(child_model, parent_model, selected_scene_node, scene_nodes[parent_id], true):
+		status.text = child_model.name + " parented to " + parent_model.name
+
+func _on_clear_rig_parent() -> void:
+	if selected_object_id.is_empty() or selected_scene_node == null: return
+	var obj: MotionObject = ProjectStore.objects.get(selected_object_id)
+	if obj == null: return
+	var global_before: Transform3D = selected_scene_node.global_transform
+	selected_scene_node.reparent(world_root, true)
+	selected_scene_node.global_transform = global_before
+	obj.parent_id = ""
+	obj.transform = selected_scene_node.transform
+	status.text = obj.name + " parent cleared"
+
+func _on_pivot_here() -> void:
+	if selected_scene_node == null: return
+	rigging_controller.set_pivot_keep_geometry(selected_scene_node, camera_rig.pivot)
+	if ProjectStore.objects.has(selected_object_id):
+		var obj: MotionObject = ProjectStore.objects[selected_object_id]
+		obj.transform = selected_scene_node.transform
+	_show_transform(selected_scene_node)
+	status.text = "Pivot moved to view cursor"
+
+func _ensure_active_rig() -> RefCounted:
+	if active_rig_id.is_empty():
+		active_rig_id = "rig-" + str(ResourceUID.create_id())
+		return rigging_controller.create_rig(active_rig_id)
+	return rigging_controller.rigs.get(active_rig_id)
+
+func _on_add_rig_bone() -> void:
+	var rig: RefCounted = _ensure_active_rig()
+	var rest := Transform3D.IDENTITY
+	rest.origin = selected_scene_node.global_position if selected_scene_node != null else camera_rig.pivot
+	var index: int = rig.add_bone("Bone %02d" % (rig.bones.size() + 1), -1, rest)
+	status.text = "Bone %02d created · visual bone editing next" % (index + 1)
+
+func _on_auto_weights() -> void:
+	if not selected_scene_node is MeshInstance3D:
+		status.text = "Select a tessellated mesh or plane for Auto Weights"
+		return
+	var rig: RefCounted = _ensure_active_rig()
+	if rig.bones.is_empty():
+		status.text = "Create at least one bone first"
+		return
+	var origins := PackedVector3Array()
+	for bone in rig.bones:
+		var rest: Transform3D = bone.get("rest", Transform3D.IDENTITY)
+		origins.append((selected_scene_node as Node3D).to_local(rest.origin))
+	var weights: Array = rigging_controller.auto_weight_vertices(selected_scene_node as MeshInstance3D, origins)
+	rig.bindings[selected_object_id] = {"bone_weights": weights, "auto_bound": true}
+	var obj: MotionObject = ProjectStore.objects.get(selected_object_id)
+	if obj != null: obj.components["deform"]["rig_id"] = active_rig_id
+	status.text = "Automatic vertex weights assigned"
 
 func _setup_drawing_menus() -> void:
 	# Primary modes/tools are direct icon buttons. Dropdowns are reserved for
@@ -1364,7 +1449,7 @@ func _on_drawing_cel_menu(id: int) -> void:
 		4: _on_drawing_morph_cel()
 
 func _on_workspace_tab_changed(tab: int) -> void:
-	var next_workspace: String = ["scene","animation","drawing","compositor"][tab]
+	var next_workspace: String = ["scene","animation","drawing","rigging","compositor"][tab]
 	# Workspaces may have different overlays/panel geometry, but changing editor
 	# must never silently change the user's 3D view.
 	workspace_camera_states[workspace] = camera_rig.get_state()
@@ -1376,11 +1461,13 @@ func _on_workspace_tab_changed(tab: int) -> void:
 		camera_rig.set_state(workspace_camera_states[workspace])
 	else:
 		workspace_camera_states[workspace] = camera_rig.get_state()
-	%RightPanel.visible = workspace == "scene" or workspace == "drawing" or workspace == "compositor"
+	%RightPanel.visible = workspace == "scene" or workspace == "drawing" or workspace == "rigging" or workspace == "compositor"
 	%DrawingBar.visible = workspace == "drawing"
 	%DrawingAnimBar.visible = workspace == "drawing"
 	%DrawingPlanes.visible = workspace == "drawing"
 	%ObjectList.visible = workspace != "drawing"
+	%RiggingPanel.visible = workspace == "rigging"
+	if workspace == "rigging": _refresh_rig_parent_choices()
 	%DrawingCanvas.visible = workspace == "drawing" and %DrawingCanvas.bitmap_mode
 	%ViewportTop.visible = workspace != "drawing"
 	%ToolRail.visible = workspace != "drawing"
