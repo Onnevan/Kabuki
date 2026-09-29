@@ -98,6 +98,25 @@ func flipbook_frames() -> Array[int]:
 	result.sort()
 	return result
 
+func flipbook_image(canvas_id: String, frame: int) -> Image:
+	var cel_map: Dictionary = canvas_cels.get(canvas_id, {})
+	if cel_map.is_empty(): return null
+	var held_frame := -1
+	for key in cel_map.keys():
+		var candidate := int(key)
+		if candidate <= frame and candidate > held_frame: held_frame = candidate
+	if held_frame < 0:
+		var first_frame := 2147483647
+		for key in cel_map.keys(): first_frame = mini(first_frame, int(key))
+		held_frame = first_frame
+	if not cel_map.has(held_frame): return null
+	return (cel_map[held_frame] as Image)
+
+func has_flipbook(canvas_id: String) -> bool:
+	var cel_map: Dictionary = canvas_cels.get(canvas_id, {})
+	return not cel_map.is_empty()
+
+
 func committed_canvas_images() -> Dictionary:
 	if not active_canvas_id.is_empty() and raster != null:
 		canvas_rasters[active_canvas_id] = raster.duplicate()
