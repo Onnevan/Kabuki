@@ -443,3 +443,27 @@ func _flood_fill(seed: Vector2i,replacement: Color) -> void:
 		raster.set_pixelv(p,replacement)
 		stack.append(p+Vector2i.LEFT); stack.append(p+Vector2i.RIGHT)
 		stack.append(p+Vector2i.UP); stack.append(p+Vector2i.DOWN)
+
+
+func export_bitmap_cels() -> Dictionary:
+	var result: Dictionary = {}
+	for canvas_id in canvas_cels:
+		var cel_map: Dictionary = canvas_cels[canvas_id]
+		var out: Dictionary = {}
+		for frame in cel_map:
+			var image: Image = cel_map[frame]
+			out[str(frame)] = Marshalls.raw_to_base64(image.save_png_to_buffer())
+		result[String(canvas_id)] = out
+	return result
+
+func import_bitmap_cels(data: Dictionary) -> void:
+	canvas_cels.clear()
+	for canvas_id in data:
+		var cel_map: Dictionary = {}
+		var raw_map: Dictionary = data[canvas_id]
+		for frame_text in raw_map:
+			var bytes: PackedByteArray = Marshalls.base64_to_raw(String(raw_map[frame_text]))
+			var image := Image.new()
+			if image.load_png_from_buffer(bytes) == OK:
+				cel_map[int(frame_text)] = image
+		canvas_cels[String(canvas_id)] = cel_map
