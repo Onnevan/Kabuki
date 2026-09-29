@@ -55,6 +55,7 @@ var projection_view_transform := Transform3D.IDENTITY
 var projection_view_valid := false
 var _pending_bitmap_image: Image
 var _pending_bitmap_batch: Dictionary = {}
+var static_bitmap_runtime: Dictionary = {} # canvas id -> tessellated RuntimeObject
 
 func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
@@ -625,11 +626,17 @@ func _apply_drawing_frame(frame: int) -> void:
 		# sequence on the ReferenceCanvas plane. No tessellation is required.
 		if group is ReferenceCanvas:
 			var reference_canvas := group as ReferenceCanvas
-			if %DrawingCanvas.has_flipbook(object_id):
+			if %DrawingCanvas.is_animated_bitmap(object_id):
 				var bitmap_image: Image = %DrawingCanvas.flipbook_image(object_id, evaluation_frame)
 				reference_canvas.show_flipbook_image(bitmap_image)
+				if static_bitmap_runtime.has(object_id):
+					var cached_static: RuntimeObject = static_bitmap_runtime[object_id]
+					if is_instance_valid(cached_static): cached_static.visible = false
 			else:
 				reference_canvas.hide_flipbook_image()
+				if static_bitmap_runtime.has(object_id):
+					var cached_static: RuntimeObject = static_bitmap_runtime[object_id]
+					if is_instance_valid(cached_static): cached_static.visible = true
 		for child in group.get_children():
 			if not child is Stroke3D: continue
 			var stroke := child as Stroke3D
@@ -801,6 +808,9 @@ func _key_active_flipbook_cel() -> void:
 	if %DrawingCanvas.bitmap_mode:
 		%DrawingCanvas.key_current_cel()
 		data.ensure_flipbook_cel(_drawing_edit_frame())
+		if %DrawingCanvas.is_animated_bitmap(active_drawing_id) and static_bitmap_runtime.has(active_drawing_id):
+			var old_static: RuntimeObject = static_bitmap_runtime[active_drawing_id]
+			if is_instance_valid(old_static): old_static.visible = false
 		_refresh_drawing_timeline()
 		status.text = "Bitmap flipbook cel keyed · local frame %d" % _drawing_edit_frame()
 		return
@@ -935,6 +945,9 @@ func _on_drawing_cel_menu(id: int) -> void:
 		4: _on_drawing_morph_cel()
 
 func _on_workspace_tab_changed(tab: int) -> void:
+	var leaving_drawing: bool = workspace == "drawing" and tab != 2
+	if leaving_drawing:
+		_finalize_static_bitmap_if_needed()
 	workspace = ["scene","animation","drawing","compositor"][tab]
 	%RightPanel.visible = workspace == "scene" or workspace == "drawing" or workspace == "compositor"
 	%DrawingBar.visible = workspace == "drawing"
@@ -1069,6 +1082,45 @@ func _apply_selected_stroke_style() -> void:
 
 func _apply_active_drawing_style() -> void:
 	_apply_selected_stroke_style()
+
+func _finalize_static_bitmap_if_needed() -> void:
+	if active_drawing_id.is_empty() or active_drawing_group == null: return
+	if not %DrawingCanvas.bitmap_mode: return
+	# One/no keyed image is a static bitmap: generate/update its tessellated
+	# render cache automatically when leaving Drawing. Two or more cels switch
+	# representation to a quad texture sequence instead.
+	if %DrawingCanvas.is_animated_bitmap(active_drawing_id):
+		if static_bitmap_runtime.has(active_drawing_id):
+			var old_static: RuntimeObject = static_bitmap_runtime[active_drawing_id]
+			if is_instance_valid(old_static): old_static.visible = false
+		return
+	if not %DrawingCanvas.is_bitmap_dirty(active_drawing_id) and static_bitmap_runtime.has(active_drawing_id): return
+	var image: Image = %DrawingCanvas.current_source_image(active_drawing_id)
+	if image == null or image.is_empty(): return
+	_rebuild_static_bitmap_cache(active_drawing_group, active_drawing_id, image)
+	%DrawingCanvas.mark_bitmap_clean(active_drawing_id)
+
+func _rebuild_static_bitmap_cache(target_canvas: ReferenceCanvas, canvas_id: String, image: Image) -> void:
+	if static_bitmap_runtime.has(canvas_id):
+		var old_runtime: RuntimeObject = static_bitmap_runtime[canvas_id]
+		if is_instance_valid(old_runtime):
+			runtime_objects.erase(old_runtime)
+			old_runtime.queue_free()
+	var obj := MotionObject.new("Static Bitmap", "bitmap_layer", "drawing")
+	obj.parent_id = canvas_id
+	ProjectStore.add_object(obj)
+	var runtime := RuntimeObject.new()
+	target_canvas.add_child(runtime)
+	# Static bitmap uses the canvas itself as its spatial support.
+	var hx: float = target_canvas.guide_size.x * 0.5
+	var hy: float = target_canvas.guide_size.y * 0.5
+	var corners := PackedVector3Array([
+		Vector3(-hx,-hy,0), Vector3(hx,-hy,0),
+		Vector3(hx,hy,0), Vector3(-hx,hy,0)
+	])
+	runtime.setup_bitmap(obj, image, corners, int(%TessellationSamples.value))
+	runtime_objects.append(runtime)
+	static_bitmap_runtime[canvas_id] = runtime
 
 func _on_bitmap_flipbook_stroke_started() -> void:
 	var data: RefCounted = _active_drawing_data()
@@ -1229,6 +1281,7 @@ func _delete_reference_canvas(plane: ReferenceCanvas) -> void:
 		scene_nodes.erase(id)
 		drawing_data_by_object.erase(id)
 		%DrawingCanvas.clear_canvas_session(id)
+		static_bitmap_runtime.erase(id)
 	plane.queue_free()
 	active_drawing_group = drawing_planes[-1] if not drawing_planes.is_empty() else null
 	active_drawing_id = _reference_canvas_id(active_drawing_group) if active_drawing_group else ""
