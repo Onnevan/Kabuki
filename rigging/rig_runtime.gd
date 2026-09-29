@@ -90,11 +90,27 @@ func set_terminal_tip(world_tip: Vector3) -> void:
 
 func bind_mesh(mesh_instance: MeshInstance3D, weights_by_surface: Array) -> bool:
 	if mesh_instance == null or mesh_instance.mesh == null or rig == null: return false
+	clear_weight_debug()
+	# Binding is an atomic operation: first move the artwork under the Armature,
+	# then bake that local transform into its vertices. From this point onward
+	# artwork, Skin and Skeleton all live in the SAME RigRuntime coordinate space.
+	if mesh_instance.get_parent() != self:
+		mesh_instance.reparent(self,true)
+	var artwork_transform: Transform3D = mesh_instance.transform
 	var source: Mesh = mesh_instance.mesh
 	var skinned := ArrayMesh.new()
 	for surface_index in range(source.get_surface_count()):
 		var arrays: Array = source.surface_get_arrays(surface_index)
 		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		for vi in range(vertices.size()):
+			vertices[vi] = artwork_transform * vertices[vi]
+		arrays[Mesh.ARRAY_VERTEX] = vertices
+		if arrays[Mesh.ARRAY_NORMAL] is PackedVector3Array:
+			var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+			if not normals.is_empty():
+				var normal_basis: Basis = artwork_transform.basis.inverse().transposed()
+				for ni in range(normals.size()): normals[ni] = (normal_basis * normals[ni]).normalized()
+				arrays[Mesh.ARRAY_NORMAL] = normals
 		var bones := PackedInt32Array()
 		var weights := PackedFloat32Array()
 		bones.resize(vertices.size()*4)
@@ -114,23 +130,12 @@ func bind_mesh(mesh_instance: MeshInstance3D, weights_by_surface: Array) -> bool
 		arrays[Mesh.ARRAY_WEIGHTS] = weights
 		skinned.add_surface_from_arrays(source.surface_get_primitive_type(surface_index),arrays)
 	mesh_instance.mesh = skinned
-	# Put artwork and Skeleton in the same local space BEFORE creating the Skin.
-	# keep_global preserves the picture visually, but its local transform can now
-	# be non-identity. The bind must include that mesh-local transform or every
-	# weighted vertex is displaced immediately (the previous "crumpled sock").
-	if mesh_instance.get_parent() != self:
-		mesh_instance.reparent(self,true)
-	# MeshInstance3D skinning expects bind matrices in Skeleton3D space.
-	# The mesh node transform is applied by the scene graph after skinning and
-	# must NOT be folded into each bind. Doing so applies the artwork transform
-	# once per influence and produces the dramatic collapse seen at rest.
+	mesh_instance.transform = Transform3D.IDENTITY
 	var skin := Skin.new()
 	for i in range(rig.bones.size()):
-		var bone_rest_in_skeleton: Transform3D = skeleton.get_bone_global_rest(i)
-		skin.add_bind(i,bone_rest_in_skeleton.affine_inverse())
+		var bone_rest: Transform3D = skeleton.get_bone_global_rest(i)
+		skin.add_bind(i,bone_rest.affine_inverse())
 	mesh_instance.skin = skin
-	# Skeleton paths are resolved from the MeshInstance. Both nodes currently
-	# live under WorldRoot, so this is typically ../Armature/_Skeleton.
 	mesh_instance.skeleton = mesh_instance.get_path_to(skeleton)
 	bound_meshes[mesh_instance.get_instance_id()] = mesh_instance
 	return true
