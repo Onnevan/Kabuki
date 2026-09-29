@@ -43,39 +43,81 @@ func set_pivot_keep_geometry(node: Node3D, new_global_pivot: Vector3) -> void:
 func supports_mesh_binding(node: Node3D) -> bool:
 	return node is MeshInstance3D and (node as MeshInstance3D).mesh != null
 
-func auto_weight_vertices(mesh_instance: MeshInstance3D, bone_origins_local: PackedVector3Array) -> Array:
-	# First useful automatic assignment: nearest two bones with inverse-distance
-	# weights. The representation is renderer-independent and can later feed a
-	# Godot Skin/Skeleton3D or our own deformation backend.
+func auto_weight_vertices(mesh_instance: MeshInstance3D, bone_segments_local: Array) -> Array:
+	# 2D skin solver inspired by common heat/topology workflows:
+	# seed from distance to the full bone segment, then diffuse over triangle
+	# adjacency, prune to four influences and normalize.
 	var result: Array = []
-	if mesh_instance == null or mesh_instance.mesh == null or bone_origins_local.is_empty(): return result
+	if mesh_instance == null or mesh_instance.mesh == null or bone_segments_local.is_empty(): return result
 	var mesh: Mesh = mesh_instance.mesh
 	for surface_index in range(mesh.get_surface_count()):
 		var arrays: Array = mesh.surface_get_arrays(surface_index)
 		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-		var surface_weights: Array = []
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var neighbors: Array = []
+		neighbors.resize(vertices.size())
+		for vi in range(vertices.size()): neighbors[vi] = {}
+		if not indices.is_empty():
+			for ti in range(0,indices.size(),3):
+				if ti + 2 >= indices.size(): break
+				var a: int = indices[ti]
+				var b: int = indices[ti + 1]
+				var c: int = indices[ti + 2]
+				neighbors[a][b] = true; neighbors[a][c] = true
+				neighbors[b][a] = true; neighbors[b][c] = true
+				neighbors[c][a] = true; neighbors[c][b] = true
+		var dense: Array = []
 		for vertex in vertices:
-			var nearest: int = -1
-			var second: int = -1
-			var d0: float = INF
-			var d1: float = INF
-			for bone_index in range(bone_origins_local.size()):
-				var d: float = vertex.distance_squared_to(bone_origins_local[bone_index])
-				if d < d0:
-					d1 = d0; second = nearest
-					d0 = d; nearest = bone_index
-				elif d < d1:
-					d1 = d; second = bone_index
-			var influences: Array = []
-			if nearest >= 0:
-				if second < 0 or d0 <= 0.000001:
-					influences.append({"bone": nearest, "weight": 1.0})
-				else:
-					var w0: float = 1.0 / maxf(sqrt(d0), 0.0001)
-					var w1: float = 1.0 / maxf(sqrt(d1), 0.0001)
-					var total: float = w0 + w1
-					influences.append({"bone": nearest, "weight": w0 / total})
-					influences.append({"bone": second, "weight": w1 / total})
-			surface_weights.append(influences)
+			var row: PackedFloat32Array = PackedFloat32Array()
+			row.resize(bone_segments_local.size())
+			var sum: float = 0.0
+			for bi in range(bone_segments_local.size()):
+				var segment: Dictionary = bone_segments_local[bi]
+				var a: Vector3 = segment.get("a",Vector3.ZERO)
+				var b: Vector3 = segment.get("b",a)
+				var d: float = _distance_to_segment(vertex,a,b)
+				var influence: float = 1.0 / maxf(d * d,0.0004)
+				row[bi] = influence
+				sum += influence
+			if sum > 0.0:
+				for bi in range(row.size()): row[bi] /= sum
+			dense.append(row)
+		# Topology diffusion removes the Voronoi-like creases produced by pure
+		# nearest-bone assignment while respecting disconnected mesh regions.
+		for _pass in range(5):
+			var next_dense: Array = []
+			for vi in range(vertices.size()):
+				var current: PackedFloat32Array = dense[vi]
+				var smoothed: PackedFloat32Array = current.duplicate()
+				var count: int = 1
+				for ni in neighbors[vi].keys():
+					var neighbor_row: PackedFloat32Array = dense[int(ni)]
+					for bi in range(smoothed.size()): smoothed[bi] += neighbor_row[bi]
+					count += 1
+				for bi in range(smoothed.size()):
+					var average: float = smoothed[bi] / float(count)
+					smoothed[bi] = lerpf(current[bi],average,0.55)
+				next_dense.append(smoothed)
+			dense = next_dense
+		var surface_weights: Array = []
+		for row_value in dense:
+			var row: PackedFloat32Array = row_value
+			var ranked: Array = []
+			for bi in range(row.size()):
+				if row[bi] > 0.002: ranked.append({"bone":bi,"weight":float(row[bi])})
+			ranked.sort_custom(func(a: Dictionary,b: Dictionary) -> bool: return float(a["weight"]) > float(b["weight"]))
+			if ranked.size() > 4: ranked.resize(4)
+			var total: float = 0.0
+			for influence in ranked: total += float(influence["weight"])
+			if total > 0.0:
+				for influence in ranked: influence["weight"] = float(influence["weight"]) / total
+			surface_weights.append(ranked)
 		result.append(surface_weights)
 	return result
+
+func _distance_to_segment(point: Vector3, a: Vector3, b: Vector3) -> float:
+	var ab: Vector3 = b - a
+	var length_sq: float = ab.length_squared()
+	if length_sq <= 0.000001: return point.distance_to(a)
+	var t: float = clampf((point - a).dot(ab) / length_sq,0.0,1.0)
+	return point.distance_to(a + ab * t)
