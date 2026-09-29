@@ -35,24 +35,32 @@ func rebuild_bones() -> void:
 		_create_bone_gizmo(i,rest_in_rig.origin,parent_index)
 
 func _create_bone_gizmo(index: int, head: Vector3, parent_index: int) -> void:
+	# RigData stores one joint per bone origin. For a chain, bone N runs from
+	# joint N to joint N+1; the final bone uses the explicitly tracked terminal tip.
 	var tail := head + Vector3(0.0,0.45,0.0)
-	if terminal_tip_valid and index == rig.bones.size() - 1:
+	if index + 1 < rig.bones.size():
+		var next_rest: Transform3D = rig.bones[index + 1].get("rest",Transform3D.IDENTITY)
+		tail = (global_transform.affine_inverse() * next_rest).origin
+	elif terminal_tip_valid:
 		tail = global_transform.affine_inverse() * terminal_tip
-	if parent_index >= 0 and parent_index < rig.bones.size():
-		var parent_rest: Transform3D = rig.bones[parent_index].get("rest",Transform3D.IDENTITY)
-		var parent_local: Vector3 = (global_transform.affine_inverse() * parent_rest).origin
-		if not parent_local.is_equal_approx(head): tail = parent_local
 	var direction: Vector3 = tail - head
 	var length: float = maxf(direction.length(),0.12)
-	# Tapered bone: broad at the parent/root end, narrow at the tip. This makes
-	# chain direction immediately readable without technical bone widgets.
 	var radius: float = maxf(0.035,length*0.11)
+	# Build the tapered bone directly along its real direction. This avoids the
+	# ambiguous Quaternion orientation that could turn a flat 2D bone edge-on.
+	var up: Vector3 = direction.normalized()
+	var view_axis := Vector3(0,0,1)
+	var side: Vector3 = up.cross(view_axis)
+	if side.length_squared() < 0.000001: side = up.cross(Vector3.RIGHT)
+	side = side.normalized() * radius
+	var depth: Vector3 = up.cross(side).normalized() * radius * 0.55
 	var verts := PackedVector3Array([
-		Vector3(-radius,0,0), Vector3(radius,0,0), Vector3(0,0,radius),
-		Vector3(0,length,0)
+		head - side, head + side, head + depth, head - depth,
+		tail
 	])
 	var indices := PackedInt32Array([
-		0,1,3, 1,2,3, 2,0,3, 0,2,1
+		0,1,4, 1,2,4, 2,3,4, 3,0,4,
+		0,3,2, 0,2,1
 	])
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
@@ -65,13 +73,11 @@ func _create_bone_gizmo(index: int, head: Vector3, parent_index: int) -> void:
 	gizmo.mesh = mesh
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(0.95,0.62,0.12,0.9)
+	mat.albedo_color = Color(0.95,0.62,0.12,0.95)
 	mat.no_depth_test = true
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	gizmo.material_override = mat
-	gizmo.position = head
-	if direction.length_squared() > 0.000001:
-		gizmo.quaternion = Quaternion(Vector3.UP,direction.normalized())
+	gizmo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(gizmo)
 	bone_gizmos.append(gizmo)
 
