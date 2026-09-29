@@ -1512,11 +1512,25 @@ func _on_auto_weights() -> void:
 	if rig.bones.is_empty():
 		status.text = "Create at least one bone first"
 		return
-	var origins := PackedVector3Array()
-	for bone in rig.bones:
-		var rest: Transform3D = bone.get("rest", Transform3D.IDENTITY)
-		origins.append((selected_scene_node as Node3D).to_local(rest.origin))
-	var weights: Array = rigging_controller.auto_weight_vertices(selected_scene_node as MeshInstance3D, origins)
+	var segments: Array = []
+	for bone_index in range(rig.bones.size()):
+		var bone: Dictionary = rig.bones[bone_index]
+		var rest: Transform3D = bone.get("rest",Transform3D.IDENTITY)
+		var head: Vector3 = (selected_scene_node as Node3D).to_local(rest.origin)
+		var tail: Vector3 = head + Vector3(0.0,0.45,0.0)
+		# A bone runs from its own joint to the next child joint. The final bone
+		# uses the terminal point recorded while drawing the chain.
+		var child_found := false
+		for child_index in range(rig.bones.size()):
+			if int(rig.bones[child_index].get("parent",-1)) == bone_index:
+				var child_rest: Transform3D = rig.bones[child_index].get("rest",Transform3D.IDENTITY)
+				tail = (selected_scene_node as Node3D).to_local(child_rest.origin)
+				child_found = true
+				break
+		if not child_found and active_rig_runtime != null and active_rig_runtime.terminal_tip_valid:
+			tail = (selected_scene_node as Node3D).to_local(active_rig_runtime.terminal_tip)
+		segments.append({"a":head,"b":tail})
+	var weights: Array = rigging_controller.auto_weight_vertices(selected_scene_node as MeshInstance3D,segments)
 	rig.bindings[selected_object_id] = {"bone_weights": weights, "auto_bound": true}
 	var obj: MotionObject = ProjectStore.objects.get(selected_object_id)
 	if obj != null: obj.components["deform"]["rig_id"] = active_rig_id
