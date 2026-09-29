@@ -56,6 +56,7 @@ var projection_view_valid := false
 var _pending_bitmap_image: Image
 var _pending_bitmap_batch: Dictionary = {}
 var static_bitmap_runtime: Dictionary = {} # canvas id -> tessellated RuntimeObject
+var workspace_camera_states: Dictionary = {}
 
 func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
@@ -72,6 +73,7 @@ func _ready() -> void:
 	_setup_property_panels()
 	_on_auto_key_toggled(auto_key.button_pressed)
 	camera_rig.setup(camera)
+	workspace_camera_states["scene"] = camera_rig.get_state()
 	gizmo.set_mode(active_tool)
 	_setup_workspace_tabs()
 	_setup_drawing_menus()
@@ -945,10 +947,18 @@ func _on_drawing_cel_menu(id: int) -> void:
 		4: _on_drawing_morph_cel()
 
 func _on_workspace_tab_changed(tab: int) -> void:
-	var leaving_drawing: bool = workspace == "drawing" and tab != 2
+	var next_workspace: String = ["scene","animation","drawing","compositor"][tab]
+	# Workspaces may have different overlays/panel geometry, but changing editor
+	# must never silently change the user's 3D view.
+	workspace_camera_states[workspace] = camera_rig.get_state()
+	var leaving_drawing: bool = workspace == "drawing" and next_workspace != "drawing"
 	if leaving_drawing:
 		_finalize_static_bitmap_if_needed()
-	workspace = ["scene","animation","drawing","compositor"][tab]
+	workspace = next_workspace
+	if workspace_camera_states.has(workspace):
+		camera_rig.set_state(workspace_camera_states[workspace])
+	else:
+		workspace_camera_states[workspace] = camera_rig.get_state()
 	%RightPanel.visible = workspace == "scene" or workspace == "drawing" or workspace == "compositor"
 	%DrawingBar.visible = workspace == "drawing"
 	%DrawingAnimBar.visible = workspace == "drawing"
@@ -1417,6 +1427,11 @@ func _responsive_layout() -> void:
 	%ViewportTop.position = %ViewportFrame.position + Vector2(12.0, 10.0)
 	%ViewportTop.size = Vector2(maxf(100.0, %ViewportFrame.size.x - 24.0), 40.0)
 	%ToolRail.position = %ViewportFrame.position + Vector2(12.0, 60.0)
+	# Axis HUD is pinned to the viewport's top-right corner, independent of
+	# window size and side-panel widths.
+	var gizmo_size: Vector2 = %ViewGizmo.size
+	if gizmo_size.x <= 1.0: gizmo_size.x = 98.0
+	%ViewGizmo.position = %ViewportFrame.position + Vector2(%ViewportFrame.size.x - gizmo_size.x - 18.0, 60.0)
 	%DrawingCanvas.position = %ViewportFrame.position
 	%DrawingCanvas.size = %ViewportFrame.size
 	%DrawingBar.position = %ViewportFrame.position + Vector2(12.0, 10.0)
