@@ -62,6 +62,7 @@ func _ready() -> void:
 	ProjectStore.key_changed.connect(timeline.refresh_keys)
 	timeline.key_selected.connect(_on_timeline_key_selected)
 	timeline.key_deselected.connect(_on_timeline_key_deselected)
+	timeline.frame_requested.connect(_on_timeline_frame_requested)
 	for label in ["Constant", "Linear", "Bezier", "Quadratic In", "Quadratic Out", "Quadratic In-Out", "Cubic In-Out", "Back", "Bounce", "Elastic"]:
 		interpolation.add_item(label)
 	interpolation.select(1)
@@ -737,6 +738,18 @@ func key_active_drawing_pose(interpolation := "hold") -> void:
 	var data: RefCounted = drawing_data_by_object[active_drawing_id]
 	data.set_exposure(_drawing_edit_frame(), data.snapshot_pose(), interpolation)
 	status.text = "Drawing pose keyed at frame %d" % ProjectStore.current_frame
+
+func _on_timeline_frame_requested(frame: int) -> void:
+	if workspace == "drawing":
+		var data: RefCounted = _active_drawing_data()
+		if data == null: return
+		data.set_local_frame(frame)
+		timeline.set_frame(data.local_frame)
+		_apply_drawing_frame(ProjectStore.current_frame)
+		_refresh_drawing_timeline()
+		status.text = "Local frame %d · %s" % [data.local_frame, active_drawing_group.name if active_drawing_group else "Canvas"]
+		return
+	ProjectStore.set_frame(frame)
 
 func _on_frame_slider_value_changed(value: float) -> void:
 	if workspace == "drawing":
