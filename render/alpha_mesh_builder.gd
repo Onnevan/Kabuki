@@ -58,10 +58,9 @@ static func build(image: Image, alpha_threshold := 0.08, target_samples := 1100)
 	var h:=float(image.get_height()); var w:=float(image.get_width())
 	for p in pts:
 		verts.append(Vector3((p.x-w*0.5)/h,-(p.y-h*0.5)/h,0.0))
-		# Godot's 3D texture convention has V=0 at the bottom for this mesh path,
-		# while Image/Control drawing uses Y=0 at the top. Geometry already flips Y,
-		# so flip V as well to keep artwork upright in every 3D workspace.
-		uvs.append(Vector2(p.x/w,1.0-p.y/h)); normals.append(Vector3(0,0,1))
+		# Keep source Image UVs canonical. Orientation is handled by the
+		# projection/render path, not by changing topology UV coordinates.
+		uvs.append(Vector2(p.x/w,p.y/h)); normals.append(Vector3(0,0,1))
 	for i in range(0,indices.size(),3):
 		var a:=pts[indices[i]]; var b:=pts[indices[i+1]]; var c:=pts[indices[i+2]]
 		var q:=(a+b+c)/3.0
