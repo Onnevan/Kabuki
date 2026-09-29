@@ -33,22 +33,36 @@ func _create_bone_gizmo(index: int, head: Vector3, parent_index: int) -> void:
 		var parent_rest: Transform3D = rig.bones[parent_index].get("rest",Transform3D.IDENTITY)
 		var parent_local: Vector3 = (global_transform.affine_inverse() * parent_rest).origin
 		if not parent_local.is_equal_approx(head): tail = parent_local
-	var length: float = maxf(head.distance_to(tail),0.12)
-	var mid: Vector3 = head.lerp(tail,0.5)
+	var direction: Vector3 = tail - head
+	var length: float = maxf(direction.length(),0.12)
+	# Tapered bone: broad at the parent/root end, narrow at the tip. This makes
+	# chain direction immediately readable without technical bone widgets.
+	var radius: float = maxf(0.035,length*0.11)
+	var verts := PackedVector3Array([
+		Vector3(-radius,0,0), Vector3(radius,0,0), Vector3(0,0,radius),
+		Vector3(0,length,0)
+	])
+	var indices := PackedInt32Array([
+		0,1,3, 1,2,3, 2,0,3, 0,2,1
+	])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
 	var gizmo := MeshInstance3D.new()
 	gizmo.name = "_BoneGizmo_%d" % index
-	var capsule := CapsuleMesh.new()
-	capsule.radius = maxf(0.025,length*0.08)
-	capsule.height = length
-	gizmo.mesh = capsule
+	gizmo.mesh = mesh
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.albedo_color = Color(0.95,0.62,0.12,0.9)
 	mat.no_depth_test = true
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	gizmo.material_override = mat
-	gizmo.position = mid
-	gizmo.look_at_from_position(mid,tail,Vector3.FORWARD)
-	gizmo.rotate_object_local(Vector3.RIGHT,PI*0.5)
+	gizmo.position = head
+	if direction.length_squared() > 0.000001:
+		gizmo.quaternion = Quaternion(Vector3.UP,direction.normalized())
 	add_child(gizmo)
 	bone_gizmos.append(gizmo)
 
