@@ -56,8 +56,15 @@ text="↷"
 tooltip_text="Redo paint (Ctrl+Shift+Z)"
 
 [node name="ProjectName" type="Label" parent="TopBar"]
-text="Project Demo"
+unique_name_in_owner=true
+text="Untitled"
 vertical_alignment=1
+[node name="SaveProject" type="Button" parent="TopBar"]
+unique_name_in_owner=true
+text="SAVE"
+[node name="LoadProject" type="Button" parent="TopBar"]
+unique_name_in_owner=true
+text="OPEN"
 [node name="Import" type="Button" parent="TopBar"]
 text="＋  IMPORT"
 [node name="PreviewMode" type="CheckButton" parent="TopBar"]
