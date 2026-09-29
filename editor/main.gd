@@ -689,12 +689,45 @@ func _process_transform_fields() -> void:
 
 func _on_object_selected(index: int) -> void:
 	var id: String = object_list.get_item_metadata(index)
+	if id.begins_with("bone::"):
+		_select_rig_bone(id)
+		return
+	if active_rig_runtime != null:
+		active_rig_runtime.clear_weight_debug()
 	if workspace == "rigging" and not pending_parent_child_id.is_empty():
 		if _try_complete_rig_parenting(id): return
 	for r in runtime_objects:
 		if r.model.id == id: _select(r); return
 	if scene_nodes.has(id):
 		_select_scene_node(id, scene_nodes[id])
+
+func _select_rig_bone(virtual_id: String) -> void:
+	var parts: PackedStringArray = virtual_id.split("::")
+	if parts.size() < 3: return
+	var rig_id: String = parts[1]
+	var bone_index: int = int(parts[2])
+	if not rigging_controller.rigs.has(rig_id): return
+	var rig: RefCounted = rigging_controller.rigs[rig_id]
+	if bone_index < 0 or bone_index >= rig.bones.size(): return
+	active_rig_id = rig_id
+	active_rig_runtime = scene_nodes.get(rig_id) as Node3D
+	selected = null
+	selected_scene_node = null
+	selected_object_id = virtual_id
+	%SelectionLabel.text = String(rig.bones[bone_index].get("name","Bone"))
+	gizmo.attach(null)
+	# Match Blender/Spine-style inspection: selecting a bone immediately shows
+	# that bone's influence on the bound artwork.
+	if active_rig_runtime != null:
+		active_rig_runtime.clear_weight_debug()
+		for object_id in rig.bindings:
+			if not scene_nodes.has(object_id): continue
+			var mesh_node: Node3D = scene_nodes[object_id]
+			if not mesh_node is MeshInstance3D: continue
+			var binding: Dictionary = rig.bindings[object_id]
+			var weights: Array = binding.get("bone_weights",[])
+			active_rig_runtime.show_weight_debug(mesh_node as MeshInstance3D,weights,bone_index)
+	status.text = "Bone selected · weight influence displayed"
 
 func _on_delete_pressed() -> void:
 	if selected_scene_node == null: return
@@ -1532,10 +1565,6 @@ func _on_auto_weights() -> void:
 		segments.append({"a":head,"b":tail})
 	var weights: Array = rigging_controller.auto_weight_vertices(selected_scene_node as MeshInstance3D,segments)
 	rig.bindings[selected_object_id] = {"bone_weights": weights, "auto_bound": true}
-	# Diagnostic view: show Bone 01 weights on the undeformed source mesh before
-	# Skeleton3D is allowed to alter it. This separates solver errors from bind errors.
-	if active_rig_runtime != null:
-		active_rig_runtime.show_weight_debug(selected_scene_node as MeshInstance3D,weights,0)
 	var obj: MotionObject = ProjectStore.objects.get(selected_object_id)
 	if obj != null: obj.components["deform"]["rig_id"] = active_rig_id
 	if active_rig_runtime != null and active_rig_runtime.bind_mesh(selected_scene_node as MeshInstance3D, weights):
