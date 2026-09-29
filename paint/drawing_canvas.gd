@@ -43,6 +43,8 @@ var active_canvas_id := ""
 var lasso_points := PackedVector2Array()
 var undo_stack: Array[Image] = []
 var redo_stack: Array[Image] = []
+var onion_skin_enabled := false
+var onion_skin_texture: ImageTexture
 const MAX_UNDO := 24
 
 func switch_canvas(canvas_id: String) -> void:
@@ -123,6 +125,19 @@ func flipbook_frames() -> Array[int]:
 	for key in cel_map.keys(): result.append(int(key))
 	result.sort()
 	return result
+
+func previous_flipbook_image(canvas_id: String, frame: int) -> Image:
+	var cel_map: Dictionary = canvas_cels.get(canvas_id, {})
+	var previous_frame: int = -1
+	for key in cel_map.keys():
+		var candidate: int = int(key)
+		if candidate < frame and candidate > previous_frame: previous_frame = candidate
+	if previous_frame < 0: return null
+	return cel_map[previous_frame] as Image
+
+func set_onion_skin_enabled(enabled: bool) -> void:
+	onion_skin_enabled = enabled
+	queue_redraw()
 
 func flipbook_image(canvas_id: String, frame: int) -> Image:
 	var cel_map: Dictionary = canvas_cels.get(canvas_id, {})
@@ -291,6 +306,14 @@ func _gui_input(event: InputEvent) -> void:
 func _draw() -> void:
 	if not bitmap_mode: return
 	_ensure_raster()
+	if onion_skin_enabled and not active_canvas_id.is_empty():
+		var onion_image: Image = previous_flipbook_image(active_canvas_id, active_local_frame)
+		if onion_image != null and not onion_image.is_empty():
+			if onion_skin_texture == null or onion_skin_texture.get_width() != onion_image.get_width() or onion_skin_texture.get_height() != onion_image.get_height():
+				onion_skin_texture = ImageTexture.create_from_image(onion_image)
+			else:
+				onion_skin_texture.update(onion_image)
+			draw_texture(onion_skin_texture, Vector2.ZERO, Color(1.0, 0.32, 0.32, 0.28))
 	# Painting changes the CPU Image directly. Upload once per visual redraw;
 	# otherwise removing _refresh_texture() here makes live strokes invisible.
 	if raster_texture_dirty:
