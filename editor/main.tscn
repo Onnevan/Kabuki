@@ -563,6 +563,57 @@ unique_name_in_owner=true
 text="2 Sided"
 button_pressed=true
 
+[node name="CameraProperties" type="VBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+visible=false
+[node name="CameraTitle" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+text="▣  CAMERA"
+theme_override_font_sizes/font_size=16
+[node name="FovLabel" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+text="Field of View"
+[node name="CameraFov" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+unique_name_in_owner=true
+min_value=5.0
+max_value=140.0
+step=0.1
+value=70.0
+[node name="ResolutionLabel" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+text="Render Resolution"
+[node name="ResolutionRow" type="HBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+[node name="CameraResX" type="SpinBox" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties/ResolutionRow"]
+unique_name_in_owner=true
+min_value=64.0
+max_value=8192.0
+step=1.0
+value=1920.0
+[node name="CameraResY" type="SpinBox" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties/ResolutionRow"]
+unique_name_in_owner=true
+min_value=64.0
+max_value=8192.0
+step=1.0
+value=1080.0
+[node name="DofTitle" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+text="DEPTH OF FIELD"
+[node name="CameraDofEnabled" type="CheckButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+unique_name_in_owner=true
+text="Enable DOF"
+[node name="FocusLabel" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+text="Focus Distance"
+[node name="CameraFocusDistance" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+unique_name_in_owner=true
+min_value=0.05
+max_value=100.0
+step=0.05
+value=3.0
+[node name="ApertureLabel" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+text="Aperture / Blur"
+[node name="CameraAperture" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+unique_name_in_owner=true
+min_value=0.0
+max_value=1.0
+step=0.01
+value=0.2
+
 [node name="LightProperties" type="VBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
 visible=false
