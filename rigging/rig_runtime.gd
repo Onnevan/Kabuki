@@ -96,6 +96,8 @@ func bind_mesh(mesh_instance: MeshInstance3D, weights_by_surface: Array) -> bool
 	for i in range(rig.bones.size()):
 		skin.add_bind(i,skeleton.get_bone_rest(i).affine_inverse())
 	mesh_instance.skin = skin
+	# Skeleton paths are resolved from the MeshInstance. Both nodes currently
+	# live under WorldRoot, so this is typically ../Armature/_Skeleton.
 	mesh_instance.skeleton = mesh_instance.get_path_to(skeleton)
 	bound_meshes[mesh_instance.get_instance_id()] = mesh_instance
 	return true
@@ -103,3 +105,11 @@ func bind_mesh(mesh_instance: MeshInstance3D, weights_by_surface: Array) -> bool
 func set_bone_pose(index: int, pose: Transform3D) -> void:
 	if index < 0 or index >= skeleton.get_bone_count(): return
 	skeleton.set_bone_pose(index,pose)
+
+func move_armature(delta: Transform3D) -> void:
+	# Moving the armature object is an object-level operation. A skinned mesh is
+	# not its child, so mirror the object transform to bound artwork; posing
+	# individual bones remains Skeleton3D deformation.
+	global_transform = delta
+	for mesh in bound_meshes.values():
+		if is_instance_valid(mesh): (mesh as MeshInstance3D).global_transform = delta
