@@ -1697,8 +1697,12 @@ func _finalize_static_bitmap_if_needed() -> void:
 	if not %DrawingCanvas.is_bitmap_dirty(active_drawing_id) and static_bitmap_runtime.has(active_drawing_id): return
 	var image: Image = %DrawingCanvas.current_source_image(active_drawing_id)
 	if image == null or image.is_empty(): return
-	_rebuild_static_bitmap_cache(active_drawing_group, active_drawing_id, image)
-	%DrawingCanvas.mark_bitmap_clean(active_drawing_id)
+	# Tessellation is a destructive render-cache rebuild. Never do it silently:
+	# let the artist choose density when leaving Drawing, as in the original workflow.
+	_pending_bitmap_batch.clear()
+	_pending_bitmap_batch[active_drawing_id] = image
+	%TessellationDialog.dialog_text = "Choose tessellation density for this drawing."
+	%TessellationDialog.popup_centered()
 
 func _rebuild_static_bitmap_cache(target_canvas: ReferenceCanvas, canvas_id: String, image: Image) -> void:
 	if static_bitmap_runtime.has(canvas_id):
