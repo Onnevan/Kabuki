@@ -325,8 +325,9 @@ func _build_scene_camera(obj: MotionObject) -> Node3D:
 	gizmo.mesh = mesh
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(0.18,0.72,1.0,1.0)
+	mat.albedo_color = Color(0.92,0.94,0.98,1.0)
 	mat.no_depth_test = true
+	mat.vertex_color_use_as_albedo = false
 	gizmo.material_override = mat
 	gizmo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	rig.add_child(gizmo)
@@ -585,9 +586,11 @@ func _process_transform_fields() -> void:
 	if not selected_scene_node.position.is_equal_approx(pos): selected_scene_node.position = pos
 	if not selected_scene_node.rotation_degrees.is_equal_approx(rot): selected_scene_node.rotation_degrees = rot
 	if not selected_scene_node.scale.is_equal_approx(scl): selected_scene_node.scale = scl
-	if selected_scene_node is ReferenceCanvas:
-		var reference_canvas := selected_scene_node as ReferenceCanvas
-		if reference_canvas.model: reference_canvas.model.transform = reference_canvas.transform
+	if not selected_object_id.is_empty() and ProjectStore.objects.has(selected_object_id):
+		var field_model: MotionObject = ProjectStore.objects[selected_object_id]
+		field_model.transform = selected_scene_node.transform
+		if field_model.technical_type == "camera" and camera_view_active and selected_object_id == render_camera_id:
+			_sync_editor_view_to_render_camera()
 
 func _on_object_selected(index: int) -> void:
 	var id: String = object_list.get_item_metadata(index)
@@ -708,6 +711,14 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 					var world := _screen_to_view_plane(event.position, hit.global_position)
 					drag_offset = hit.global_position - world
 				else:
+					var scene_hit := _pick_scene_anchor(event.position)
+					if scene_hit != null:
+						var scene_hit_id: String = _scene_node_id(scene_hit)
+						_select_scene_node(scene_hit_id, scene_hit)
+						dragging = true
+						transform_start = scene_hit.transform
+						drag_start_mouse = event.position
+						return
 					var canvas_hit := _pick_reference_canvas(event.position)
 					if canvas_hit != null:
 						_select_scene_node(_reference_canvas_id(canvas_hit), canvas_hit)
@@ -825,6 +836,30 @@ func _pick(pos: Vector2) -> RuntimeObject:
 		var radius := maxf(28.0, r.screen_radius(camera, viewport.size))
 		var d := sp.distance_to(pos)
 		if d <= radius and d < best_d: best = r; best_d = d
+	return best
+
+func _scene_node_id(node: Node3D) -> String:
+	for object_id in scene_nodes:
+		if scene_nodes[object_id] == node: return String(object_id)
+	return ""
+
+func _pick_scene_anchor(pos: Vector2) -> Node3D:
+	var best: Node3D = null
+	var best_d := 28.0
+	for object_id in scene_nodes:
+		var node: Node3D = scene_nodes[object_id]
+		if not is_instance_valid(node) or node is ReferenceCanvas: continue
+		var model: MotionObject = ProjectStore.objects.get(object_id)
+		if model == null: continue
+		# Camera/light/audio anchors are not RuntimeObjects, so they need their
+		# own editor picking path.
+		if model.technical_type not in ["camera","light","audio_clip","drawing"]: continue
+		if camera.is_position_behind(node.global_position): continue
+		var screen_pos := camera.unproject_position(node.global_position)
+		var d := screen_pos.distance_to(pos)
+		if d < best_d:
+			best = node
+			best_d = d
 	return best
 
 func _pick_reference_canvas(pos: Vector2) -> ReferenceCanvas:
