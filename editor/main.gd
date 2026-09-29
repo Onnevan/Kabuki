@@ -58,6 +58,9 @@ var _pending_bitmap_batch: Dictionary = {}
 var static_bitmap_runtime: Dictionary = {} # canvas id -> tessellated RuntimeObject
 var workspace_camera_states: Dictionary = {}
 var current_project_path := ""
+var render_camera_id := ""
+var camera_view_active := false
+var editor_view_before_camera: Dictionary = {}
 
 func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
@@ -85,7 +88,13 @@ func _ready() -> void:
 	%ViewX.pressed.connect(func(): _align_view_axis(Vector3.RIGHT, "X"))
 	%ViewY.pressed.connect(func(): _align_view_axis(Vector3.UP, "Y"))
 	%ViewZ.pressed.connect(func(): _align_view_axis(Vector3.BACK, "Z"))
-	%ViewCamera.pressed.connect(_restore_projection_view)
+	%ViewCamera.pressed.connect(_toggle_render_camera_view)
+	%CameraFov.value_changed.connect(_on_camera_fov_changed)
+	%CameraResX.value_changed.connect(_on_camera_resolution_changed)
+	%CameraResY.value_changed.connect(_on_camera_resolution_changed)
+	%CameraDofEnabled.toggled.connect(_on_camera_dof_changed)
+	%CameraFocusDistance.value_changed.connect(_on_camera_dof_changed)
+	%CameraAperture.value_changed.connect(_on_camera_dof_changed)
 	%PlaneDelete.pressed.connect(_on_plane_delete)
 	%ClipMode.clear()
 	for clip_mode_name in ["Loop", "Ping-Pong", "Hold", "Reverse", "Once"]:
@@ -203,6 +212,7 @@ func _setup_property_panels() -> void:
 		%LightType.add_item(label)
 	%ObjectProperties.visible = false
 	%LightProperties.visible = false
+	%CameraProperties.visible = false
 
 func _register_scene_object(obj: MotionObject, node: Node3D) -> void:
 	ProjectStore.add_object(obj)
@@ -249,13 +259,113 @@ func _create_sound() -> void:
 
 func _create_camera() -> void:
 	var obj := MotionObject.new("Camera", "camera", "camera")
-	var cam := Camera3D.new()
-	cam.current = false
-	cam.position = camera.global_position
-	cam.rotation = camera.global_rotation
-	world_root.add_child(cam)
-	_register_scene_object(obj, cam)
-	status.text = "Camera created · scene camera switching is not active yet"
+	obj.properties["camera.fov"] = 70.0
+	obj.properties["camera.resolution_x"] = 1920
+	obj.properties["camera.resolution_y"] = 1080
+	obj.properties["camera.dof_enabled"] = false
+	obj.properties["camera.focus_distance"] = 3.0
+	obj.properties["camera.aperture"] = 0.2
+	var rig := _build_scene_camera(obj)
+	rig.global_transform = camera.global_transform
+	obj.transform = rig.transform
+	if render_camera_id.is_empty(): render_camera_id = obj.id
+	_register_scene_object(obj, rig)
+	_select_scene_node(obj.id, rig)
+	status.text = "Camera created · CAM enters final render view"
+
+func _build_scene_camera(obj: MotionObject) -> Node3D:
+	var rig := Node3D.new()
+	rig.name = obj.name
+	var scene_camera := Camera3D.new()
+	scene_camera.name = "_RenderCamera"
+	scene_camera.fov = float(obj.properties.get("camera.fov", 70.0))
+	scene_camera.current = false
+	rig.add_child(scene_camera)
+	# Camera body + forward frustum symbol. The editor camera never renders this
+	# because it is ordinary scene geometry attached to the camera object.
+	var body := MeshInstance3D.new()
+	body.name = "_CameraGizmo"
+	var box := BoxMesh.new()
+	box.size = Vector3(0.28,0.18,0.18)
+	body.mesh = box
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(0.18,0.72,1.0,1.0)
+	body.material_override = mat
+	rig.add_child(body)
+	var lens := MeshInstance3D.new()
+	var prism := PrismMesh.new()
+	prism.size = Vector3(0.20,0.16,0.28)
+	lens.mesh = prism
+	lens.rotation_degrees.x = 90.0
+	lens.position.z = -0.22
+	lens.material_override = mat
+	rig.add_child(lens)
+	return rig
+
+func _scene_camera_node(camera_id: String) -> Camera3D:
+	if not scene_nodes.has(camera_id): return null
+	var rig: Node3D = scene_nodes[camera_id]
+	return rig.get_node_or_null("_RenderCamera") as Camera3D
+
+func _toggle_render_camera_view() -> void:
+	if render_camera_id.is_empty() or not scene_nodes.has(render_camera_id):
+		status.text = "Create a scene camera first"
+		return
+	camera_view_active = not camera_view_active
+	if camera_view_active:
+		editor_view_before_camera = camera_rig.get_state()
+		_sync_editor_view_to_render_camera()
+		%ViewCamera.text = "▣ CAM ●"
+		status.text = "Camera view · final render framing"
+	else:
+		camera_rig.set_state(editor_view_before_camera)
+		%ViewCamera.text = "▣ CAM"
+		status.text = "Perspective editor view"
+
+func _sync_editor_view_to_render_camera() -> void:
+	if not scene_nodes.has(render_camera_id): return
+	var rig: Node3D = scene_nodes[render_camera_id]
+	var render_cam := _scene_camera_node(render_camera_id)
+	if render_cam == null: return
+	# The viewport keeps using the editor Camera3D for navigation/picking, but
+	# adopts the render camera transform and lens while CAM view is active.
+	camera.global_transform = render_cam.global_transform
+	camera.fov = render_cam.fov
+	camera_rig.sync_from_camera_transform(camera.global_transform)
+
+func _on_camera_fov_changed(value: float) -> void:
+	if selected_object_id.is_empty() or not ProjectStore.objects.has(selected_object_id): return
+	var obj: MotionObject = ProjectStore.objects[selected_object_id]
+	if obj.technical_type != "camera": return
+	obj.properties["camera.fov"] = value
+	var cam := _scene_camera_node(selected_object_id)
+	if cam: cam.fov = value
+	if camera_view_active and selected_object_id == render_camera_id: camera.fov = value
+
+func _on_camera_resolution_changed(_value: float) -> void:
+	if selected_object_id.is_empty() or not ProjectStore.objects.has(selected_object_id): return
+	var obj: MotionObject = ProjectStore.objects[selected_object_id]
+	if obj.technical_type != "camera": return
+	obj.properties["camera.resolution_x"] = int(%CameraResX.value)
+	obj.properties["camera.resolution_y"] = int(%CameraResY.value)
+
+func _on_camera_dof_changed(_value: Variant = null) -> void:
+	if selected_object_id.is_empty() or not ProjectStore.objects.has(selected_object_id): return
+	var obj: MotionObject = ProjectStore.objects[selected_object_id]
+	if obj.technical_type != "camera": return
+	obj.properties["camera.dof_enabled"] = %CameraDofEnabled.button_pressed
+	obj.properties["camera.focus_distance"] = %CameraFocusDistance.value
+	obj.properties["camera.aperture"] = %CameraAperture.value
+	var cam := _scene_camera_node(selected_object_id)
+	if cam:
+		cam.attributes = CameraAttributesPractical.new()
+		var attrs := cam.attributes as CameraAttributesPractical
+		attrs.dof_blur_far_enabled = %CameraDofEnabled.button_pressed
+		attrs.dof_blur_near_enabled = %CameraDofEnabled.button_pressed
+		attrs.dof_blur_far_distance = %CameraFocusDistance.value
+		attrs.dof_blur_near_distance = %CameraFocusDistance.value
+		attrs.dof_blur_amount = %CameraAperture.value
 
 func _create_light() -> void:
 	var obj := MotionObject.new("Light", "light", "light")
@@ -415,6 +525,17 @@ func _select_scene_node(id: String, node: Node3D) -> void:
 	timeline.set_object(id)
 	%ObjectProperties.visible = node is MeshInstance3D
 	%LightProperties.visible = node is Light3D
+	var selected_model: MotionObject = ProjectStore.objects.get(id)
+	var is_camera: bool = selected_model != null and selected_model.technical_type == "camera"
+	%CameraProperties.visible = is_camera
+	if is_camera:
+		render_camera_id = id
+		%CameraFov.set_value_no_signal(float(selected_model.properties.get("camera.fov",70.0)))
+		%CameraResX.set_value_no_signal(float(selected_model.properties.get("camera.resolution_x",1920)))
+		%CameraResY.set_value_no_signal(float(selected_model.properties.get("camera.resolution_y",1080)))
+		%CameraDofEnabled.set_pressed_no_signal(bool(selected_model.properties.get("camera.dof_enabled",false)))
+		%CameraFocusDistance.set_value_no_signal(float(selected_model.properties.get("camera.focus_distance",3.0)))
+		%CameraAperture.set_value_no_signal(float(selected_model.properties.get("camera.aperture",0.2)))
 	if node is Light3D:
 		var light := node as Light3D
 		%LightEnergy.value = light.light_energy
@@ -611,6 +732,11 @@ func _apply_drag(relative: Vector2, mouse_pos: Vector2) -> void:
 		_refresh_transform_readout()
 	if selected:
 		selected.model.transform = selected.transform
+	elif not selected_object_id.is_empty() and ProjectStore.objects.has(selected_object_id):
+		var transformed_model: MotionObject = ProjectStore.objects[selected_object_id]
+		transformed_model.transform = selected_scene_node.transform
+		if transformed_model.technical_type == "camera" and camera_view_active and selected_object_id == render_camera_id:
+			_sync_editor_view_to_render_camera()
 	elif selected_scene_node is ReferenceCanvas:
 		var reference_canvas := selected_scene_node as ReferenceCanvas
 		if reference_canvas.model:
