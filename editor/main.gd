@@ -285,27 +285,51 @@ func _build_scene_camera(obj: MotionObject) -> Node3D:
 	scene_camera.fov = float(obj.properties.get("camera.fov", 70.0))
 	scene_camera.current = false
 	rig.add_child(scene_camera)
-	# Camera body + forward frustum symbol. The editor camera never renders this
-	# because it is ordinary scene geometry attached to the camera object.
-	var body := MeshInstance3D.new()
-	body.name = "_CameraGizmo"
-	var box := BoxMesh.new()
-	box.size = Vector3(0.28,0.18,0.18)
-	body.mesh = box
+
+	# Editor-only camera symbol. Build it from line geometry so it remains
+	# legible at small viewport sizes and clearly shows the -Z viewing direction.
+	var gizmo := MeshInstance3D.new()
+	gizmo.name = "_CameraGizmo"
+	var verts := PackedVector3Array()
+	var hx := 0.18
+	var hy := 0.12
+	var back_z := 0.08
+	var front_z := -0.12
+	var fhx := 0.10
+	var fhy := 0.07
+	var back := [
+		Vector3(-hx,-hy,back_z),Vector3(hx,-hy,back_z),
+		Vector3(hx,hy,back_z),Vector3(-hx,hy,back_z)
+	]
+	var front := [
+		Vector3(-fhx,-fhy,front_z),Vector3(fhx,-fhy,front_z),
+		Vector3(fhx,fhy,front_z),Vector3(-fhx,fhy,front_z)
+	]
+	for i in 4:
+		var j: int = (i + 1) % 4
+		verts.append(back[i]); verts.append(back[j])
+		verts.append(front[i]); verts.append(front[j])
+		verts.append(back[i]); verts.append(front[i])
+	# Direction pyramid/frustum from lens toward -Z.
+	var tip := Vector3(0.0,0.0,-0.55)
+	for p in front:
+		verts.append(p); verts.append(tip)
+	# Up marker prevents roll ambiguity.
+	verts.append(Vector3(-0.07,hy,back_z)); verts.append(Vector3(0.0,hy + 0.10,back_z))
+	verts.append(Vector3(0.0,hy + 0.10,back_z)); verts.append(Vector3(0.07,hy,back_z))
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, arrays)
+	gizmo.mesh = mesh
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.albedo_color = Color(0.18,0.72,1.0,1.0)
 	mat.no_depth_test = true
-	body.material_override = mat
-	rig.add_child(body)
-	var lens := MeshInstance3D.new()
-	var prism := PrismMesh.new()
-	prism.size = Vector3(0.20,0.16,0.28)
-	lens.mesh = prism
-	lens.rotation_degrees.x = 90.0
-	lens.position.z = -0.22
-	lens.material_override = mat
-	rig.add_child(lens)
+	gizmo.material_override = mat
+	gizmo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	rig.add_child(gizmo)
 	return rig
 
 func _scene_camera_node(camera_id: String) -> Camera3D:
