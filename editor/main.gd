@@ -266,7 +266,11 @@ func _create_camera() -> void:
 	obj.properties["camera.focus_distance"] = 3.0
 	obj.properties["camera.aperture"] = 0.2
 	var rig := _build_scene_camera(obj)
+	# Do not spawn the scene camera exactly on top of the editor camera: from
+	# that viewpoint its gizmo is behind/around the viewer and appears missing.
+	# Put it at the current orbit pivot, preserving the current viewing direction.
 	rig.global_transform = camera.global_transform
+	rig.global_position = camera_rig.pivot
 	obj.transform = rig.transform
 	if render_camera_id.is_empty(): render_camera_id = obj.id
 	_register_scene_object(obj, rig)
@@ -291,6 +295,7 @@ func _build_scene_camera(obj: MotionObject) -> Node3D:
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.albedo_color = Color(0.18,0.72,1.0,1.0)
+	mat.no_depth_test = true
 	body.material_override = mat
 	rig.add_child(body)
 	var lens := MeshInstance3D.new()
