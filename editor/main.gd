@@ -7,6 +7,7 @@ const ReferenceCanvasClass = preload("res://paint/reference_canvas.gd")
 const DrawingControllerClass = preload("res://drawing/drawing_controller.gd")
 const RiggingControllerClass = preload("res://rigging/rigging_controller.gd")
 const RigRuntimeClass = preload("res://rigging/rig_runtime.gd")
+const SceneObjectControllerClass = preload("res://editor/scene_object_controller.gd")
 
 @onready var viewport: SubViewport = %SceneViewport
 @onready var world_root: Node3D = %WorldRoot
@@ -38,7 +39,9 @@ var workspace := "scene"
 var render_preview := false
 var drag_offset := Vector3.ZERO
 var last_mouse := Vector2.ZERO
-var scene_nodes: Dictionary = {}
+var scene_object_controller: RefCounted = SceneObjectControllerClass.new()
+var scene_nodes: Dictionary:
+	get: return scene_object_controller.nodes
 var wireframe_overlays: Array[MeshInstance3D] = []
 var selected_scene_node: Node3D
 var selected_object_id := ""
@@ -226,21 +229,15 @@ func _setup_property_panels() -> void:
 	%CameraProperties.visible = false
 
 func _register_scene_object(obj: MotionObject, node: Node3D) -> void:
-	ProjectStore.add_object(obj)
-	scene_nodes[obj.id] = node
-	node.name = obj.name
-	object_list.add_item(obj.name)
-	object_list.set_item_metadata(object_list.item_count - 1, obj.id)
+	scene_object_controller.register(obj,node)
+	_refresh_scene_object_list()
 
 func _refresh_scene_object_list() -> void:
 	object_list.clear()
-	# ProjectStore.objects is a Dictionary keyed by UUID. Iterating it directly
-	# yields String IDs, not MotionObject instances.
-	for object_id in ProjectStore.objects:
-		var obj: MotionObject = ProjectStore.objects[object_id]
-		if not scene_nodes.has(object_id): continue
-		object_list.add_item(obj.name)
+	for object_id in scene_object_controller.ordered_ids():
+		object_list.add_item(scene_object_controller.display_name(object_id))
 		object_list.set_item_metadata(object_list.item_count - 1, object_id)
+		if object_id == selected_object_id: object_list.select(object_list.item_count - 1)
 
 func _on_add_object_type(id: int) -> void:
 	match id:
@@ -675,8 +672,7 @@ func _on_delete_pressed() -> void:
 	if selected != null:
 		runtime_objects.erase(selected)
 	if not selected_object_id.is_empty():
-		ProjectStore.objects.erase(selected_object_id)
-		scene_nodes.erase(selected_object_id)
+		scene_object_controller.unregister(selected_object_id)
 	selected_scene_node.queue_free()
 	selected = null; selected_scene_node = null; selected_object_id = ""
 	gizmo.attach(null); timeline.set_object(""); %SelectionLabel.text = "Nothing selected"
