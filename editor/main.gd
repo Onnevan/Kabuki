@@ -6,6 +6,7 @@ const DrawingDataClass = preload("res://paint/drawing_data.gd")
 const ReferenceCanvasClass = preload("res://paint/reference_canvas.gd")
 const DrawingControllerClass = preload("res://drawing/drawing_controller.gd")
 const RiggingControllerClass = preload("res://rigging/rigging_controller.gd")
+const RigRuntimeClass = preload("res://rigging/rig_runtime.gd")
 
 @onready var viewport: SubViewport = %SceneViewport
 @onready var world_root: Node3D = %WorldRoot
@@ -51,6 +52,7 @@ var drawing_session_index := 0
 var drawing_controller: RefCounted = DrawingControllerClass.new()
 var rigging_controller: RefCounted = RiggingControllerClass.new()
 var active_rig_id := ""
+var active_rig_runtime: Node3D
 var drawing_data_by_object: Dictionary:
 	get: return drawing_controller.data_by_object
 var sculpt_mode := "push"
@@ -1365,15 +1367,26 @@ func _on_pivot_here() -> void:
 func _ensure_active_rig() -> RefCounted:
 	if active_rig_id.is_empty():
 		active_rig_id = "rig-" + str(ResourceUID.create_id())
-		return rigging_controller.create_rig(active_rig_id)
-	return rigging_controller.rigs.get(active_rig_id)
+		var created: RefCounted = rigging_controller.create_rig(active_rig_id)
+		active_rig_runtime = RigRuntimeClass.new()
+		world_root.add_child(active_rig_runtime)
+		active_rig_runtime.setup(created)
+		return created
+	var existing: RefCounted = rigging_controller.rigs.get(active_rig_id)
+	if active_rig_runtime == null and existing != null:
+		active_rig_runtime = RigRuntimeClass.new()
+		world_root.add_child(active_rig_runtime)
+		active_rig_runtime.setup(existing)
+	return existing
 
 func _on_add_rig_bone() -> void:
 	var rig: RefCounted = _ensure_active_rig()
 	var rest := Transform3D.IDENTITY
 	rest.origin = selected_scene_node.global_position if selected_scene_node != null else camera_rig.pivot
-	var index: int = rig.add_bone("Bone %02d" % (rig.bones.size() + 1), -1, rest)
-	status.text = "Bone %02d created · visual bone editing next" % (index + 1)
+	var parent_index: int = rig.bones.size() - 1
+	var index: int = rig.add_bone("Bone %02d" % (rig.bones.size() + 1), parent_index, rest)
+	if active_rig_runtime != null: active_rig_runtime.rebuild_bones()
+	status.text = "Bone %02d created" % (index + 1)
 
 func _on_auto_weights() -> void:
 	if not selected_scene_node is MeshInstance3D:
@@ -1391,7 +1404,10 @@ func _on_auto_weights() -> void:
 	rig.bindings[selected_object_id] = {"bone_weights": weights, "auto_bound": true}
 	var obj: MotionObject = ProjectStore.objects.get(selected_object_id)
 	if obj != null: obj.components["deform"]["rig_id"] = active_rig_id
-	status.text = "Automatic vertex weights assigned"
+	if active_rig_runtime != null and active_rig_runtime.bind_mesh(selected_scene_node as MeshInstance3D, weights):
+		status.text = "Automatic weights assigned · mesh skinned"
+	else:
+		status.text = "Automatic weights assigned"
 
 func _setup_drawing_menus() -> void:
 	# Primary modes/tools are direct icon buttons. Dropdowns are reserved for
