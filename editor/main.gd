@@ -60,6 +60,8 @@ var pending_parent_child_id := ""
 var rig_bone_draw_active := false
 var rig_bone_draw_parent := -1
 var rig_bone_draw_depth_point := Vector3.ZERO
+var rig_bone_root_set := false
+var rig_bone_last_point := Vector3.ZERO
 var rig_target_object_id := ""
 var drawing_data_by_object: Dictionary:
 	get: return drawing_controller.data_by_object
@@ -1431,27 +1433,43 @@ func _on_add_rig_bone() -> void:
 	var rig: RefCounted = _ensure_active_rig()
 	rig_bone_draw_active = true
 	rig_bone_draw_parent = -1
+	rig_bone_root_set = false
 	rig_bone_draw_depth_point = selected_scene_node.global_position if selected_scene_node != null else camera_rig.pivot
-	status.text = "Draw bones · click joints on the artwork · Enter to finish"
+	status.text = "Create skeleton · click the root point first"
 
 func _add_rig_bone_point(screen_pos: Vector2) -> void:
 	if not rig_bone_draw_active: return
 	var rig: RefCounted = _ensure_active_rig()
 	var world_point: Vector3 = _screen_to_view_plane(screen_pos,rig_bone_draw_depth_point)
+	if not rig_bone_root_set:
+		rig_bone_root_set = true
+		rig_bone_last_point = world_point
+		rig_bone_draw_depth_point = world_point
+		status.text = "Root set · click the next joint"
+		return
 	var rest := Transform3D.IDENTITY
-	rest.origin = world_point
+	rest.origin = rig_bone_last_point
 	var index: int = rig.add_bone("Bone %02d" % (rig.bones.size() + 1),rig_bone_draw_parent,rest)
 	rig_bone_draw_parent = index
+	rig_bone_last_point = world_point
 	rig_bone_draw_depth_point = world_point
-	if active_rig_runtime != null: active_rig_runtime.rebuild_bones()
+	if active_rig_runtime != null:
+		active_rig_runtime.rebuild_bones()
+		active_rig_runtime.set_terminal_tip(world_point)
 	status.text = "Bone %02d · click next joint · Enter to finish" % (index + 1)
 
 func _finish_rig_bone_drawing() -> void:
 	if not rig_bone_draw_active: return
 	rig_bone_draw_active = false
 	rig_bone_draw_parent = -1
+	rig_bone_root_set = false
 	if not rig_target_object_id.is_empty() and scene_nodes.has(rig_target_object_id):
 		var target: Node3D = scene_nodes[rig_target_object_id]
+		var target_model: MotionObject = ProjectStore.objects.get(rig_target_object_id)
+		var rig_model: MotionObject = ProjectStore.objects.get(active_rig_id)
+		if target_model != null and rig_model != null and active_rig_runtime != null:
+			rigging_controller.set_parent(target_model,rig_model,target,active_rig_runtime,true)
+			_refresh_scene_object_list()
 		_select_scene_node(rig_target_object_id,target)
 		_on_auto_weights()
 		rig_target_object_id = ""
@@ -1543,6 +1561,8 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	if leaving_drawing:
 		_finalize_static_bitmap_if_needed()
 	workspace = next_workspace
+	if workspace == "drawing" and drawing_planes.is_empty():
+		_on_add_drawing_plane()
 	if workspace_camera_states.has(workspace):
 		camera_rig.set_state(workspace_camera_states[workspace])
 	else:
