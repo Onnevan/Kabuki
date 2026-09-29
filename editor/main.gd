@@ -57,6 +57,7 @@ var _pending_bitmap_image: Image
 var _pending_bitmap_batch: Dictionary = {}
 var static_bitmap_runtime: Dictionary = {} # canvas id -> tessellated RuntimeObject
 var workspace_camera_states: Dictionary = {}
+var current_project_path := ""
 
 func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
@@ -77,6 +78,8 @@ func _ready() -> void:
 	gizmo.set_mode(active_tool)
 	_setup_workspace_tabs()
 	_setup_drawing_menus()
+	%SaveProject.pressed.connect(_on_save_project_pressed)
+	%LoadProject.pressed.connect(_on_load_project_pressed)
 	%UndoPaint.pressed.connect(%DrawingCanvas.undo_paint)
 	%RedoPaint.pressed.connect(%DrawingCanvas.redo_paint)
 	%ViewX.pressed.connect(func(): _align_view_axis(Vector3.RIGHT, "X"))
@@ -270,6 +273,97 @@ func _create_drawing() -> void:
 	world_root.add_child(anchor)
 	_register_scene_object(obj, anchor)
 	status.text = "Drawing object created · stroke engine comes in Drawing workspace"
+
+func _on_save_project_pressed() -> void:
+	var path := current_project_path
+	if path.is_empty(): path = "user://kabuki_project.kabuki"
+	var drawing_payload: Dictionary = {}
+	for object_id in drawing_data_by_object:
+		var data: RefCounted = drawing_data_by_object[object_id]
+		drawing_payload[object_id] = data.to_dict()
+	var payload := {
+		"project": ProjectStore.to_dict(),
+		"drawings": drawing_payload,
+		"bitmap_cels": %DrawingCanvas.export_bitmap_cels()
+	}
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		status.text = "Could not save project"
+		return
+	file.store_string(JSON.stringify(payload))
+	current_project_path = path
+	%ProjectName.text = path.get_file()
+	status.text = "Project saved · " + path.get_file()
+
+func _on_load_project_pressed() -> void:
+	var path := current_project_path
+	if path.is_empty(): path = "user://kabuki_project.kabuki"
+	if not FileAccess.file_exists(path):
+		status.text = "No saved project yet"
+		return
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null: return
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	if not parsed is Dictionary:
+		status.text = "Invalid KABUKI project"
+		return
+	_load_project_payload(parsed as Dictionary, path)
+
+func _clear_runtime_project() -> void:
+	for child in world_root.get_children():
+		if child == camera_rig or child == gizmo or child == world_grid: continue
+		child.queue_free()
+	runtime_objects.clear()
+	scene_nodes.clear()
+	drawing_planes.clear()
+	drawing_data_by_object.clear()
+	static_bitmap_runtime.clear()
+	active_drawing_group = null
+	active_drawing_id = ""
+	selected = null
+	selected_scene_node = null
+	selected_object_id = ""
+	gizmo.attach(null)
+
+func _load_project_payload(payload: Dictionary, path: String) -> void:
+	_clear_runtime_project()
+	if not ProjectStore.load_dict(payload.get("project", {})):
+		status.text = "Unsupported KABUKI project"
+		return
+	%DrawingCanvas.import_bitmap_cels(payload.get("bitmap_cels", {}))
+	var drawings: Dictionary = payload.get("drawings", {})
+	# Rebuild reference canvases first; their children are reconstructed below.
+	for object_id in ProjectStore.objects:
+		var obj: MotionObject = ProjectStore.objects[object_id]
+		if obj.technical_type == "reference_canvas":
+			var plane: ReferenceCanvas = ReferenceCanvasClass.new()
+			world_root.add_child(plane)
+			plane.setup(obj)
+			plane.transform = obj.transform
+			plane.set_guide_visible(workspace == "scene")
+			scene_nodes[obj.id] = plane
+			drawing_planes.append(plane)
+			var data: RefCounted = DrawingDataClass.new(obj.id)
+			if drawings.has(obj.id): data.load_dict(drawings[obj.id])
+			drawing_data_by_object[obj.id] = data
+			for stroke_id in data.stroke_order:
+				if not data.strokes.has(stroke_id): continue
+				var rec: Dictionary = data.strokes[stroke_id]
+				var stroke: Stroke3D = Stroke3DClass.new()
+				stroke.stroke_id = stroke_id
+				stroke.points = rec.get("points", PackedVector3Array())
+				stroke.stroke_color = rec.get("color", Color.BLACK)
+				stroke.radius = float(rec.get("radius", 0.012))
+				stroke.fill_enabled = bool(rec.get("fill_enabled", false))
+				stroke.fill_color = rec.get("fill_color", Color.TRANSPARENT)
+				plane.add_child(stroke)
+				stroke.rebuild()
+	_refresh_scene_object_list()
+	_refresh_drawing_planes()
+	_apply_drawing_frame(ProjectStore.current_frame)
+	current_project_path = path
+	%ProjectName.text = path.get_file()
+	status.text = "Project loaded · " + path.get_file()
 
 func _on_import_pressed() -> void: %FileDialog.popup_centered_ratio(0.7)
 
