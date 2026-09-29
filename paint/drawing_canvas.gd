@@ -2,6 +2,7 @@ class_name DrawingCanvas
 extends Control
 
 signal bitmap_finished(image: Image)
+signal bitmap_stroke_started
 
 const TOOL_BRUSH := 0
 const TOOL_PENCIL := 1
@@ -30,6 +31,11 @@ var painting := false
 var raster_texture: ImageTexture
 var canvas_rasters: Dictionary = {}
 var canvas_composite_textures: Dictionary = {}
+# Flipbook raster cels: canvas id -> {local frame: Image}. Working raster is
+# separate until explicitly keyed, so HOLD never becomes editable content.
+var canvas_cels: Dictionary = {}
+var active_local_frame := 0
+var active_frame_has_cel := false
 var active_canvas_id := ""
 var lasso_points := PackedVector2Array()
 var undo_stack: Array[Image] = []
@@ -38,19 +44,59 @@ const MAX_UNDO := 24
 
 func switch_canvas(canvas_id: String) -> void:
 	if canvas_id == active_canvas_id: return
-	if not active_canvas_id.is_empty() and raster != null:
-		canvas_rasters[active_canvas_id] = raster.duplicate()
-		_update_canvas_preview(active_canvas_id, raster)
 	active_canvas_id = canvas_id
+	set_local_frame(active_local_frame)
+
+func set_local_frame(frame: int) -> void:
+	active_local_frame = frame
 	raster = null
 	raster_texture = null
-	if canvas_rasters.has(canvas_id):
-		raster = (canvas_rasters[canvas_id] as Image).duplicate()
-		raster_texture = ImageTexture.create_from_image(raster)
+	active_frame_has_cel = false
+	var cel_map: Dictionary = canvas_cels.get(active_canvas_id, {})
+	if cel_map.has(frame):
+		raster = (cel_map[frame] as Image).duplicate()
+		active_frame_has_cel = true
+	else:
+		# HOLD is display-only. It must never become the working raster.
+		var held_frame := -1
+		for key in cel_map.keys():
+			var candidate := int(key)
+			if candidate <= frame and candidate > held_frame: held_frame = candidate
+		if held_frame >= 0:
+			raster = (cel_map[held_frame] as Image).duplicate()
 	undo_stack.clear()
 	redo_stack.clear()
 	_ensure_raster()
+	_refresh_texture()
 	queue_redraw()
+
+func begin_new_flipbook_cel() -> void:
+	if active_frame_has_cel: return
+	_ensure_raster()
+	raster.fill(Color.TRANSPARENT)
+	active_frame_has_cel = true
+	_refresh_texture()
+	queue_redraw()
+
+func key_current_cel() -> void:
+	if active_canvas_id.is_empty(): return
+	_ensure_raster()
+	var cel_map: Dictionary = canvas_cels.get(active_canvas_id, {})
+	cel_map[active_local_frame] = raster.duplicate()
+	canvas_cels[active_canvas_id] = cel_map
+	active_frame_has_cel = true
+	_update_canvas_preview(active_canvas_id, raster)
+
+func has_keyed_cel(frame: int) -> bool:
+	var cel_map: Dictionary = canvas_cels.get(active_canvas_id, {})
+	return cel_map.has(frame)
+
+func flipbook_frames() -> Array[int]:
+	var result: Array[int] = []
+	var cel_map: Dictionary = canvas_cels.get(active_canvas_id, {})
+	for key in cel_map.keys(): result.append(int(key))
+	result.sort()
+	return result
 
 func committed_canvas_images() -> Dictionary:
 	if not active_canvas_id.is_empty() and raster != null:
@@ -159,6 +205,9 @@ func _gui_input(event: InputEvent) -> void:
 		var mb := event as InputEventMouseButton
 		if mb.button_index != MOUSE_BUTTON_LEFT: return
 		if mb.pressed:
+			if not active_frame_has_cel:
+				bitmap_stroke_started.emit()
+				begin_new_flipbook_cel()
 			_push_undo()
 			painting = true
 			stroke_start = mb.position
