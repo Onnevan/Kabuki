@@ -12,6 +12,7 @@ var dragging_key := false
 var drawing_exposure_frames: Array[int] = []
 signal key_selected(path: String, frame: int, interpolation: String)
 signal key_deselected
+signal frame_requested(frame: int)
 const LANE_X := 210.0
 const HEADER_H := 28.0
 const CHANNELS: Array[String] = ["transform.position","transform.rotation","transform.scale"]
@@ -174,7 +175,7 @@ func _gui_input(e:InputEvent)->void:
 				key_selected.emit(selected_key_path, selected_key_frame, get_selected_interpolation())
 				queue_redraw();accept_event();return
 			if e.position.x>=LANE_X:
-				scrubbing=true;ProjectStore.set_frame(_frame_from_x(e.position.x));accept_event()
+				scrubbing=true;frame_requested.emit(_frame_from_x(e.position.x));accept_event()
 		else:
 			scrubbing=false;dragging_key=false
 	elif e is InputEventMouseMotion:
@@ -184,7 +185,7 @@ func _gui_input(e:InputEvent)->void:
 				ProjectStore.move_key(object_id,selected_key_path,selected_key_frame,nf);selected_key_frame=nf;queue_redraw()
 			accept_event()
 		elif scrubbing:
-			ProjectStore.set_frame(_frame_from_x(e.position.x));accept_event()
+			frame_requested.emit(_frame_from_x(e.position.x));accept_event()
 
 func get_selected_interpolation() -> String:
 	if selected_key_frame < 0 or selected_key_path.is_empty(): return ""
