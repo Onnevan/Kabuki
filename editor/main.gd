@@ -711,15 +711,45 @@ func _key_position() -> void:
 	if selected_scene_node == null or selected_object_id.is_empty(): return
 	ProjectStore.set_key(selected_object_id,"transform.position",ProjectStore.current_frame,selected_scene_node.position,_interp_name())
 
+func _commit_camera_view_navigation() -> void:
+	if not camera_view_active or render_camera_id.is_empty() or not scene_nodes.has(render_camera_id): return
+	var rig: Node3D = scene_nodes[render_camera_id]
+	var render_cam := _scene_camera_node(render_camera_id)
+	if render_cam == null: return
+	# In CAM mode the editor camera is the navigation proxy. Commit its exact
+	# transform back to the scene camera so leaving CAM preserves the framing.
+	rig.global_transform = camera.global_transform
+	render_cam.transform = Transform3D.IDENTITY
+	if ProjectStore.objects.has(render_camera_id):
+		var model: MotionObject = ProjectStore.objects[render_camera_id]
+		model.transform = rig.transform
+	_show_transform(rig)
+	if auto_key.button_pressed:
+		ProjectStore.set_key(render_camera_id,"transform.position",ProjectStore.current_frame,rig.position,_interp_name())
+		ProjectStore.set_key(render_camera_id,"transform.rotation",ProjectStore.current_frame,rig.rotation,_interp_name())
+		ProjectStore.set_key(render_camera_id,"transform.scale",ProjectStore.current_frame,rig.scale,_interp_name())
+
+func _navigate_orbit(delta: Vector2) -> void:
+	camera_rig.orbit(delta)
+	_commit_camera_view_navigation()
+
+func _navigate_pan(delta: Vector2) -> void:
+	camera_rig.pan(delta)
+	_commit_camera_view_navigation()
+
+func _navigate_zoom(amount: float) -> void:
+	camera_rig.zoom(amount)
+	_commit_camera_view_navigation()
+
 func _on_canvas_gui_input(event: InputEvent) -> void:
 	if workspace == "drawing":
 		# Navigation remains available while drawing: MMB orbit, Shift+MMB pan, wheel zoom.
 		if event is InputEventMouseButton:
 			last_mouse = event.position
 			if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
-				camera_rig.zoom(-1.0); return
+				_navigate_zoom(-1.0); return
 			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
-				camera_rig.zoom(1.0); return
+				_navigate_zoom(1.0); return
 			elif event.button_index == MOUSE_BUTTON_MIDDLE:
 				if Input.is_key_pressed(KEY_SHIFT): panning = event.pressed
 				else: orbiting = event.pressed
@@ -743,9 +773,9 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 					return
 		elif event is InputEventMouseMotion:
 			if orbiting:
-				camera_rig.orbit(event.relative); return
+				_navigate_orbit(event.relative); return
 			elif panning:
-				camera_rig.pan(event.relative); return
+				_navigate_pan(event.relative); return
 			elif drawing_3d_active and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 				_extend_3d_stroke(event.position); return
 			elif drawing_erase_active and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
@@ -755,8 +785,8 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 				_sculpt_drawing(event.position); return
 	if event is InputEventMouseButton:
 		last_mouse = event.position
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed: camera_rig.zoom(-1.0)
-		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed: camera_rig.zoom(1.0)
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed: _navigate_zoom(-1.0)
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed: _navigate_zoom(1.0)
 		elif event.button_index == MOUSE_BUTTON_MIDDLE:
 			if Input.is_key_pressed(KEY_SHIFT): panning = event.pressed
 			else: orbiting = event.pressed
@@ -793,8 +823,8 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 				if dragging and auto_key.button_pressed: _key_transform()
 				dragging = false; gizmo_axis = TransformGizmo.Axis.NONE
 	elif event is InputEventMouseMotion:
-		if orbiting: camera_rig.orbit(event.relative)
-		elif panning: camera_rig.pan(event.relative)
+		if orbiting: _navigate_orbit(event.relative)
+		elif panning: _navigate_pan(event.relative)
 		elif dragging and selected_scene_node:
 			_apply_drag(event.relative, event.position)
 		last_mouse = event.position
