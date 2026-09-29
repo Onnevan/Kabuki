@@ -682,6 +682,8 @@ func _refresh_drawing_timeline() -> void:
 		var raw_frames: Array = data.call("exposure_frames")
 		for frame_value in raw_frames:
 			frames.append(int(frame_value))
+	if %DrawingCanvas.bitmap_mode:
+		frames = %DrawingCanvas.flipbook_frames()
 	timeline.set_drawing_exposures(frames)
 	_sync_local_clip_ui()
 
@@ -745,6 +747,7 @@ func _on_timeline_frame_requested(frame: int) -> void:
 		var data: RefCounted = _active_drawing_data()
 		if data == null: return
 		data.set_local_frame(frame)
+		%DrawingCanvas.set_local_frame(data.local_frame)
 		timeline.set_frame(data.local_frame)
 		_apply_drawing_frame(ProjectStore.current_frame)
 		_refresh_drawing_timeline()
@@ -757,6 +760,7 @@ func _on_frame_slider_value_changed(value: float) -> void:
 		var data: RefCounted = _active_drawing_data()
 		if data != null:
 			data.set_local_frame(int(value))
+			%DrawingCanvas.set_local_frame(data.local_frame)
 			timeline.set_frame(data.local_frame)
 			_apply_drawing_frame(ProjectStore.current_frame)
 			return
@@ -765,13 +769,13 @@ func _on_prev_pressed() -> void:
 	if workspace == "drawing":
 		var data: RefCounted = _active_drawing_data()
 		if data != null:
-			data.set_local_frame(data.local_frame-1); _sync_local_clip_ui(); _apply_drawing_frame(ProjectStore.current_frame); return
+			data.set_local_frame(data.local_frame-1); %DrawingCanvas.set_local_frame(data.local_frame); _sync_local_clip_ui(); _apply_drawing_frame(ProjectStore.current_frame); return
 	ProjectStore.set_frame(ProjectStore.current_frame - 1)
 func _on_next_pressed() -> void:
 	if workspace == "drawing":
 		var data: RefCounted = _active_drawing_data()
 		if data != null:
-			data.set_local_frame(data.local_frame+1); _sync_local_clip_ui(); _apply_drawing_frame(ProjectStore.current_frame); return
+			data.set_local_frame(data.local_frame+1); %DrawingCanvas.set_local_frame(data.local_frame); _sync_local_clip_ui(); _apply_drawing_frame(ProjectStore.current_frame); return
 	ProjectStore.set_frame(ProjectStore.current_frame + 1)
 func _on_play_pressed() -> void:
 	playing = not playing; %PlayButton.text = "❚❚" if playing else "▶"
@@ -785,6 +789,12 @@ func _on_key_pressed() -> void:
 func _key_active_flipbook_cel() -> void:
 	var data: RefCounted = _active_drawing_data()
 	if data == null: return
+	if %DrawingCanvas.bitmap_mode:
+		%DrawingCanvas.key_current_cel()
+		data.ensure_flipbook_cel(_drawing_edit_frame())
+		_refresh_drawing_timeline()
+		status.text = "Bitmap flipbook cel keyed · local frame %d" % _drawing_edit_frame()
+		return
 	var frame: int = _drawing_edit_frame()
 	# A flipbook key stores ONLY the authored cel at this local frame. Never
 	# snapshot runtime visibility, because that may currently be a held older cel.
@@ -877,7 +887,8 @@ func _setup_drawing_menus() -> void:
 	%BitmapEllipse.pressed.connect(func(): _set_bitmap_tool(5))
 	%BitmapFillTool.pressed.connect(func(): _set_bitmap_tool(6))
 	%BitmapClear.pressed.connect(%DrawingCanvas.clear_canvas)
-	%BitmapCommit.pressed.connect(%DrawingCanvas.finish_bitmap)
+	%BitmapCommit.visible = false
+	%DrawingCanvas.bitmap_stroke_started.connect(_on_bitmap_flipbook_stroke_started)
 	%BrushPreset.clear()
 	for preset_name in ["Ink", "Soft", "Airbrush", "Chalk", "Graphite HB", "Graphite 4B"]:
 		%BrushPreset.add_item(preset_name)
@@ -950,6 +961,8 @@ func _on_draw_stroke3d_pressed() -> void:
 
 func _on_draw_bitmap_pressed() -> void:
 	_capture_projection_view()
+	var data: RefCounted = _active_drawing_data()
+	if data != null: %DrawingCanvas.set_local_frame(data.local_frame)
 	drawing_3d_active = false
 	drawing_sculpt_active = false
 	drawing_erase_active = false
@@ -1046,6 +1059,13 @@ func _apply_selected_stroke_style() -> void:
 
 func _apply_active_drawing_style() -> void:
 	_apply_selected_stroke_style()
+
+func _on_bitmap_flipbook_stroke_started() -> void:
+	var data: RefCounted = _active_drawing_data()
+	if data == null: return
+	# Starting to paint on a held frame creates a new replacement cel immediately.
+	data.ensure_flipbook_cel(_drawing_edit_frame())
+	_refresh_drawing_timeline()
 
 func _on_bitmap_finished(_image: Image) -> void:
 	_ensure_drawing_group()
