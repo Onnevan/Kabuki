@@ -8,6 +8,10 @@ var scrubbing := false
 var expanded := [false, false, false]
 var selected_key_path := ""
 var selected_key_frame := -1
+var selected_keys: Array[Dictionary] = []
+var key_clipboard: Array = []
+var drag_origin_frame := -1
+var drag_original_refs: Array[Dictionary] = []
 var dragging_key := false
 var drawing_exposure_frames: Array[int] = []
 signal key_selected(path: String, frame: int, interpolation: String)
@@ -15,6 +19,7 @@ signal key_deselected
 signal frame_requested(frame: int)
 const LANE_X := 210.0
 const HEADER_H := 28.0
+const SUMMARY_Y := 43.0
 const CHANNELS: Array[String] = ["transform.position","transform.rotation","transform.scale"]
 const LABELS: Array[String] = ["Position","Rotation","Scale"]
 const COLORS: Array[Color] = [Color("#ff745f"),Color("#b779ff"),Color("#71d67b")]
@@ -24,7 +29,7 @@ func _ready()->void:
 	mouse_filter=Control.MOUSE_FILTER_PASS
 
 func set_frame(f:int)->void: current_frame=f;queue_redraw()
-func set_object(id:String)->void: object_id=id;selected_key_frame=-1;selected_key_path="";key_deselected.emit();queue_redraw()
+func set_object(id:String)->void: object_id=id;selected_key_frame=-1;selected_key_path="";selected_keys.clear();key_deselected.emit();queue_redraw()
 func refresh_keys(_a:String="",_b:String="",_c:int=0)->void: queue_redraw()
 func set_drawing_exposures(frames: Array[int]) -> void:
 	drawing_exposure_frames = frames.duplicate()
@@ -35,7 +40,7 @@ func _keys(path:String)->Array:
 	return ProjectStore.get_keys(object_id,path)
 
 func _row_y(index:int)->float:
-	var y:=HEADER_H+32.0
+	var y:=HEADER_H+58.0
 	for i in range(index):
 		y+=28.0
 		if expanded[i]: y+=58.0
@@ -52,6 +57,12 @@ func _draw()->void:
 		draw_line(Vector2(x,HEADER_H if major else HEADER_H-5),Vector2(x,size.y),Color("#34414f",0.7 if major else 0.24),1)
 		if major: draw_string(get_theme_default_font(),Vector2(x+3,18),str(f),HORIZONTAL_ALIGNMENT_LEFT,-1,11,Color("#aeb9c6"))
 	draw_string(get_theme_default_font(),Vector2(16,20),("▼ " if expanded.has(true) else "▶ ")+"Selected Object",HORIZONTAL_ALIGNMENT_LEFT,-1,13,Color("#dbe4ef"))
+	draw_rect(Rect2(0,SUMMARY_Y-14,LANE_X,24),Color("#263341"))
+	draw_string(get_theme_default_font(),Vector2(14,SUMMARY_Y+3),"◆  All Channels",HORIZONTAL_ALIGNMENT_LEFT,-1,12,Color("#dbe4ef"))
+	for gf in ProjectStore.get_object_key_frames(object_id):
+		var gx:=LANE_X+float(gf)*step
+		var gp:=PackedVector2Array([Vector2(gx,SUMMARY_Y-7),Vector2(gx+6,SUMMARY_Y-1),Vector2(gx,SUMMARY_Y+5),Vector2(gx-6,SUMMARY_Y-1)])
+		draw_colored_polygon(gp,Color.WHITE if _is_selected("*",gf) else Color("#8fa8c2"))
 	for row in range(3):
 		var y:=_row_y(row)
 		draw_rect(Rect2(0,y-20,LANE_X,27),Color("#202b36"))
@@ -61,7 +72,7 @@ func _draw()->void:
 			var kf:=int(k.frame)
 			var x:=LANE_X+float(kf)*step
 			var p:=PackedVector2Array([Vector2(x,y-7),Vector2(x+6,y-1),Vector2(x,y+5),Vector2(x-6,y-1)])
-			draw_colored_polygon(p,Color.WHITE if selected_key_path==CHANNELS[row] and selected_key_frame==kf else COLORS[row])
+			draw_colored_polygon(p,Color.WHITE if _is_selected(CHANNELS[row],kf) else COLORS[row])
 		if expanded[row]: _draw_curve(row,y+12.0,step)
 	if not drawing_exposure_frames.is_empty():
 		var ey := HEADER_H + 12.0
@@ -152,14 +163,64 @@ func _frame_from_x(x:float)->int:
 	var usable:=maxf(1.0,size.x-LANE_X-12.0)
 	return clampi(roundi((x-LANE_X)/usable*frame_count),0,frame_count)
 
+func _is_selected(path:String,frame:int)->bool:
+	for ref in selected_keys:
+		if String(ref.path)==path and int(ref.frame)==frame:return true
+	return false
+
 func _hit_key(pos:Vector2)->Dictionary:
 	var usable:=maxf(1.0,size.x-LANE_X-12.0);var step:=usable/float(frame_count)
+	for gf in ProjectStore.get_object_key_frames(object_id):
+		var gx:=LANE_X+float(gf)*step
+		if pos.distance_to(Vector2(gx,SUMMARY_Y-1))<9.0:return {"path":"*","frame":gf}
 	for row in range(3):
 		var y:=_row_y(row)
 		for k in _keys(CHANNELS[row]):
 			var x:=LANE_X+float(k.frame)*step
 			if pos.distance_to(Vector2(x,y-1))<9.0:return {"path":CHANNELS[row],"frame":int(k.frame)}
 	return {}
+
+func _select_ref(hit:Dictionary,additive:bool)->void:
+	if not additive:selected_keys.clear()
+	var found:=-1
+	for i in range(selected_keys.size()):
+		if selected_keys[i].path==hit.path and int(selected_keys[i].frame)==int(hit.frame):found=i;break
+	if additive and found>=0:selected_keys.remove_at(found)
+	elif found<0:selected_keys.append({"path":String(hit.path),"frame":int(hit.frame)})
+	selected_key_path=String(hit.path);selected_key_frame=int(hit.frame)
+	if selected_key_path!="*":key_selected.emit(selected_key_path,selected_key_frame,get_selected_interpolation())
+	queue_redraw()
+
+func _move_selected(delta:int)->void:
+	if delta==0:return
+	var refs:=selected_keys.duplicate(true)
+	refs.sort_custom(func(a,b):return int(a.frame)>int(b.frame) if delta>0 else int(a.frame)<int(b.frame))
+	for ref in refs:
+		var oldf:=int(ref.frame);var newf:=clampi(oldf+delta,0,frame_count)
+		if String(ref.path)=="*":ProjectStore.move_object_keys_at_frame(object_id,oldf,newf)
+		else:ProjectStore.move_key(object_id,String(ref.path),oldf,newf)
+		ref.frame=newf
+	selected_keys=refs
+	selected_key_frame=clampi(selected_key_frame+delta,0,frame_count)
+
+func _delete_selected()->void:
+	for ref in selected_keys:
+		if String(ref.path)=="*":
+			var copied:=ProjectStore.copy_keys(object_id,[ref])
+			for item in copied:ProjectStore.delete_key(object_id,String(item.path),int(item.frame))
+		else:ProjectStore.delete_key(object_id,String(ref.path),int(ref.frame))
+	selected_keys.clear();selected_key_frame=-1;selected_key_path="";key_deselected.emit();queue_redraw()
+
+func _scale_selected(factor:float)->void:
+	if selected_keys.size()<2:return
+	var pivot:=int(selected_keys[0].frame)
+	for ref in selected_keys:
+		var oldf:=int(ref.frame)
+		var newf:=clampi(pivot+roundi(float(oldf-pivot)*factor),0,frame_count)
+		if String(ref.path)=="*":ProjectStore.move_object_keys_at_frame(object_id,oldf,newf)
+		else:ProjectStore.move_key(object_id,String(ref.path),oldf,newf)
+		ref.frame=newf
+	queue_redraw()
 
 func _gui_input(e:InputEvent)->void:
 	if e is InputEventMouseButton and e.button_index==MOUSE_BUTTON_LEFT:
@@ -171,8 +232,7 @@ func _gui_input(e:InputEvent)->void:
 						expanded[row]=not expanded[row];custom_minimum_size.y=170.0+58.0*expanded.count(true);queue_redraw();accept_event();return
 			var hit:=_hit_key(e.position)
 			if not hit.is_empty():
-				selected_key_path=hit.path;selected_key_frame=hit.frame;dragging_key=true
-				key_selected.emit(selected_key_path, selected_key_frame, get_selected_interpolation())
+				_select_ref(hit,e.ctrl_pressed or e.shift_pressed);dragging_key=true;drag_origin_frame=int(hit.frame);drag_original_refs=selected_keys.duplicate(true)
 				queue_redraw();accept_event();return
 			if e.position.x>=LANE_X:
 				scrubbing=true;frame_requested.emit(_frame_from_x(e.position.x));accept_event()
@@ -182,10 +242,27 @@ func _gui_input(e:InputEvent)->void:
 		if dragging_key and selected_key_frame>=0:
 			var nf:=_frame_from_x(e.position.x)
 			if nf!=selected_key_frame:
-				ProjectStore.move_key(object_id,selected_key_path,selected_key_frame,nf);selected_key_frame=nf;queue_redraw()
+				_move_selected(nf-selected_key_frame);queue_redraw()
 			accept_event()
 		elif scrubbing:
 			frame_requested.emit(_frame_from_x(e.position.x));accept_event()
+
+func _unhandled_key_input(e:InputEvent)->void:
+	if not e is InputEventKey:return
+	var k:=e as InputEventKey
+	if not k.pressed or k.echo or object_id.is_empty():return
+	if k.keycode==KEY_DELETE or k.keycode==KEY_BACKSPACE:
+		_delete_selected();get_viewport().set_input_as_handled()
+	elif k.ctrl_pressed and k.keycode==KEY_C:
+		key_clipboard=ProjectStore.copy_keys(object_id,selected_keys);get_viewport().set_input_as_handled()
+	elif k.ctrl_pressed and k.keycode==KEY_V:
+		ProjectStore.paste_keys(object_id,key_clipboard,current_frame);queue_redraw();get_viewport().set_input_as_handled()
+	elif k.keycode==KEY_LEFT and not selected_keys.is_empty():
+		_move_selected(-1);queue_redraw();get_viewport().set_input_as_handled()
+	elif k.keycode==KEY_RIGHT and not selected_keys.is_empty():
+		_move_selected(1);queue_redraw();get_viewport().set_input_as_handled()
+	elif k.keycode==KEY_S and selected_keys.size()>1:
+		_scale_selected(0.5 if k.shift_pressed else 2.0);get_viewport().set_input_as_handled()
 
 func get_selected_interpolation() -> String:
 	if selected_key_frame < 0 or selected_key_path.is_empty(): return ""
