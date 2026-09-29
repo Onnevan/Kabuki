@@ -498,6 +498,21 @@ func _load_project_payload(payload: Dictionary, path: String) -> void:
 				stroke.fill_color = rec.get("fill_color", Color.TRANSPARENT)
 				plane.add_child(stroke)
 				stroke.rebuild()
+	# Rebuild non-drawing scene anchors.
+	for object_id in ProjectStore.objects:
+		if scene_nodes.has(object_id): continue
+		var obj: MotionObject = ProjectStore.objects[object_id]
+		if obj.technical_type == "camera":
+			var camera_rig_node := _build_scene_camera(obj)
+			world_root.add_child(camera_rig_node)
+			camera_rig_node.transform = obj.transform
+			scene_nodes[obj.id] = camera_rig_node
+			if render_camera_id.is_empty(): render_camera_id = obj.id
+		elif obj.technical_type == "light":
+			var loaded_light := DirectionalLight3D.new()
+			world_root.add_child(loaded_light)
+			loaded_light.transform = obj.transform
+			scene_nodes[obj.id] = loaded_light
 	_refresh_scene_object_list()
 	_refresh_drawing_planes()
 	_apply_drawing_frame(ProjectStore.current_frame)
@@ -589,6 +604,8 @@ func _process_transform_fields() -> void:
 	if not selected_object_id.is_empty() and ProjectStore.objects.has(selected_object_id):
 		var field_model: MotionObject = ProjectStore.objects[selected_object_id]
 		field_model.transform = selected_scene_node.transform
+		if auto_key.button_pressed:
+			_key_transform()
 		if field_model.technical_type == "camera" and camera_view_active and selected_object_id == render_camera_id:
 			_sync_editor_view_to_render_camera()
 
