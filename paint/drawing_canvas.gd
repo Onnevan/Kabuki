@@ -34,6 +34,8 @@ var canvas_composite_textures: Dictionary = {}
 # Flipbook raster cels: canvas id -> {local frame: Image}. Working raster is
 # separate until explicitly keyed, so HOLD never becomes editable content.
 var canvas_cels: Dictionary = {}
+# The source raster is canonical. Static tessellation is only a render cache.
+var bitmap_dirty: Dictionary = {}
 var active_local_frame := 0
 var active_frame_has_cel := false
 var active_canvas_id := ""
@@ -84,8 +86,31 @@ func key_current_cel() -> void:
 	var cel_map: Dictionary = canvas_cels.get(active_canvas_id, {})
 	cel_map[active_local_frame] = raster.duplicate()
 	canvas_cels[active_canvas_id] = cel_map
+	bitmap_dirty[active_canvas_id] = true
 	active_frame_has_cel = true
 	_update_canvas_preview(active_canvas_id, raster)
+
+func keyed_cel_count(canvas_id: String) -> int:
+	var cel_map: Dictionary = canvas_cels.get(canvas_id, {})
+	return cel_map.size()
+
+func is_animated_bitmap(canvas_id: String) -> bool:
+	return keyed_cel_count(canvas_id) > 1
+
+func current_source_image(canvas_id: String) -> Image:
+	if canvas_id == active_canvas_id and raster != null:
+		return raster.duplicate()
+	var cel_map: Dictionary = canvas_cels.get(canvas_id, {})
+	if cel_map.is_empty(): return null
+	var first_frame := 2147483647
+	for key in cel_map.keys(): first_frame = mini(first_frame, int(key))
+	return (cel_map[first_frame] as Image).duplicate()
+
+func mark_bitmap_clean(canvas_id: String) -> void:
+	bitmap_dirty[canvas_id] = false
+
+func is_bitmap_dirty(canvas_id: String) -> bool:
+	return bool(bitmap_dirty.get(canvas_id, false))
 
 func has_keyed_cel(frame: int) -> bool:
 	var cel_map: Dictionary = canvas_cels.get(active_canvas_id, {})
@@ -130,6 +155,8 @@ func committed_canvas_images() -> Dictionary:
 func clear_canvas_session(canvas_id: String) -> void:
 	canvas_rasters.erase(canvas_id)
 	canvas_composite_textures.erase(canvas_id)
+	canvas_cels.erase(canvas_id)
+	bitmap_dirty.erase(canvas_id)
 	if active_canvas_id == canvas_id:
 		clear_canvas_without_history()
 
@@ -227,6 +254,7 @@ func _gui_input(event: InputEvent) -> void:
 			if not active_frame_has_cel:
 				bitmap_stroke_started.emit()
 				begin_new_flipbook_cel()
+			if not active_canvas_id.is_empty(): bitmap_dirty[active_canvas_id] = true
 			_push_undo()
 			painting = true
 			stroke_start = mb.position
