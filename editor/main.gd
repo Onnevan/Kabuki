@@ -775,8 +775,31 @@ func _on_next_pressed() -> void:
 func _on_play_pressed() -> void:
 	playing = not playing; %PlayButton.text = "❚❚" if playing else "▶"
 func _on_key_pressed() -> void:
-	_key_transform()
+	if workspace == "drawing":
+		_key_active_flipbook_cel()
+	else:
+		_key_transform()
 	_flash_key_button()
+
+func _key_active_flipbook_cel() -> void:
+	var data: RefCounted = _active_drawing_data()
+	if data == null: return
+	var frame: int = _drawing_edit_frame()
+	# A flipbook key stores ONLY the authored cel at this local frame. Never
+	# snapshot runtime visibility, because that may currently be a held older cel.
+	var pose: Dictionary = data.current_cel_pose(frame)
+	if pose.is_empty():
+		pose = {}
+		for stroke_id in data.stroke_order:
+			var record: Dictionary = data.strokes[stroke_id]
+			pose[stroke_id] = {
+				"points": (record["points"] as PackedVector3Array).duplicate(),
+				"visible": false
+			}
+	data.set_exposure(frame, pose, "hold")
+	_apply_drawing_frame(ProjectStore.current_frame)
+	_refresh_drawing_timeline()
+	status.text = "Flipbook cel keyed · local frame %d" % frame
 
 func _on_material_color_changed(value: Color) -> void:
 	if selected: selected.set_material_color(value)
