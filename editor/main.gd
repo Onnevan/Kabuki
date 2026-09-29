@@ -621,6 +621,15 @@ func _apply_drawing_frame(frame: int) -> void:
 		var data: RefCounted = drawing_data_by_object[object_id]
 		var evaluation_frame: int = data.local_frame if workspace == "drawing" and object_id == active_drawing_id else data.map_scene_frame(frame)
 		var pose: Dictionary = data.call("flipbook_pose", evaluation_frame)
+		# Bitmap drawings are cached as discrete images and played as a texture
+		# sequence on the ReferenceCanvas plane. No tessellation is required.
+		if group is ReferenceCanvas:
+			var reference_canvas := group as ReferenceCanvas
+			if %DrawingCanvas.has_flipbook(object_id):
+				var bitmap_image: Image = %DrawingCanvas.flipbook_image(object_id, evaluation_frame)
+				reference_canvas.show_flipbook_image(bitmap_image)
+			else:
+				reference_canvas.hide_flipbook_image()
 		for child in group.get_children():
 			if not child is Stroke3D: continue
 			var stroke := child as Stroke3D
@@ -942,6 +951,7 @@ func _on_workspace_tab_changed(tab: int) -> void:
 		if is_instance_valid(reference_canvas):
 			reference_canvas.set_guide_visible(workspace == "scene")
 	_refresh_scene_object_list()
+	_apply_drawing_frame(ProjectStore.current_frame)
 	if workspace == "drawing" and active_drawing_group != null:
 		_select_scene_node(active_drawing_id, active_drawing_group)
 	if workspace == "compositor":
