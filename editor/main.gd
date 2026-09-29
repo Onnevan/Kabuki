@@ -620,7 +620,7 @@ func _apply_drawing_frame(frame: int) -> void:
 		var group: Node3D = scene_nodes[object_id]
 		var data: RefCounted = drawing_data_by_object[object_id]
 		var evaluation_frame: int = data.local_frame if workspace == "drawing" and object_id == active_drawing_id else data.map_scene_frame(frame)
-		var pose: Dictionary = data.call("evaluate_pose", evaluation_frame)
+		var pose: Dictionary = data.call("flipbook_pose", evaluation_frame)
 		for child in group.get_children():
 			if not child is Stroke3D: continue
 			var stroke := child as Stroke3D
@@ -691,6 +691,7 @@ func _on_drawing_new_cel() -> void:
 	var empty_pose: Dictionary = {}
 	for stroke_id in data.stroke_order:
 		empty_pose[stroke_id] = {"points": (data.strokes[stroke_id]["points"] as PackedVector3Array).duplicate(), "visible": false}
+	data.ensure_flipbook_cel(_drawing_edit_frame())
 	data.set_exposure(_drawing_edit_frame(), empty_pose, "hold")
 	_apply_drawing_frame(ProjectStore.current_frame)
 	_refresh_drawing_timeline()
@@ -1243,14 +1244,7 @@ func _begin_3d_stroke(pos: Vector2) -> void:
 	var data: RefCounted = _active_drawing_data()
 	var frame: int = _drawing_edit_frame()
 	if data != null and not data.has_exposure(frame):
-		var empty_pose: Dictionary = {}
-		for stroke_id in data.stroke_order:
-			var record: Dictionary = data.strokes[stroke_id]
-			empty_pose[stroke_id] = {
-				"points": (record["points"] as PackedVector3Array).duplicate(),
-				"visible": false
-			}
-		data.set_exposure(frame, empty_pose, "hold")
+		data.ensure_flipbook_cel(frame)
 		_apply_drawing_frame(ProjectStore.current_frame)
 		_refresh_drawing_timeline()
 	active_stroke_3d = Stroke3DClass.new()
