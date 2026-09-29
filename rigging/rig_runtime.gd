@@ -73,8 +73,9 @@ func _create_bone_gizmo(index: int, head: Vector3, parent_index: int) -> void:
 	gizmo.mesh = mesh
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(0.95,0.62,0.12,0.95)
+	mat.albedo_color = Color(0.22,0.62,1.0,0.95)
 	mat.no_depth_test = true
+	mat.render_priority = 120
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	gizmo.material_override = mat
 	gizmo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -117,8 +118,15 @@ func bind_mesh(mesh_instance: MeshInstance3D, weights_by_surface: Array) -> bool
 	if mesh_instance.get_parent() != self:
 		mesh_instance.reparent(self,true)
 	var skin := Skin.new()
+	# Skin bind matrices must be expressed in mesh space against the GLOBAL
+	# skeleton rest pose. Using each local bone rest independently makes child
+	# bones deform the mesh immediately at bind time.
+	var mesh_global: Transform3D = mesh_instance.global_transform
 	for i in range(rig.bones.size()):
-		skin.add_bind(i,skeleton.get_bone_rest(i).affine_inverse())
+		var bone_global_rest: Transform3D = skeleton.get_bone_global_rest(i)
+		var skeleton_global_rest: Transform3D = skeleton.global_transform * bone_global_rest
+		var bind_pose: Transform3D = mesh_global.affine_inverse() * skeleton_global_rest
+		skin.add_bind(i,bind_pose.affine_inverse())
 	mesh_instance.skin = skin
 	# Skeleton paths are resolved from the MeshInstance. Both nodes currently
 	# live under WorldRoot, so this is typically ../Armature/_Skeleton.
