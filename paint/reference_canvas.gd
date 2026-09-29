@@ -7,6 +7,8 @@ var model: MotionObject
 var guide: MeshInstance3D
 var guide_size := Vector2(1.6, 1.0)
 var guide_visible := true
+var flipbook_preview: MeshInstance3D
+var flipbook_texture: ImageTexture
 
 func setup(obj: MotionObject) -> void:
 	model = obj
@@ -65,3 +67,36 @@ func content_bounds() -> AABB:
 			result = box if first else result.merge(box)
 			first = false
 	return AABB(Vector3(-guide_size.x*.5,-guide_size.y*.5,0),Vector3(guide_size.x,guide_size.y,0.001)) if first else result
+
+
+func show_flipbook_image(image: Image) -> void:
+	if image == null or image.is_empty():
+		if flipbook_preview: flipbook_preview.visible = false
+		return
+	if flipbook_preview == null:
+		flipbook_preview = MeshInstance3D.new()
+		flipbook_preview.name = "_BitmapFlipbook"
+		var quad := QuadMesh.new()
+		quad.size = guide_size
+		flipbook_preview.mesh = quad
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		flipbook_preview.material_override = mat
+		flipbook_preview.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(flipbook_preview)
+	if flipbook_texture == null:
+		flipbook_texture = ImageTexture.create_from_image(image)
+	else:
+		if flipbook_texture.get_width() == image.get_width() and flipbook_texture.get_height() == image.get_height():
+			flipbook_texture.update(image)
+		else:
+			flipbook_texture = ImageTexture.create_from_image(image)
+	var material := flipbook_preview.material_override as StandardMaterial3D
+	material.albedo_texture = flipbook_texture
+	flipbook_preview.visible = true
+
+func hide_flipbook_image() -> void:
+	if flipbook_preview: flipbook_preview.visible = false
