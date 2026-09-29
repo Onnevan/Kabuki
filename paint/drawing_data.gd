@@ -213,3 +213,47 @@ func flipbook_pose(frame: int) -> Dictionary:
 			pose[id] = {"points": (stroke["points"] as PackedVector3Array).duplicate(), "visible": true}
 		return pose
 	return current_cel_pose(source_frame)
+
+
+func to_dict() -> Dictionary:
+	var serialized_strokes: Dictionary = {}
+	for stroke_id in strokes:
+		var src: Dictionary = strokes[stroke_id]
+		var pts: Array = []
+		for p in src.get("points", PackedVector3Array()):
+			pts.append([p.x,p.y,p.z])
+		var rec := src.duplicate(true)
+		rec["points"] = pts
+		serialized_strokes[stroke_id] = rec
+	return {
+		"id": id, "object_id": object_id,
+		"strokes": serialized_strokes, "stroke_order": stroke_order.duplicate(),
+		"exposures": exposures.duplicate(true), "cel_strokes": cel_strokes.duplicate(true),
+		"next_stroke_index": next_stroke_index,
+		"local_frame": local_frame, "local_duration": local_duration,
+		"scene_start": scene_start, "playback_mode": playback_mode,
+		"playback_speed": playback_speed
+	}
+
+func load_dict(data: Dictionary) -> void:
+	id = String(data.get("id", id))
+	object_id = String(data.get("object_id", object_id))
+	strokes.clear()
+	var raw_strokes: Dictionary = data.get("strokes", {})
+	for stroke_id in raw_strokes:
+		var rec: Dictionary = raw_strokes[stroke_id].duplicate(true)
+		var pts := PackedVector3Array()
+		for p in rec.get("points", []):
+			pts.append(Vector3(float(p[0]),float(p[1]),float(p[2])))
+		rec["points"] = pts
+		strokes[String(stroke_id)] = rec
+	stroke_order.clear()
+	for stroke_id in data.get("stroke_order", []): stroke_order.append(String(stroke_id))
+	exposures = data.get("exposures", []).duplicate(true)
+	cel_strokes = data.get("cel_strokes", {}).duplicate(true)
+	next_stroke_index = int(data.get("next_stroke_index", strokes.size()))
+	local_frame = int(data.get("local_frame", 0))
+	local_duration = int(data.get("local_duration", 24))
+	scene_start = int(data.get("scene_start", 0))
+	playback_mode = String(data.get("playback_mode", "loop"))
+	playback_speed = float(data.get("playback_speed", 1.0))
