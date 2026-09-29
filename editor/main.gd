@@ -60,6 +60,7 @@ var pending_parent_child_id := ""
 var rig_bone_draw_active := false
 var rig_bone_draw_parent := -1
 var rig_bone_draw_depth_point := Vector3.ZERO
+var rig_target_object_id := ""
 var drawing_data_by_object: Dictionary:
 	get: return drawing_controller.data_by_object
 var sculpt_mode := "push"
@@ -1335,6 +1336,7 @@ func _setup_rigging_workspace() -> void:
 	%CancelRigParent.pressed.connect(_cancel_rig_parenting)
 	%ClearRigParent.pressed.connect(_on_clear_rig_parent)
 	%PivotHere.pressed.connect(_on_pivot_here)
+	%CreateSkeleton.pressed.connect(_on_create_skeleton)
 	%AddBone.pressed.connect(_on_add_rig_bone)
 	%AutoWeights.pressed.connect(_on_auto_weights)
 	_refresh_rig_parent_choices()
@@ -1415,6 +1417,16 @@ func _ensure_active_rig() -> RefCounted:
 		active_rig_runtime.setup(existing)
 	return existing
 
+func _on_create_skeleton() -> void:
+	if selected_object_id.is_empty() or selected_scene_node == null:
+		status.text = "Select artwork first"
+		return
+	if not selected_scene_node is MeshInstance3D:
+		status.text = "Select a tessellated drawing or plane first"
+		return
+	rig_target_object_id = selected_object_id
+	_on_add_rig_bone()
+
 func _on_add_rig_bone() -> void:
 	var rig: RefCounted = _ensure_active_rig()
 	rig_bone_draw_active = true
@@ -1438,7 +1450,13 @@ func _finish_rig_bone_drawing() -> void:
 	if not rig_bone_draw_active: return
 	rig_bone_draw_active = false
 	rig_bone_draw_parent = -1
-	status.text = "Bone chain finished"
+	if not rig_target_object_id.is_empty() and scene_nodes.has(rig_target_object_id):
+		var target: Node3D = scene_nodes[rig_target_object_id]
+		_select_scene_node(rig_target_object_id,target)
+		_on_auto_weights()
+		rig_target_object_id = ""
+	else:
+		status.text = "Skeleton finished"
 
 func _on_auto_weights() -> void:
 	if not selected_scene_node is MeshInstance3D:
