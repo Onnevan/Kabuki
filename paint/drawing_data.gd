@@ -169,9 +169,11 @@ func current_cel_pose(frame: int) -> Dictionary:
 	return {}
 
 func add_stroke_to_cel(frame: int, stroke_id: String) -> void:
-	var pose := current_cel_pose(frame)
+	# Flipbook semantics: an explicit cel is a complete replacement drawing.
+	# evaluate_pose() may HOLD an older cel for playback, but that held image must
+	# never become authoring content when the artist starts drawing a new frame.
+	var pose: Dictionary = current_cel_pose(frame)
 	if pose.is_empty():
-		# New frame = new replacement drawing. Explicitly hide every older stroke.
 		pose = snapshot_pose([], true)
 	if strokes.has(stroke_id):
 		var stroke: Dictionary = strokes[stroke_id]
