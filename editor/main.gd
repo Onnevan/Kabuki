@@ -1205,7 +1205,7 @@ func _on_plane_duplicate() -> void:
 			copy.rebuild()
 			var data: RefCounted = drawing_data_by_object.get(active_drawing_id)
 			copy.stroke_id = data.add_stroke(copy.points, copy.style_dict())
-			data.add_stroke_to_cel(ProjectStore.current_frame, copy.stroke_id)
+			data.add_stroke_to_cel(_drawing_edit_frame(), copy.stroke_id)
 	_refresh_drawing_planes()
 
 func _ensure_drawing_group() -> void:
@@ -1239,7 +1239,7 @@ func _finish_3d_stroke() -> void:
 		active_stroke_3d.stroke_id = data.add_stroke(active_stroke_3d.points, active_stroke_3d.style_dict())
 		# The cel owns its strokes explicitly. Runtime visibility from a held
 		# previous cel is never sampled when authoring a new frame.
-		data.add_stroke_to_cel(ProjectStore.current_frame, active_stroke_3d.stroke_id)
+		data.add_stroke_to_cel(_drawing_edit_frame(), active_stroke_3d.stroke_id)
 		_apply_drawing_frame(ProjectStore.current_frame)
 	selected_stroke = active_stroke_3d
 	active_stroke_3d = null
