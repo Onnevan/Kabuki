@@ -286,49 +286,34 @@ func _build_scene_camera(obj: MotionObject) -> Node3D:
 	scene_camera.current = false
 	rig.add_child(scene_camera)
 
-	# Editor-only camera symbol. Build it from line geometry so it remains
-	# legible at small viewport sizes and clearly shows the -Z viewing direction.
 	var gizmo := MeshInstance3D.new()
 	gizmo.name = "_CameraGizmo"
-	var verts := PackedVector3Array()
-	var hx := 0.18
-	var hy := 0.12
-	var back_z := 0.08
-	var front_z := -0.12
-	var fhx := 0.10
-	var fhy := 0.07
-	var back := [
-		Vector3(-hx,-hy,back_z),Vector3(hx,-hy,back_z),
-		Vector3(hx,hy,back_z),Vector3(-hx,hy,back_z)
-	]
-	var front := [
-		Vector3(-fhx,-fhy,front_z),Vector3(fhx,-fhy,front_z),
-		Vector3(fhx,fhy,front_z),Vector3(-fhx,fhy,front_z)
-	]
-	for i in 4:
-		var j: int = (i + 1) % 4
-		verts.append(back[i]); verts.append(back[j])
-		verts.append(front[i]); verts.append(front[j])
-		verts.append(back[i]); verts.append(front[i])
-	# Direction pyramid/frustum from lens toward -Z.
-	var tip := Vector3(0.0,0.0,-0.55)
-	for p in front:
-		verts.append(p); verts.append(tip)
-	# Up marker prevents roll ambiguity.
-	verts.append(Vector3(-0.07,hy,back_z)); verts.append(Vector3(0.0,hy + 0.10,back_z))
-	verts.append(Vector3(0.0,hy + 0.10,back_z)); verts.append(Vector3(0.07,hy,back_z))
-	var arrays: Array = []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, arrays)
-	gizmo.mesh = mesh
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.albedo_color = Color(0.92,0.94,0.98,1.0)
 	mat.no_depth_test = true
-	mat.vertex_color_use_as_albedo = false
-	gizmo.material_override = mat
+	var im := ImmediateMesh.new()
+	im.surface_begin(Mesh.PRIMITIVE_LINES, mat)
+	var hx: float = 0.28
+	var hy: float = 0.18
+	var z: float = 0.0
+	var corners := [
+		Vector3(-hx,-hy,z),Vector3(hx,-hy,z),
+		Vector3(hx,hy,z),Vector3(-hx,hy,z)
+	]
+	for i in 4:
+		im.surface_add_vertex(corners[i])
+		im.surface_add_vertex(corners[(i + 1) % 4])
+	var tip := Vector3(0.0,0.0,-0.75)
+	for p in corners:
+		im.surface_add_vertex(p)
+		im.surface_add_vertex(tip)
+	im.surface_add_vertex(Vector3(-0.09,hy,z))
+	im.surface_add_vertex(Vector3(0.0,hy + 0.14,z))
+	im.surface_add_vertex(Vector3(0.0,hy + 0.14,z))
+	im.surface_add_vertex(Vector3(0.09,hy,z))
+	im.surface_end()
+	gizmo.mesh = im
 	gizmo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	rig.add_child(gizmo)
 	return rig
@@ -753,6 +738,7 @@ func _apply_drag(relative: Vector2, mouse_pos: Vector2) -> void:
 				target.transform = transform_start
 				target.scale = transform_start.basis.get_scale() * maxf(0.03, 1.0 + (total.x - total.y) * 0.01)
 			_refresh_transform_readout()
+			_sync_selected_scene_transform()
 			return
 		var axis := gizmo.axis_vector(gizmo_axis)
 		var amount := (total.x - total.y) * 0.006 * camera_rig.distance
@@ -770,6 +756,10 @@ func _apply_drag(relative: Vector2, mouse_pos: Vector2) -> void:
 			else: sc.z *= factor
 			target.scale = sc
 		_refresh_transform_readout()
+		_sync_selected_scene_transform()
+
+func _sync_selected_scene_transform() -> void:
+	if selected_scene_node == null: return
 	if selected:
 		selected.model.transform = selected.transform
 	elif not selected_object_id.is_empty() and ProjectStore.objects.has(selected_object_id):
