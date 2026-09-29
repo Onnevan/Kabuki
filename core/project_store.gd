@@ -126,3 +126,42 @@ func set_key_interpolation(object_id: String, property_path: String, frame: int,
 			key_changed.emit(object_id, property_path, frame)
 			project_changed.emit()
 			return
+
+
+func clear_project() -> void:
+	objects.clear()
+	channels.clear()
+	current_frame = 0
+	project_changed.emit()
+	frame_changed.emit(current_frame)
+
+func to_dict() -> Dictionary:
+	var serialized_objects: Array = []
+	for object_id in objects:
+		var obj: MotionObject = objects[object_id]
+		serialized_objects.append(obj.to_dict())
+	return {
+		"format": "kabuki_project",
+		"version": FORMAT_VERSION,
+		"fps": fps,
+		"duration_frames": duration_frames,
+		"current_frame": current_frame,
+		"objects": serialized_objects,
+		"channels": channels.duplicate(true)
+	}
+
+func load_dict(data: Dictionary) -> bool:
+	if String(data.get("format", "")) != "kabuki_project": return false
+	var version: int = int(data.get("version", 0))
+	if version < 1 or version > FORMAT_VERSION: return false
+	objects.clear()
+	channels = data.get("channels", {}).duplicate(true)
+	fps = int(data.get("fps", 24))
+	duration_frames = int(data.get("duration_frames", 120))
+	current_frame = clampi(int(data.get("current_frame", 0)), 0, duration_frames)
+	for raw in data.get("objects", []):
+		var obj := MotionObject.from_dict(raw)
+		objects[obj.id] = obj
+	project_changed.emit()
+	frame_changed.emit(current_frame)
+	return true
