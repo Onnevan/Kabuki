@@ -130,6 +130,35 @@ func has_exposure(frame: int) -> bool:
 		if int(exposure["frame"]) == frame: return true
 	return false
 
+func move_exposure(old_frame: int, new_frame: int) -> void:
+	var target := clampi(new_frame,0,maxi(0,local_duration-1))
+	for exposure in exposures:
+		if int(exposure["frame"]) == old_frame:
+			exposure["frame"] = target
+			break
+	if cel_strokes.has(old_frame):
+		var members: Array = cel_strokes[old_frame]
+		cel_strokes.erase(old_frame)
+		cel_strokes[target] = members
+	exposures.sort_custom(func(a,b): return int(a["frame"]) < int(b["frame"]))
+
+func copy_exposures(frames: Array[int]) -> Array:
+	var result: Array = []
+	for frame in frames:
+		for exposure in exposures:
+			if int(exposure["frame"]) == frame:
+				result.append(exposure.duplicate(true))
+				break
+	return result
+
+func paste_exposures(copied: Array, target_frame: int) -> void:
+	if copied.is_empty(): return
+	var first := 2147483647
+	for exposure in copied: first = mini(first,int(exposure["frame"]))
+	for exposure in copied:
+		var nf := clampi(target_frame+int(exposure["frame"])-first,0,maxi(0,local_duration-1))
+		set_exposure(nf,(exposure["pose"] as Dictionary).duplicate(true),String(exposure.get("interpolation","hold")))
+
 func remove_exposure(frame: int) -> void:
 	cel_strokes.erase(frame)
 	for i in range(exposures.size() - 1, -1, -1):
