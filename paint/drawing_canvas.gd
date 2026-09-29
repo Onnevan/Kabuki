@@ -288,7 +288,9 @@ func _gui_input(event: InputEvent) -> void:
 
 func _draw() -> void:
 	if not bitmap_mode: return
-	_ensure_raster(); _refresh_texture()
+	_ensure_raster()
+	# Texture uploads happen only when raster pixels actually change.
+	# _draw can run for unrelated UI invalidations and must stay GPU-cheap.
 	# Draw every working canvas as a live composite. The active canvas remains
 	# editable, while the others act as visible paper-theatre context.
 	for canvas_id in canvas_composite_textures:
