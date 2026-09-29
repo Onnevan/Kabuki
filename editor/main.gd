@@ -266,6 +266,10 @@ func _create_camera() -> void:
 	obj.properties["camera.focus_distance"] = 3.0
 	obj.properties["camera.aperture"] = 0.2
 	var rig := _build_scene_camera(obj)
+	# The camera rig must belong to the SubViewport scene tree. Previously it
+	# was registered in scene_nodes but never parented under WorldRoot, which
+	# is why only the separate TransformGizmo was visible.
+	world_root.add_child(rig)
 	# Do not spawn the scene camera exactly on top of the editor camera: from
 	# that viewpoint its gizmo is behind/around the viewer and appears missing.
 	# Put it at the current orbit pivot, preserving the current viewing direction.
