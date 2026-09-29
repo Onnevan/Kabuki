@@ -1545,25 +1545,38 @@ func _on_auto_weights() -> void:
 	if rig.bones.is_empty():
 		status.text = "Create at least one bone first"
 		return
+	# Compute weights in the same Armature coordinate space used by Skin and
+	# Skeleton. Convert a temporary copy of the source mesh to that space first;
+	# bind_mesh will bake the identical transform into the real artwork.
+	var mesh_node := selected_scene_node as MeshInstance3D
+	var original_mesh: Mesh = mesh_node.mesh
+	var original_transform: Transform3D = mesh_node.transform
+	var weight_mesh := ArrayMesh.new()
+	for surface_index in range(original_mesh.get_surface_count()):
+		var arrays: Array = original_mesh.surface_get_arrays(surface_index)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		for vi in range(vertices.size()): vertices[vi] = original_transform * vertices[vi]
+		arrays[Mesh.ARRAY_VERTEX] = vertices
+		weight_mesh.add_surface_from_arrays(original_mesh.surface_get_primitive_type(surface_index),arrays)
+	var weight_proxy := MeshInstance3D.new()
+	weight_proxy.mesh = weight_mesh
 	var segments: Array = []
 	for bone_index in range(rig.bones.size()):
 		var bone: Dictionary = rig.bones[bone_index]
 		var rest: Transform3D = bone.get("rest",Transform3D.IDENTITY)
-		var head: Vector3 = (selected_scene_node as Node3D).to_local(rest.origin)
+		var head: Vector3 = active_rig_runtime.global_transform.affine_inverse() * rest.origin
 		var tail: Vector3 = head + Vector3(0.0,0.45,0.0)
-		# A bone runs from its own joint to the next child joint. The final bone
-		# uses the terminal point recorded while drawing the chain.
 		var child_found := false
 		for child_index in range(rig.bones.size()):
 			if int(rig.bones[child_index].get("parent",-1)) == bone_index:
 				var child_rest: Transform3D = rig.bones[child_index].get("rest",Transform3D.IDENTITY)
-				tail = (selected_scene_node as Node3D).to_local(child_rest.origin)
+				tail = active_rig_runtime.global_transform.affine_inverse() * child_rest.origin
 				child_found = true
 				break
-		if not child_found and active_rig_runtime != null and active_rig_runtime.terminal_tip_valid:
-			tail = (selected_scene_node as Node3D).to_local(active_rig_runtime.terminal_tip)
+		if not child_found and active_rig_runtime.terminal_tip_valid:
+			tail = active_rig_runtime.global_transform.affine_inverse() * active_rig_runtime.terminal_tip
 		segments.append({"a":head,"b":tail})
-	var weights: Array = rigging_controller.auto_weight_vertices(selected_scene_node as MeshInstance3D,segments)
+	var weights: Array = rigging_controller.auto_weight_vertices(weight_proxy,segments)
 	rig.bindings[selected_object_id] = {"bone_weights": weights, "auto_bound": true}
 	var obj: MotionObject = ProjectStore.objects.get(selected_object_id)
 	if obj != null: obj.components["deform"]["rig_id"] = active_rig_id
