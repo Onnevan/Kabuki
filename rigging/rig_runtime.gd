@@ -120,16 +120,14 @@ func bind_mesh(mesh_instance: MeshInstance3D, weights_by_surface: Array) -> bool
 	# weighted vertex is displaced immediately (the previous "crumpled sock").
 	if mesh_instance.get_parent() != self:
 		mesh_instance.reparent(self,true)
-	var mesh_bind_transform: Transform3D = mesh_instance.transform
-	# Godot's skin formula applies bone_pose * bind to vertices that are already
-	# in MeshInstance local space. To make the freshly bound mesh provably
-	# neutral, each bind must cancel the current skeleton rest in that SAME
-	# mesh-local space: inverse(mesh^-1 * bone_rest).
+	# MeshInstance3D skinning expects bind matrices in Skeleton3D space.
+	# The mesh node transform is applied by the scene graph after skinning and
+	# must NOT be folded into each bind. Doing so applies the artwork transform
+	# once per influence and produces the dramatic collapse seen at rest.
 	var skin := Skin.new()
 	for i in range(rig.bones.size()):
-		var bone_rest_in_rig: Transform3D = skeleton.get_bone_global_rest(i)
-		var bone_rest_in_mesh: Transform3D = mesh_bind_transform.affine_inverse() * bone_rest_in_rig
-		skin.add_bind(i,bone_rest_in_mesh.affine_inverse())
+		var bone_rest_in_skeleton: Transform3D = skeleton.get_bone_global_rest(i)
+		skin.add_bind(i,bone_rest_in_skeleton.affine_inverse())
 	mesh_instance.skin = skin
 	# Skeleton paths are resolved from the MeshInstance. Both nodes currently
 	# live under WorldRoot, so this is typically ../Armature/_Skeleton.
@@ -139,6 +137,7 @@ func bind_mesh(mesh_instance: MeshInstance3D, weights_by_surface: Array) -> bool
 
 func show_weight_debug(mesh_instance: MeshInstance3D, weights_by_surface: Array, bone_index: int = 0) -> void:
 	clear_weight_debug()
+	mesh_instance.visible = false
 	if mesh_instance == null or mesh_instance.mesh == null: return
 	var source: Mesh = mesh_instance.mesh
 	for surface_index in range(source.get_surface_count()):
@@ -180,6 +179,8 @@ func show_weight_debug(mesh_instance: MeshInstance3D, weights_by_surface: Array,
 		weight_debug_overlays.append(overlay)
 
 func clear_weight_debug() -> void:
+	for mesh in bound_meshes.values():
+		if is_instance_valid(mesh): (mesh as MeshInstance3D).visible = true
 	for overlay in weight_debug_overlays:
 		if is_instance_valid(overlay): overlay.queue_free()
 	weight_debug_overlays.clear()
