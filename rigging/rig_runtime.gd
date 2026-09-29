@@ -23,9 +23,14 @@ func rebuild_bones() -> void:
 		var parent_index: int = int(record.get("parent",-1))
 		if parent_index >= 0: skeleton.set_bone_parent(i,parent_index)
 		var rest_global: Transform3D = record.get("rest",Transform3D.IDENTITY)
-		var rest_local: Transform3D = global_transform.affine_inverse() * rest_global
+		var rest_in_rig: Transform3D = global_transform.affine_inverse() * rest_global
+		var rest_local: Transform3D = rest_in_rig
+		if parent_index >= 0:
+			var parent_global: Transform3D = rig.bones[parent_index].get("rest",Transform3D.IDENTITY)
+			var parent_in_rig: Transform3D = global_transform.affine_inverse() * parent_global
+			rest_local = parent_in_rig.affine_inverse() * rest_in_rig
 		skeleton.set_bone_rest(i,rest_local)
-		_create_bone_gizmo(i,rest_local.origin,parent_index)
+		_create_bone_gizmo(i,rest_in_rig.origin,parent_index)
 
 func _create_bone_gizmo(index: int, head: Vector3, parent_index: int) -> void:
 	var tail := head + Vector3(0.0,0.45,0.0)
