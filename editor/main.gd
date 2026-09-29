@@ -57,6 +57,7 @@ var _pending_bitmap_image: Image
 var _pending_bitmap_batch: Dictionary = {}
 var static_bitmap_runtime: Dictionary = {} # canvas id -> tessellated RuntimeObject
 var workspace_camera_states: Dictionary = {}
+var drawing_eval_cache: Dictionary = {} # object_id -> last evaluated local frame
 var current_project_path := ""
 var render_camera_id := ""
 var camera_view_active := false
@@ -1025,6 +1026,8 @@ func _apply_drawing_frame(frame: int) -> void:
 		var data: RefCounted = drawing_data_by_object[object_id]
 		var evaluation_frame: int = data.local_frame if workspace == "drawing" and object_id == active_drawing_id else data.map_scene_frame(frame)
 		var pose: Dictionary = data.call("flipbook_pose", evaluation_frame)
+		var same_drawing_frame: bool = int(drawing_eval_cache.get(object_id, -2147483648)) == evaluation_frame
+		drawing_eval_cache[object_id] = evaluation_frame
 		# Bitmap drawings are cached as discrete images and played as a texture
 		# sequence on the ReferenceCanvas plane. No tessellation is required.
 		if group is ReferenceCanvas:
@@ -1047,6 +1050,10 @@ func _apply_drawing_frame(frame: int) -> void:
 				if static_bitmap_runtime.has(object_id):
 					var cached_static: RuntimeObject = static_bitmap_runtime[object_id]
 					if is_instance_valid(cached_static): cached_static.visible = true
+		# HOLD/flipbook playback often maps several scene frames to the same local
+		# cel. Its stroke geometry and visibility are already correct, so avoid
+		# walking every Stroke3D child until the evaluated local frame changes.
+		if same_drawing_frame: continue
 		for child in group.get_children():
 			if not child is Stroke3D: continue
 			var stroke := child as Stroke3D
