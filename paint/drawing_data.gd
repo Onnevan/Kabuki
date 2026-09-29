@@ -9,6 +9,7 @@ var object_id: String = ""
 var strokes: Dictionary = {}
 var stroke_order: Array[String] = []
 var exposures: Array[Dictionary] = []
+var cel_strokes: Dictionary = {} # local frame -> Array[String], explicit flipbook ownership
 var next_stroke_index := 1
 # Every Reference Canvas owns a local clip timeline. Scene time maps into it.
 var local_frame := 0
@@ -130,6 +131,7 @@ func has_exposure(frame: int) -> bool:
 	return false
 
 func remove_exposure(frame: int) -> void:
+	cel_strokes.erase(frame)
 	for i in range(exposures.size() - 1, -1, -1):
 		if int(exposures[i]["frame"]) == frame:
 			exposures.remove_at(i)
@@ -168,17 +170,46 @@ func current_cel_pose(frame: int) -> Dictionary:
 			return (exposure["pose"] as Dictionary).duplicate(true)
 	return {}
 
+func ensure_flipbook_cel(frame: int) -> void:
+	if not cel_strokes.has(frame):
+		cel_strokes[frame] = []
+	if not has_exposure(frame):
+		set_exposure(frame, snapshot_pose([], true), "hold")
+
 func add_stroke_to_cel(frame: int, stroke_id: String) -> void:
-	# Flipbook semantics: an explicit cel is a complete replacement drawing.
-	# evaluate_pose() may HOLD an older cel for playback, but that held image must
-	# never become authoring content when the artist starts drawing a new frame.
-	var pose: Dictionary = current_cel_pose(frame)
-	if pose.is_empty():
-		pose = snapshot_pose([], true)
-	if strokes.has(stroke_id):
-		var stroke: Dictionary = strokes[stroke_id]
-		pose[stroke_id] = {
+	# A cel owns a discrete set of strokes. Strokes from other cels can never
+	# leak into this frame, regardless of runtime visibility or HOLD evaluation.
+	ensure_flipbook_cel(frame)
+	var members: Array = cel_strokes[frame]
+	if not members.has(stroke_id):
+		members.append(stroke_id)
+	cel_strokes[frame] = members
+	var pose: Dictionary = snapshot_pose([], true)
+	for member_id in members:
+		var id: String = String(member_id)
+		if not strokes.has(id): continue
+		var stroke: Dictionary = strokes[id]
+		pose[id] = {
 			"points": (stroke["points"] as PackedVector3Array).duplicate(),
 			"visible": true
 		}
 	set_exposure(frame, pose, "hold")
+
+func flipbook_pose(frame: int) -> Dictionary:
+	# Playback holds the most recent authored cel, but each cel remains discrete.
+	if exposures.is_empty(): return {}
+	var source_frame: int = -1
+	for exposure in exposures:
+		var ef: int = int(exposure["frame"])
+		if ef <= frame: source_frame = ef
+		else: break
+	if source_frame < 0: source_frame = int(exposures[0]["frame"])
+	if cel_strokes.has(source_frame):
+		var pose: Dictionary = snapshot_pose([], true)
+		for member_id in cel_strokes[source_frame]:
+			var id: String = String(member_id)
+			if not strokes.has(id): continue
+			var stroke: Dictionary = strokes[id]
+			pose[id] = {"points": (stroke["points"] as PackedVector3Array).duplicate(), "visible": true}
+		return pose
+	return current_cel_pose(source_frame)
