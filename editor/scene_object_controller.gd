@@ -56,6 +56,15 @@ func depth(object_id: String) -> int:
 	return value
 
 func display_name(object_id: String) -> String:
+	if object_id.begins_with("bone::"):
+		var parts: PackedStringArray = object_id.split("::")
+		if parts.size() >= 3:
+			var rig_id: String = parts[1]
+			var bone_index: int = int(parts[2])
+			var rig_data: RigData = null
+			# Bone rows are virtual hierarchy entries, not MotionObjects.
+			# Their visible name is supplied by main when the list is built.
+			return "    ◇ Bone %02d" % (bone_index + 1)
 	if not ProjectStore.objects.has(object_id): return object_id
 	var obj: MotionObject = ProjectStore.objects[object_id]
 	var prefix := ""
