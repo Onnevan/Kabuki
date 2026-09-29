@@ -141,7 +141,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		_finish_rig_bone_drawing()
 		return
 	if workspace == "rigging" and rig_bone_draw_active and key_event.keycode == KEY_ESCAPE:
-		_finish_rig_bone_drawing()
+		rig_bone_draw_parent = -1
+		rig_bone_root_set = false
+		status.text = "New bone chain · click its root point"
 		return
 	if key_event.ctrl_pressed and key_event.keycode == KEY_Z:
 		if key_event.shift_pressed: %DrawingCanvas.redo_paint()
@@ -251,6 +253,19 @@ func _refresh_scene_object_list() -> void:
 		object_list.add_item(scene_object_controller.display_name(object_id))
 		object_list.set_item_metadata(object_list.item_count - 1, object_id)
 		if object_id == selected_object_id: object_list.select(object_list.item_count - 1)
+		var obj: MotionObject = ProjectStore.objects.get(object_id)
+		if obj != null and obj.technical_type == "rig" and rigging_controller.rigs.has(object_id):
+			var rig: RefCounted = rigging_controller.rigs[object_id]
+			for bone_index in range(rig.bones.size()):
+				var bone: Dictionary = rig.bones[bone_index]
+				var parent_index: int = int(bone.get("parent",-1))
+				var bone_depth: int = 1
+				var cursor: int = parent_index
+				while cursor >= 0 and cursor < rig.bones.size():
+					bone_depth += 1
+					cursor = int(rig.bones[cursor].get("parent",-1))
+				object_list.add_item("  ".repeat(bone_depth) + "◇ " + String(bone.get("name","Bone")))
+				object_list.set_item_metadata(object_list.item_count - 1,"bone::%s::%d" % [object_id,bone_index])
 
 func _on_add_object_type(id: int) -> void:
 	match id:
