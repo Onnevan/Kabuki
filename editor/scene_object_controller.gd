@@ -64,5 +64,6 @@ func display_name(object_id: String) -> String:
 		"camera": prefix = "▣ "
 		"light": prefix = "☼ "
 		"reference_canvas": prefix = "▱ "
+		"bitmap_layer": prefix = "▰ "
 		_: prefix = "◇ "
 	return "  ".repeat(depth(object_id)) + prefix + obj.name
