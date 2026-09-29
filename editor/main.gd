@@ -313,8 +313,9 @@ func _build_scene_camera(obj: MotionObject) -> Node3D:
 		Vector3(-0.46,-0.30,forward_z),Vector3(0.46,-0.30,forward_z),
 		Vector3(0.46,0.30,forward_z),Vector3(-0.46,0.30,forward_z)
 	]
+	var apex := Vector3.ZERO
 	for i in 4:
-		im.surface_add_vertex(corners[i])
+		im.surface_add_vertex(apex)
 		im.surface_add_vertex(forward_corners[i])
 		im.surface_add_vertex(forward_corners[i])
 		im.surface_add_vertex(forward_corners[(i + 1) % 4])
@@ -340,13 +341,25 @@ func _toggle_render_camera_view() -> void:
 	camera_view_active = not camera_view_active
 	if camera_view_active:
 		editor_view_before_camera = camera_rig.get_state()
+		_set_render_camera_gizmo_visible(false)
 		_sync_editor_view_to_render_camera()
 		%ViewCamera.text = "▣ CAM ●"
 		status.text = "Camera view · final render framing"
 	else:
+		_set_render_camera_gizmo_visible(true)
 		camera_rig.set_state(editor_view_before_camera)
 		%ViewCamera.text = "▣ CAM"
 		status.text = "Perspective editor view"
+
+func _set_render_camera_gizmo_visible(enabled: bool) -> void:
+	if render_camera_id.is_empty() or not scene_nodes.has(render_camera_id): return
+	var rig: Node3D = scene_nodes[render_camera_id]
+	var camera_symbol := rig.get_node_or_null("_CameraGizmo")
+	if camera_symbol: camera_symbol.visible = enabled
+	# Transform gizmo must also disappear in camera view, otherwise its axes sit
+	# in the framing view even though the camera object itself is hidden.
+	if selected_object_id == render_camera_id:
+		gizmo.visible = enabled
 
 func _sync_editor_view_to_render_camera() -> void:
 	if not scene_nodes.has(render_camera_id): return
