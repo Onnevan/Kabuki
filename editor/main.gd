@@ -45,6 +45,8 @@ var scene_nodes: Dictionary:
 var wireframe_overlays: Array[MeshInstance3D] = []
 var selected_scene_node: Node3D
 var selected_object_id := ""
+var selected_bone_index: int = -1
+var bone_edit_proxy: Node3D
 var drawing_3d_active := false
 var drawing_sculpt_active := false
 var drawing_erase_active := false
@@ -712,10 +714,20 @@ func _select_rig_bone(virtual_id: String) -> void:
 	active_rig_id = rig_id
 	active_rig_runtime = scene_nodes.get(rig_id) as Node3D
 	selected = null
-	selected_scene_node = null
 	selected_object_id = virtual_id
+	selected_bone_index = bone_index
+	if bone_edit_proxy != null and is_instance_valid(bone_edit_proxy):
+		bone_edit_proxy.queue_free()
+	bone_edit_proxy = Node3D.new()
+	bone_edit_proxy.name = "_BoneEditProxy"
+	active_rig_runtime.add_child(bone_edit_proxy)
+	var rest_world: Transform3D = rig.bones[bone_index].get("rest",Transform3D.IDENTITY)
+	bone_edit_proxy.transform = active_rig_runtime.global_transform.affine_inverse() * rest_world
+	selected_scene_node = bone_edit_proxy
 	%SelectionLabel.text = String(rig.bones[bone_index].get("name","Bone"))
-	gizmo.attach(null)
+	gizmo.attach(bone_edit_proxy)
+	gizmo.set_mode(TransformGizmo.Mode.ROTATE)
+	active_tool = TransformGizmo.Mode.ROTATE
 	# Match Blender/Spine-style inspection: selecting a bone immediately shows
 	# that bone's influence on the bound artwork.
 	if active_rig_runtime != null:
@@ -941,6 +953,19 @@ func _apply_drag(relative: Vector2, mouse_pos: Vector2) -> void:
 
 func _sync_selected_scene_transform() -> void:
 	if selected_scene_node == null: return
+	if selected_object_id.begins_with("bone::") and active_rig_runtime != null and selected_bone_index >= 0:
+		var rig: RefCounted = rigging_controller.rigs.get(active_rig_id)
+		if rig == null or selected_bone_index >= rig.bones.size(): return
+		var pose_global_in_rig: Transform3D = selected_scene_node.transform
+		var parent_index: int = int(rig.bones[selected_bone_index].get("parent",-1))
+		var pose_local: Transform3D = pose_global_in_rig
+		if parent_index >= 0:
+			var parent_global: Transform3D = active_rig_runtime.skeleton.get_bone_global_pose(parent_index)
+			pose_local = parent_global.affine_inverse() * pose_global_in_rig
+		active_rig_runtime.set_bone_pose(selected_bone_index,pose_local)
+		active_rig_runtime.clear_weight_debug()
+		status.text = "Bone pose · drag rotation gizmo to test deformation"
+		return
 	if selected:
 		selected.model.transform = selected.transform
 	elif not selected_object_id.is_empty() and ProjectStore.objects.has(selected_object_id):
