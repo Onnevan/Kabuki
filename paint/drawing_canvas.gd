@@ -29,6 +29,7 @@ var stroke_start := Vector2.ZERO
 var last_point := Vector2.ZERO
 var painting := false
 var raster_texture: ImageTexture
+var raster_texture_dirty := true
 var canvas_rasters: Dictionary = {}
 var canvas_composite_textures: Dictionary = {}
 # Flipbook raster cels: canvas id -> {local frame: Image}. Working raster is
@@ -180,6 +181,7 @@ func _ensure_raster() -> void:
 
 func _refresh_texture() -> void:
 	if raster == null: return
+	raster_texture_dirty = false
 	if raster_texture == null: raster_texture = ImageTexture.create_from_image(raster)
 	else: raster_texture.update(raster)
 	if not active_canvas_id.is_empty():
@@ -289,8 +291,10 @@ func _gui_input(event: InputEvent) -> void:
 func _draw() -> void:
 	if not bitmap_mode: return
 	_ensure_raster()
-	# Texture uploads happen only when raster pixels actually change.
-	# _draw can run for unrelated UI invalidations and must stay GPU-cheap.
+	# Painting changes the CPU Image directly. Upload once per visual redraw;
+	# otherwise removing _refresh_texture() here makes live strokes invisible.
+	if raster_texture_dirty:
+		_refresh_texture()
 	# Draw every working canvas as a live composite. The active canvas remains
 	# editable, while the others act as visible paper-theatre context.
 	for canvas_id in canvas_composite_textures:
@@ -321,6 +325,7 @@ func _paint_color() -> Color:
 	return c
 
 func _paint_segment(a: Vector2,b: Vector2) -> void:
+	raster_texture_dirty = true
 	var dist := a.distance_to(b)
 	var spacing := maxf(0.75,brush_size*spacing_ratio)
 	var steps := maxi(1,ceili(dist/spacing))
@@ -364,6 +369,7 @@ func _stamp(p: Vector2) -> void:
 			_blend_pixel(x,y,_paint_color(),coverage)
 
 func _blend_pixel(x: int,y: int,src: Color,coverage: float) -> void:
+	raster_texture_dirty = true
 	var dst: Color = raster.get_pixel(x,y)
 	var sa := clampf(src.a*coverage,0.0,1.0)
 	var out_a := sa+dst.a*(1.0-sa)
@@ -372,6 +378,7 @@ func _blend_pixel(x: int,y: int,src: Color,coverage: float) -> void:
 	raster.set_pixel(x,y,Color(rgb.x,rgb.y,rgb.z,out_a))
 
 func _smudge_segment(a: Vector2,b: Vector2) -> void:
+	raster_texture_dirty = true
 	var dist := a.distance_to(b)
 	var steps := maxi(1,ceili(dist/maxf(1.0,brush_size*0.12)))
 	for i in range(steps+1):
