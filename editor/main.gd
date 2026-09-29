@@ -1532,6 +1532,10 @@ func _on_auto_weights() -> void:
 		segments.append({"a":head,"b":tail})
 	var weights: Array = rigging_controller.auto_weight_vertices(selected_scene_node as MeshInstance3D,segments)
 	rig.bindings[selected_object_id] = {"bone_weights": weights, "auto_bound": true}
+	# Diagnostic view: show Bone 01 weights on the undeformed source mesh before
+	# Skeleton3D is allowed to alter it. This separates solver errors from bind errors.
+	if active_rig_runtime != null:
+		active_rig_runtime.show_weight_debug(selected_scene_node as MeshInstance3D,weights,0)
 	var obj: MotionObject = ProjectStore.objects.get(selected_object_id)
 	if obj != null: obj.components["deform"]["rig_id"] = active_rig_id
 	if active_rig_runtime != null and active_rig_runtime.bind_mesh(selected_scene_node as MeshInstance3D, weights):
