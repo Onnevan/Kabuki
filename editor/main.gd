@@ -127,7 +127,18 @@ func _ready() -> void:
 		%ClipMode.add_item(clip_mode_name)
 	%ClipMode.item_selected.connect(_on_clip_mode_selected)
 	%LocalDuration.value_changed.connect(_on_local_duration_changed)
+	%LocalPlaybackStart.value_changed.connect(_on_local_playback_start_changed)
+	%LocalPlaybackEnd.value_changed.connect(_on_local_playback_end_changed)
 	%SceneStart.value_changed.connect(_on_scene_start_changed)
+	%TimelineDuration.value_changed.connect(_on_timeline_duration_changed)
+	%PlaybackStart.value_changed.connect(_on_playback_start_changed)
+	%PlaybackEnd.value_changed.connect(_on_playback_end_changed)
+	%ZoomIn.pressed.connect(func(): timeline.zoom_at(0.8,float(timeline.current_frame)))
+	%ZoomOut.pressed.connect(func(): timeline.zoom_at(1.25,float(timeline.current_frame)))
+	%TimelineDuration.set_value_no_signal(ProjectStore.duration_frames)
+	%PlaybackStart.set_value_no_signal(ProjectStore.playback_start)
+	%PlaybackEnd.set_value_no_signal(ProjectStore.playback_end)
+	timeline.set_timeline_range(ProjectStore.duration_frames,ProjectStore.playback_start,ProjectStore.playback_end)
 	%TessellationDialog.confirmed.connect(_commit_pending_bitmap)
 	%SculptMode.clear()
 	for label in ["Push / Pull", "Move", "Pinch", "Smooth", "Inflate"]:
@@ -163,7 +174,19 @@ func _process(delta: float) -> void:
 		accumulator += delta
 		if accumulator >= 1.0 / ProjectStore.fps:
 			accumulator = 0.0
-			ProjectStore.set_frame((ProjectStore.current_frame + 1) % (ProjectStore.duration_frames + 1))
+			if workspace == "drawing":
+				var data: RefCounted = _active_drawing_data()
+				if data != null:
+					var next_local: int = int(data.local_frame) + 1
+					if next_local > int(data.local_playback_end): next_local = int(data.local_playback_start)
+					data.set_local_frame(next_local)
+					%DrawingCanvas.set_local_frame(data.local_frame)
+					timeline.set_frame(data.local_frame)
+					_apply_drawing_frame(ProjectStore.current_frame)
+			else:
+				var next_frame: int = ProjectStore.current_frame + 1
+				if next_frame > ProjectStore.playback_end: next_frame = ProjectStore.playback_start
+				ProjectStore.set_frame(next_frame)
 
 func _setup_viewport_controls() -> void:
 	%ProjectionMode.clear()
@@ -1333,10 +1356,15 @@ func _sync_local_clip_ui() -> void:
 	if data == null: return
 	%LocalTimelineLabel.text = "LOCAL · " + active_drawing_group.name if active_drawing_group else "LOCAL"
 	%LocalDuration.set_value_no_signal(data.local_duration)
+	%LocalPlaybackStart.set_value_no_signal(data.local_playback_start)
+	%LocalPlaybackEnd.set_value_no_signal(data.local_playback_end)
 	%SceneStart.set_value_no_signal(data.scene_start)
 	var modes: Array[String] = ["loop","ping_pong","hold","reverse","once"]
 	%ClipMode.select(maxi(0,modes.find(String(data.playback_mode))))
-	timeline.frame_count = data.local_duration if workspace == "drawing" else 60
+	if workspace == "drawing":
+		timeline.set_timeline_range(maxi(1,data.local_duration-1),data.local_playback_start,data.local_playback_end)
+	else:
+		timeline.set_timeline_range(ProjectStore.duration_frames,ProjectStore.playback_start,ProjectStore.playback_end)
 	timeline.set_frame(data.local_frame if workspace == "drawing" else ProjectStore.current_frame)
 	timeline.queue_redraw()
 
@@ -1349,9 +1377,41 @@ func _on_clip_mode_selected(index: int) -> void:
 func _on_local_duration_changed(value: float) -> void:
 	var data: RefCounted = _active_drawing_data()
 	if data == null: return
-	data.local_duration = maxi(1,int(value))
-	data.set_local_frame(data.local_frame)
+	data.set_local_duration(maxi(1,int(value)))
 	_sync_local_clip_ui()
+
+func _on_local_playback_start_changed(value: float) -> void:
+	var data: RefCounted = _active_drawing_data()
+	if data == null: return
+	data.set_local_playback_range(int(value),maxi(int(value),int(data.local_playback_end)))
+	_sync_local_clip_ui()
+
+func _on_local_playback_end_changed(value: float) -> void:
+	var data: RefCounted = _active_drawing_data()
+	if data == null: return
+	data.set_local_playback_range(int(data.local_playback_start),int(value))
+	_sync_local_clip_ui()
+
+func _on_timeline_duration_changed(value: float) -> void:
+	ProjectStore.duration_frames=maxi(1,int(value))
+	ProjectStore.playback_start=clampi(ProjectStore.playback_start,0,ProjectStore.duration_frames)
+	ProjectStore.playback_end=clampi(ProjectStore.playback_end,ProjectStore.playback_start,ProjectStore.duration_frames)
+	%PlaybackStart.set_value_no_signal(ProjectStore.playback_start)
+	%PlaybackEnd.set_value_no_signal(ProjectStore.playback_end)
+	timeline.set_timeline_range(ProjectStore.duration_frames,ProjectStore.playback_start,ProjectStore.playback_end)
+	ProjectStore.project_changed.emit()
+
+func _on_playback_start_changed(value: float) -> void:
+	ProjectStore.playback_start=clampi(int(value),0,ProjectStore.duration_frames)
+	ProjectStore.playback_end=maxi(ProjectStore.playback_end,ProjectStore.playback_start)
+	%PlaybackEnd.set_value_no_signal(ProjectStore.playback_end)
+	timeline.set_timeline_range(ProjectStore.duration_frames,ProjectStore.playback_start,ProjectStore.playback_end)
+	ProjectStore.project_changed.emit()
+
+func _on_playback_end_changed(value: float) -> void:
+	ProjectStore.playback_end=clampi(int(value),ProjectStore.playback_start,ProjectStore.duration_frames)
+	timeline.set_timeline_range(ProjectStore.duration_frames,ProjectStore.playback_start,ProjectStore.playback_end)
+	ProjectStore.project_changed.emit()
 
 func _on_scene_start_changed(value: float) -> void:
 	var data: RefCounted = _active_drawing_data()
