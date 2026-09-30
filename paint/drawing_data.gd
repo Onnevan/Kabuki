@@ -21,24 +21,24 @@ var playback_mode := "loop" # once, loop, ping_pong, hold, reverse
 var playback_speed := 1.0
 
 func map_scene_frame(scene_frame: int) -> int:
-	var duration: int = maxi(1, local_duration)
+	var clip_start: int = clampi(local_playback_start, 0, maxi(0, local_duration - 1))
+	var clip_end: int = clampi(local_playback_end, clip_start, maxi(0, local_duration - 1))
+	var duration: int = maxi(1, clip_end - clip_start + 1)
 	var elapsed: int = maxi(0, scene_frame - scene_start)
 	var scaled: int = int(floor(float(elapsed) * playback_speed))
 	match playback_mode:
 		"loop":
-			return scaled % duration
+			return clip_start + (scaled % duration)
 		"ping_pong":
-			if duration <= 1: return 0
+			if duration <= 1: return clip_start
 			var period: int = (duration - 1) * 2
 			var phase: int = scaled % period
-			return phase if phase < duration else period - phase
+			return clip_start + (phase if phase < duration else period - phase)
 		"reverse":
-			return maxi(0, duration - 1 - (scaled % duration))
-		"hold":
-			return mini(scaled, duration - 1)
-		"once":
-			return mini(scaled, duration - 1)
-	return scaled % duration
+			return clip_end - (scaled % duration)
+		"hold", "once":
+			return mini(clip_start + scaled, clip_end)
+	return clip_start + (scaled % duration)
 
 func set_local_frame(frame: int) -> void:
 	local_frame = clampi(frame, 0, maxi(0, local_duration - 1))
