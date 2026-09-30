@@ -1788,7 +1788,6 @@ func _update_drawing_tool_ui() -> void:
 	# has context; keep the rail itself visually consistent.
 	%BitmapClear.visible = bitmap
 	%BitmapCommit.visible = false
-	%DrawingContextSurface.visible = workspace == "drawing" and (bitmap or drawing_sculpt_active or drawing_3d_active)
 	var brush_active: bool = bitmap and (current_tool == 0 or current_tool == 1 or current_tool == 2)
 	var lasso_active: bool = bitmap and current_tool == 8
 	var gradient_active: bool = lasso_active and %LassoFillMode.selected == 1
@@ -1808,6 +1807,33 @@ func _update_drawing_tool_ui() -> void:
 	%SculptStrength.visible = drawing_sculpt_active
 	%Fill.visible = drawing_3d_active
 	%FillColor.visible = drawing_3d_active
+	# Floating chrome is content-sized. Never leave an empty or stretched bar.
+	var context_controls: Array[Control] = [%BitmapClear,%LassoFillMode,%LassoColorALabel,%LassoColorA,%LassoColorBLabel,%LassoColorB,%LassoAngleLabel,%LassoGradientAngle,%SculptMode,%SculptStrength,%BrushSize,%BrushPreset,%BrushOpacity,%BrushHardness,%BrushColor,%Fill,%FillColor]
+	var has_context: bool = false
+	for control: Control in context_controls:
+		if control.visible:
+			has_context = true
+			break
+	%DrawingContextSurface.visible = workspace == "drawing" and has_context
+	%DrawingBar.visible = %DrawingContextSurface.visible
+	call_deferred("_fit_drawing_floating_chrome")
+
+func _fit_drawing_floating_chrome() -> void:
+	if workspace != "drawing": return
+	if %DrawingContextSurface.visible:
+		var wanted: Vector2 = %DrawingBar.get_combined_minimum_size()
+		var max_w: float = maxf(220.0,%ViewportFrame.size.x-150.0)
+		var hud_w: float = minf(max_w,wanted.x+28.0)
+		%DrawingContextSurface.size = Vector2(hud_w,maxf(54.0,wanted.y+18.0))
+		%DrawingBar.size = Vector2(maxf(1.0,hud_w-28.0),maxf(36.0,wanted.y))
+	# Tool rail hugs the visible tool buttons instead of spanning the viewport.
+	var rail_wanted: Vector2 = %DrawingToolRail.get_combined_minimum_size()
+	%DrawingToolSurface.size = Vector2(maxf(62.0,rail_wanted.x+18.0),maxf(1.0,rail_wanted.y+20.0))
+	%DrawingToolRail.size = rail_wanted
+	# Local animation strip also hugs its controls.
+	if %DrawingAnimBar.visible:
+		var anim_wanted: Vector2 = %DrawingAnimBar.get_combined_minimum_size()
+		%DrawingAnimBar.size = anim_wanted
 
 func _on_drawing_cel_menu(id: int) -> void:
 	match id:
@@ -1833,11 +1859,10 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	else:
 		workspace_camera_states[workspace] = camera_rig.get_state()
 	%RightPanel.visible = workspace == "scene" or workspace == "drawing" or workspace == "rigging" or workspace == "compositor"
-	%DrawingBar.visible = workspace == "drawing"
 	%DrawingAnimBar.visible = workspace == "drawing"
 	%DrawingToolSurface.visible = workspace == "drawing"
 	%DrawingToolRail.visible = workspace == "drawing"
-	%DrawingContextSurface.visible = workspace == "drawing"
+	_update_drawing_tool_ui()
 	%DrawingPlanes.visible = workspace == "drawing"
 	%ObjectList.visible = workspace != "drawing"
 	%RiggingPanel.visible = workspace == "rigging"
