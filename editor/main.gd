@@ -994,8 +994,8 @@ func _apply_direct_bone_drag(mouse_pos: Vector2) -> void:
 	bone_edit_proxy.rotate(camera.global_transform.basis.z.normalized(),angle)
 	_sync_selected_scene_transform()
 
-func _bone_channel_path(bone_index: int) -> String:
-	return "rig.bone.%d.pose" % bone_index
+func _bone_channel_path(bone_index: int, component: String) -> String:
+	return "rig.bone.%d.%s" % [bone_index,component]
 
 func _key_bone_pose() -> void:
 	if active_rig_id.is_empty() or active_rig_runtime == null or selected_bone_index < 0: return
@@ -1007,7 +1007,12 @@ func _key_bone_pose() -> void:
 	if parent_index >= 0:
 		var parent_global: Transform3D = active_rig_runtime.skeleton.get_bone_global_pose(parent_index)
 		pose_local = parent_global.affine_inverse() * pose_global
-	ProjectStore.set_key(active_rig_id,_bone_channel_path(selected_bone_index),ProjectStore.current_frame,pose_local,_interp_name())
+	var interpolation_name: String = _interp_name()
+	# Bone animation uses explicit components, just like native skeleton tracks.
+	# This also fits KABUKI's generic "every property is a channel" model.
+	ProjectStore.set_key(active_rig_id,_bone_channel_path(selected_bone_index,"position"),ProjectStore.current_frame,pose_local.origin,interpolation_name)
+	ProjectStore.set_key(active_rig_id,_bone_channel_path(selected_bone_index,"rotation"),ProjectStore.current_frame,pose_local.basis.get_rotation_quaternion(),interpolation_name)
+	ProjectStore.set_key(active_rig_id,_bone_channel_path(selected_bone_index,"scale"),ProjectStore.current_frame,pose_local.basis.get_scale(),interpolation_name)
 	timeline.set_object(active_rig_id)
 	status.text = "Bone pose keyed · frame %d" % ProjectStore.current_frame
 
@@ -1019,11 +1024,13 @@ func _evaluate_rig_animation(frame: int) -> void:
 		if not runtime is RigRuntime: continue
 		var rig: RefCounted = rigging_controller.rigs[rig_id]
 		for bone_index in range(rig.bones.size()):
-			var fallback: Transform3D = runtime.skeleton.get_bone_rest(bone_index)
-			var value: Variant = ProjectStore.evaluate(rig_id,_bone_channel_path(bone_index),frame,fallback)
-			if value is Transform3D:
-				runtime.set_bone_pose(bone_index,value)
-	# Keep an active direct-manipulation proxy synchronized while scrubbing.
+			var rest: Transform3D = runtime.skeleton.get_bone_rest(bone_index)
+			var position_value: Variant = ProjectStore.evaluate(rig_id,_bone_channel_path(bone_index,"position"),frame,rest.origin)
+			var rotation_value: Variant = ProjectStore.evaluate(rig_id,_bone_channel_path(bone_index,"rotation"),frame,rest.basis.get_rotation_quaternion())
+			var scale_value: Variant = ProjectStore.evaluate(rig_id,_bone_channel_path(bone_index,"scale"),frame,rest.basis.get_scale())
+			if position_value is Vector3 and rotation_value is Quaternion and scale_value is Vector3:
+				var evaluated := Transform3D(Basis(rotation_value).scaled(scale_value),position_value)
+				runtime.set_bone_pose(bone_index,evaluated)
 	if selected_object_id.begins_with("bone::") and bone_edit_proxy != null and is_instance_valid(bone_edit_proxy) and active_rig_runtime != null and selected_bone_index >= 0:
 		bone_edit_proxy.transform = active_rig_runtime.skeleton.get_bone_global_pose(selected_bone_index)
 
