@@ -62,15 +62,15 @@ text="Untitled"
 vertical_alignment=1
 [node name="SaveProject" type="Button" parent="TopBar"]
 unique_name_in_owner=true
-text="SAVE"
+text="Save"
 [node name="LoadProject" type="Button" parent="TopBar"]
 unique_name_in_owner=true
-text="OPEN"
+text="Open"
 [node name="Import" type="Button" parent="TopBar"]
-text="＋  IMPORT"
+text="＋  Import"
 [node name="PreviewMode" type="CheckButton" parent="TopBar"]
 unique_name_in_owner=true
-text="◐  PREVIEW"
+text="Preview"
 [node name="GridToggle" type="CheckButton" parent="TopBar"]
 unique_name_in_owner=true
 text="▦"
@@ -90,7 +90,7 @@ theme_override_constants/separation=5
 [node name="SceneHead" type="HBoxContainer" parent="LeftPanel/ScenePanel/SceneBox"]
 [node name="Title" type="Label" parent="LeftPanel/ScenePanel/SceneBox/SceneHead"]
 unique_name_in_owner=true
-text="OBJECTS"
+text="Objects"
 theme_override_colors/font_color=Color(0.48,0.58,0.67,1)
 theme_override_font_sizes/font_size=11
 [node name="SceneGrow" type="Control" parent="LeftPanel/ScenePanel/SceneBox/SceneHead"]
@@ -106,7 +106,7 @@ unique_name_in_owner=true
 visible=false
 [node name="PlanesHead" type="HBoxContainer" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes"]
 [node name="PlanesTitle" type="Label" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlanesHead"]
-text="REFERENCE CANVASES"
+text="Canvases"
 theme_override_colors/font_color=Color(0.48,0.58,0.67,1)
 theme_override_font_sizes/font_size=11
 [node name="PlanesGrow" type="Control" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlanesHead"]
@@ -147,12 +147,12 @@ visible=false
 custom_minimum_size=Vector2(0,150)
 [node name="RiggingBox" type="VBoxContainer" parent="LeftPanel/RiggingPanel"]
 [node name="RiggingTitle" type="Label" parent="LeftPanel/RiggingPanel/RiggingBox"]
-text="PUPPET"
+text="Puppet"
 theme_override_colors/font_color=Color(0.48,0.58,0.67,1)
 theme_override_font_sizes/font_size=11
 [node name="CreateSkeleton" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
-text="＋  CREATE SKELETON"
+text="＋  Create skeleton"
 tooltip_text="Draw a skeleton directly on the selected artwork; skinning is applied automatically when finished"
 [node name="RiggingHint" type="Label" parent="LeftPanel/RiggingPanel/RiggingBox"]
 text="Tap bones in the viewport to pose"
@@ -174,10 +174,10 @@ visible=false
 text="SET PARENT"
 [node name="ClearRigParent" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
-text="REMOVE PARENT"
+text="Remove parent"
 [node name="PivotHere" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
-text="EDIT PIVOT"
+text="Edit pivot"
 tooltip_text="Move pivot to the current editor orbit pivot without moving visible geometry"
 [node name="BonesSeparator" type="HSeparator" parent="LeftPanel/RiggingPanel/RiggingBox"]
 [node name="AddBone" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
@@ -194,7 +194,7 @@ tooltip_text="Automatic vertex assignment for tessellated meshes"
 custom_minimum_size=Vector2(0,180)
 [node name="Assets" type="VBoxContainer" parent="LeftPanel/AssetsPanel"]
 [node name="AssetsTitle" type="Label" parent="LeftPanel/AssetsPanel/Assets"]
-text="LIBRARY"
+text="Library"
 theme_override_colors/font_color=Color(0.48,0.58,0.67,1)
 theme_override_font_sizes/font_size=11
 [node name="AssetsHint" type="Label" parent="LeftPanel/AssetsPanel/Assets"]
@@ -382,7 +382,7 @@ text="▣"
 tooltip_text="Flood fill"
 [node name="BitmapClear" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
-text="CLEAR"
+text="Clear"
 tooltip_text="Clear current bitmap"
 [node name="BitmapCommit" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
