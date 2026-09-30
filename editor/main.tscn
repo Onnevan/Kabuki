@@ -34,7 +34,7 @@ theme_override_constants/separation=8
 custom_minimum_size=Vector2(126,40)
 text="KABUKI"
 theme_override_colors/font_color=Color(0.76,0.84,0.91,1)
-theme_override_font_sizes/font_size=15
+theme_override_font_sizes/font_size=16
 vertical_alignment=1
 [node name="WorkspaceTabs" type="TabBar" parent="TopBar"]
 unique_name_in_owner=true
@@ -268,43 +268,43 @@ offset_right=1034.0
 offset_bottom=116.0
 theme_override_constants/separation=6
 [node name="StrokeTool" type="Button" parent="DrawingToolRail"]
-custom_minimum_size=Vector2(42,42)
+custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 text="✎"
 tooltip_text="Draw in 3D space"
 [node name="BitmapTool" type="Button" parent="DrawingToolRail"]
-custom_minimum_size=Vector2(42,42)
+custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 text="▧"
 tooltip_text="Paint on this canvas"
 [node name="EraseTool" type="Button" parent="DrawingToolRail"]
-custom_minimum_size=Vector2(42,42)
+custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 text="⌫"
 tooltip_text="Eraser"
 [node name="SculptTool" type="Button" parent="DrawingToolRail"]
-custom_minimum_size=Vector2(42,42)
+custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 text="≈"
 tooltip_text="Shape spatial strokes"
 [node name="ToolSep" type="HSeparator" parent="DrawingToolRail"]
 [node name="BitmapBrush" type="Button" parent="DrawingToolRail"]
-custom_minimum_size=Vector2(42,42)
+custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 text="●"
 tooltip_text="Soft brush"
 [node name="BitmapPencil" type="Button" parent="DrawingToolRail"]
-custom_minimum_size=Vector2(42,42)
+custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 text="✎"
 tooltip_text="Pencil"
 [node name="BitmapSmudge" type="Button" parent="DrawingToolRail"]
-custom_minimum_size=Vector2(42,42)
+custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 text="≈"
 tooltip_text="Smudge / blend paint"
 [node name="BitmapLassoFill" type="Button" parent="DrawingToolRail"]
-custom_minimum_size=Vector2(42,42)
+custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 text="⬡"
 tooltip_text="Lasso fill"
@@ -356,27 +356,27 @@ suffix="°"
 tooltip_text="Gradient direction"
 
 [node name="BitmapEraser" type="Button" parent="DrawingToolRail"]
-custom_minimum_size=Vector2(42,42)
+custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 text="◌"
 tooltip_text="Bitmap eraser"
 [node name="BitmapLine" type="Button" parent="DrawingToolRail"]
-custom_minimum_size=Vector2(42,42)
+custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 text="╱"
 tooltip_text="Line"
 [node name="BitmapRect" type="Button" parent="DrawingToolRail"]
-custom_minimum_size=Vector2(42,42)
+custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 text="□"
 tooltip_text="Rectangle"
 [node name="BitmapEllipse" type="Button" parent="DrawingToolRail"]
-custom_minimum_size=Vector2(42,42)
+custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 text="○"
 tooltip_text="Ellipse"
 [node name="BitmapFillTool" type="Button" parent="DrawingToolRail"]
-custom_minimum_size=Vector2(42,42)
+custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 text="▣"
 tooltip_text="Flood fill"
@@ -603,11 +603,11 @@ size_flags_horizontal=3
 [node name="InspectorTabs" type="HBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 [node name="Properties" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/InspectorTabs"]
 text="Properties"
-theme_override_font_sizes/font_size=17
+theme_override_font_sizes/font_size=18
 [node name="MaterialTab" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/InspectorTabs"]
-text="     Material"
+text="Material"
 [node name="ObjectSection" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
-text="▣  TRANSFORM"
+text="Transform"
 [node name="PositionRow" type="HBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 [node name="Label" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/PositionRow"]
 custom_minimum_size=Vector2(62,0)
@@ -686,8 +686,8 @@ value=1.0
 [node name="ObjectProperties" type="VBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
 [node name="MaterialTitle" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
-text="◇  MATERIAL"
-theme_override_font_sizes/font_size=16
+text="Material"
+theme_override_font_sizes/font_size=22
 [node name="MaterialColorText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
 text="Base Color"
 [node name="MaterialColor" type="ColorPickerButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
@@ -708,14 +708,14 @@ max_value=1.0
 step=0.01
 [node name="MaterialTwoSided" type="CheckButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
 unique_name_in_owner=true
-text="2 Sided"
+text="Two sided"
 button_pressed=true
 
 [node name="CameraProperties" type="VBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
 visible=false
 [node name="CameraTitle" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
-text="▣  CAMERA"
+text="Camera"
 theme_override_font_sizes/font_size=16
 [node name="FovLabel" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
 text="Field of View"
@@ -741,10 +741,10 @@ max_value=8192.0
 step=1.0
 value=1080.0
 [node name="DofTitle" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
-text="DEPTH OF FIELD"
+text="Depth of field"
 [node name="CameraDofEnabled" type="CheckButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
 unique_name_in_owner=true
-text="Enable DOF"
+text="Depth of field"
 [node name="FocusLabel" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
 text="Focus Distance"
 [node name="CameraFocusDistance" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
