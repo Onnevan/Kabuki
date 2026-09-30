@@ -158,10 +158,10 @@ func bind_mesh(mesh_instance: MeshInstance3D, weights_by_surface: Array) -> bool
 		skinned.add_surface_from_arrays(source.surface_get_primitive_type(surface_index),arrays)
 	mesh_instance.mesh = skinned
 	mesh_instance.transform = Transform3D.IDENTITY
-	var skin := Skin.new()
-	for i in range(rig.bones.size()):
-		var bone_rest: Transform3D = skeleton.get_bone_global_rest(i)
-		skin.add_bind(i,bone_rest.affine_inverse())
+	# Let Skeleton3D build the inverse bind matrices from the exact rest
+	# transforms it evaluates. Now that pose is initialized to rest, this avoids
+	# maintaining a second hand-written interpretation of Godot's bone space.
+	var skin: Skin = skeleton.create_skin_from_rest_transforms()
 	mesh_instance.skin = skin
 	mesh_instance.skeleton = mesh_instance.get_path_to(skeleton)
 	bound_meshes[mesh_instance.get_instance_id()] = mesh_instance
