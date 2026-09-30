@@ -19,9 +19,9 @@ var channel_labels: Array[String] = ["Position","Rotation","Scale"]
 signal key_selected(path: String, frame: int, interpolation: String)
 signal key_deselected
 signal frame_requested(frame: int)
-const LANE_X := 210.0
-const HEADER_H := 28.0
-const SUMMARY_Y := 43.0
+const LANE_X := 190.0
+const HEADER_H := 32.0
+const SUMMARY_Y := 49.0
 const CHANNELS: Array[String] = ["transform.position","transform.rotation","transform.scale"]
 const LABELS: Array[String] = ["Position","Rotation","Scale"]
 const COLORS: Array[Color] = [Color("#ff745f"),Color("#b779ff"),Color("#71d67b")]
@@ -65,17 +65,18 @@ func _row_y(index:int)->float:
 	return y
 
 func _draw()->void:
-	draw_rect(Rect2(Vector2.ZERO,size),Color("#11171e"))
-	draw_rect(Rect2(0,0,LANE_X,size.y),Color("#18212b"))
+	draw_rect(Rect2(Vector2.ZERO,size),Color("#0A1118"))
+	draw_rect(Rect2(0,0,LANE_X,size.y),Color("#101A23"))
+	draw_line(Vector2(LANE_X,0),Vector2(LANE_X,size.y),Color("#22313D"),1)
 	var usable:=maxf(1.0,size.x-LANE_X-12.0)
 	var step:=usable/float(frame_count)
 	for f in range(frame_count+1):
 		var x:=LANE_X+float(f)*step
 		var major:=f%5==0
-		draw_line(Vector2(x,HEADER_H if major else HEADER_H-5),Vector2(x,size.y),Color("#34414f",0.7 if major else 0.24),1)
-		if major: draw_string(get_theme_default_font(),Vector2(x+3,18),str(f),HORIZONTAL_ALIGNMENT_LEFT,-1,11,Color("#aeb9c6"))
-	draw_string(get_theme_default_font(),Vector2(16,20),("▼ " if expanded.has(true) else "▶ ")+"Selected Object",HORIZONTAL_ALIGNMENT_LEFT,-1,13,Color("#dbe4ef"))
-	draw_rect(Rect2(0,SUMMARY_Y-14,LANE_X,24),Color("#263341"))
+		draw_line(Vector2(x,HEADER_H if major else HEADER_H-5),Vector2(x,size.y),Color("#31414F",0.46 if major else 0.12),1)
+		if major: draw_string(get_theme_default_font(),Vector2(x+3,18),str(f),HORIZONTAL_ALIGNMENT_LEFT,-1,11,Color("#778896"))
+	draw_string(get_theme_default_font(),Vector2(16,20),("▼ " if expanded.has(true) else "▶ ")+"Selected Object",HORIZONTAL_ALIGNMENT_LEFT,-1,13,Color("#D5E0E9"))
+	draw_rect(Rect2(8,SUMMARY_Y-16,LANE_X-16,26),Color("#182733"))
 	draw_string(get_theme_default_font(),Vector2(14,SUMMARY_Y+3),"◆  All Channels",HORIZONTAL_ALIGNMENT_LEFT,-1,12,Color("#dbe4ef"))
 	for gf in ProjectStore.get_object_key_frames(object_id):
 		var gx:=LANE_X+float(gf)*step
@@ -83,9 +84,9 @@ func _draw()->void:
 		draw_colored_polygon(gp,Color.WHITE if _is_selected("*",gf) else Color("#8fa8c2"))
 	for row in range(3):
 		var y:=_row_y(row)
-		draw_rect(Rect2(0,y-20,LANE_X,27),Color("#202b36"))
+		draw_rect(Rect2(8,y-20,LANE_X-16,27),Color("#121E28"))
 		draw_string(get_theme_default_font(),Vector2(14,y),("▼ " if expanded[row] else "▶ ")+channel_labels[row],HORIZONTAL_ALIGNMENT_LEFT,-1,13,COLORS[row])
-		draw_line(Vector2(0,y+8),Vector2(size.x,y+8),Color("#28333f"),1)
+		draw_line(Vector2(0,y+8),Vector2(size.x,y+8),Color("#23323E",0.7),1)
 		for k in _keys(channel_paths[row]):
 			var kf:=int(k.frame)
 			var x:=LANE_X+float(kf)*step
@@ -99,8 +100,8 @@ func _draw()->void:
 			var ex := LANE_X + float(ef) * step
 			draw_rect(Rect2(ex-4, ey-7, 8, 14), Color("#f0c96b"))
 	var px:=LANE_X+float(current_frame)*step
-	draw_line(Vector2(px,HEADER_H-2),Vector2(px,size.y),Color("#238cff"),3)
-	draw_circle(Vector2(px,HEADER_H-4),7,Color("#238cff"))
+	draw_line(Vector2(px,HEADER_H-2),Vector2(px,size.y),Color("#3AA7EB"),2)
+	draw_circle(Vector2(px,HEADER_H-4),7,Color("#3AA7EB"))
 
 func _component(v:Variant,index:int)->float:
 	if v is Vector3: return [v.x,v.y,v.z][index]
@@ -145,7 +146,7 @@ func _curve_bounce_out(t: float) -> float:
 
 func _draw_curve(row:int,top:float,step:float)->void:
 	var ks:=_keys(channel_paths[row])
-	draw_rect(Rect2(LANE_X,top,size.x-LANE_X,54),Color("#0d1319"))
+	draw_rect(Rect2(LANE_X,top,size.x-LANE_X,54),Color("#080E14"))
 	if ks.is_empty(): return
 	var component_colors: Array[Color] = [Color("#ff6257"),Color("#63d17a"),Color("#4a9cff")]
 	for component in range(3):
