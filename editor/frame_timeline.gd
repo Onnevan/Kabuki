@@ -9,6 +9,8 @@ var view_start := 0.0
 var view_end := 60.0
 var object_id := ""
 var scrubbing := false
+var timeline_panning := false
+var pan_last_x := 0.0
 var expanded := [false, false, false]
 var selected_key_path := ""
 var selected_key_frame := -1
@@ -44,10 +46,20 @@ func set_timeline_range(total_frames:int,start_frame:int,end_frame:int)->void:
 	queue_redraw()
 func zoom_at(factor:float,pivot_frame:float)->void:
 	var old_span:float=maxf(1.0,view_end-view_start)
-	var new_span:float=clampf(old_span*factor,4.0,float(frame_count))
+	var max_span:float=maxf(4.0,float(frame_count))
+	var new_span:float=clampf(old_span*factor,4.0,max_span)
 	var ratio:float=clampf((pivot_frame-view_start)/old_span,0.0,1.0)
 	view_start=clampf(pivot_frame-new_span*ratio,0.0,maxf(0.0,float(frame_count)-new_span))
 	view_end=view_start+new_span
+	queue_redraw()
+
+func pan_pixels(delta_x:float)->void:
+	var usable:float=maxf(1.0,size.x-LANE_X-12.0)
+	var span:float=maxf(1.0,view_end-view_start)
+	var delta_frames:float=-delta_x/usable*span
+	var new_start:float=clampf(view_start+delta_frames,0.0,maxf(0.0,float(frame_count)-span))
+	view_start=new_start
+	view_end=new_start+span
 	queue_redraw()
 func frame_to_x(frame:float)->float:
 	var usable:float=maxf(1.0,size.x-LANE_X-12.0)
@@ -274,8 +286,14 @@ func _scale_selected(factor:float)->void:
 
 func _gui_input(e:InputEvent)->void:
 	if e is InputEventMouseButton and (e.button_index==MOUSE_BUTTON_WHEEL_UP or e.button_index==MOUSE_BUTTON_WHEEL_DOWN) and e.pressed:
+		# Wheel zooms horizontally around the mouse position.  Do not require
+		# modifiers: the timeline itself owns the wheel while hovered.
 		var pivot:float=x_to_frame(e.position.x)
 		zoom_at(0.8 if e.button_index==MOUSE_BUTTON_WHEEL_UP else 1.25,pivot)
+		accept_event();return
+	if e is InputEventMouseButton and e.button_index==MOUSE_BUTTON_MIDDLE:
+		timeline_panning=e.pressed
+		pan_last_x=e.position.x
 		accept_event();return
 	if e is InputEventMouseButton and e.button_index==MOUSE_BUTTON_LEFT:
 		if e.pressed:
@@ -293,6 +311,10 @@ func _gui_input(e:InputEvent)->void:
 		else:
 			scrubbing=false;dragging_key=false
 	elif e is InputEventMouseMotion:
+		if timeline_panning:
+			pan_pixels(e.position.x-pan_last_x)
+			pan_last_x=e.position.x
+			accept_event();return
 		if dragging_key and selected_key_frame>=0:
 			var nf:=_frame_from_x(e.position.x)
 			if nf!=selected_key_frame:
