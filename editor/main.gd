@@ -1743,6 +1743,11 @@ func _setup_drawing_menus() -> void:
 	%BitmapEraser.pressed.connect(func(): _set_bitmap_tool(2))
 	%BitmapSmudge.pressed.connect(func(): _set_bitmap_tool(7))
 	%BitmapLassoFill.pressed.connect(func(): _set_bitmap_tool(8))
+	%LassoFillMode.clear()
+	%LassoFillMode.add_item("Solid")
+	%LassoFillMode.add_item("Gradient")
+	%LassoFillMode.item_selected.connect(func(index: int): %DrawingCanvas.set_lasso_fill_mode(index); _update_drawing_tool_ui())
+	%LassoGradientColor.color_changed.connect(%DrawingCanvas.set_lasso_gradient_color)
 	%BitmapLine.pressed.connect(func(): _set_bitmap_tool(3))
 	%BitmapRect.pressed.connect(func(): _set_bitmap_tool(4))
 	%BitmapEllipse.pressed.connect(func(): _set_bitmap_tool(5))
@@ -1773,6 +1778,9 @@ func _update_drawing_tool_ui() -> void:
 	var bitmap: bool = bool(%DrawingCanvas.bitmap_mode)
 	for control in [%BitmapBrush,%BitmapPencil,%BitmapSmudge,%BitmapLassoFill,%BitmapEraser,%BitmapLine,%BitmapRect,%BitmapEllipse,%BitmapFillTool,%BitmapClear,%BitmapCommit,%BrushPreset,%BrushOpacity,%BrushHardness]:
 		control.visible = bitmap
+	var lasso_active: bool = bitmap and int(%DrawingCanvas.tool) == 8
+	%LassoFillMode.visible = lasso_active
+	%LassoGradientColor.visible = lasso_active and %LassoFillMode.selected == 1
 	%SculptMode.visible = drawing_sculpt_active
 	%SculptStrength.visible = drawing_sculpt_active
 	%Fill.visible = drawing_3d_active
