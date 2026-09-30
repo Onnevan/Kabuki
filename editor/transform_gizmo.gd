@@ -14,7 +14,7 @@ func _ready() -> void:
 	_rebuild(); visible=false
 
 func _mat(c:Color)->StandardMaterial3D:
-	var m:=StandardMaterial3D.new();m.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;m.albedo_color=c;m.no_depth_test=true;return m
+	var m:=StandardMaterial3D.new();m.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;m.albedo_color=c;m.no_depth_test=true;m.render_priority=127;return m
 func _mesh(me:Mesh,ma:Material,axis:int)->MeshInstance3D:
 	var n:=MeshInstance3D.new();n.mesh=me;n.material_override=ma;n.set_meta("axis",axis);add_child(n);parts.append(n);return n
 func _clear()->void:
