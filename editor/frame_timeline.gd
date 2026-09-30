@@ -187,7 +187,7 @@ func _draw_curve(row:int,top:float,step:float)->void:
 		var span:float=maxf(0.001,hi-lo)
 		var pts:=PackedVector2Array()
 		if ks.size()==1:
-			var sx:float=LANE_X+float(ks[0].frame)*step
+			var sx:float=frame_to_x(float(ks[0].frame))
 			var sy:float=top+44.0-(values[0]-lo)/span*36.0
 			pts.append(Vector2(sx,sy))
 		else:
@@ -201,7 +201,7 @@ func _draw_curve(row:int,top:float,step:float)->void:
 					var eased:float=_curve_t(t,String(a.interpolation))
 					var frame_f:float=lerpf(float(a.frame),float(b.frame),t)
 					var value_f:float=lerpf(_component(a.value,component),_component(b.value,component),eased)
-					var x:float=LANE_X+frame_f*step
+					var x:float=frame_to_x(frame_f)
 					var yy:float=top+44.0-(value_f-lo)/span*36.0
 					pts.append(Vector2(x,yy))
 		if pts.size()>1: draw_polyline(pts,component_colors[component],1.5,true)
@@ -220,7 +220,6 @@ func _is_selected(path:String,frame:int)->bool:
 	return false
 
 func _hit_key(pos:Vector2)->Dictionary:
-	var usable:=maxf(1.0,size.x-LANE_X-12.0);var step:=usable/float(frame_count)
 	for gf in ProjectStore.get_object_key_frames(object_id):
 		var gx:=frame_to_x(float(gf))
 		if pos.distance_to(Vector2(gx,SUMMARY_Y-1))<9.0:return {"path":"*","frame":gf}
