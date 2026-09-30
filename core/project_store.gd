@@ -3,6 +3,8 @@ extends Node
 const FORMAT_VERSION := 1
 var fps := 24
 var duration_frames := 120
+var playback_start := 0
+var playback_end := 120
 var current_frame := 0
 var objects: Dictionary = {}
 var channels: Dictionary = {}
@@ -216,6 +218,8 @@ func clear_project() -> void:
 	objects.clear()
 	channels.clear()
 	current_frame = 0
+	playback_start = 0
+	playback_end = duration_frames
 	project_changed.emit()
 	frame_changed.emit(current_frame)
 
@@ -229,6 +233,8 @@ func to_dict() -> Dictionary:
 		"version": FORMAT_VERSION,
 		"fps": fps,
 		"duration_frames": duration_frames,
+		"playback_start": playback_start,
+		"playback_end": playback_end,
 		"current_frame": current_frame,
 		"objects": serialized_objects,
 		"channels": channels.duplicate(true)
@@ -241,7 +247,9 @@ func load_dict(data: Dictionary) -> bool:
 	objects.clear()
 	channels = data.get("channels", {}).duplicate(true)
 	fps = int(data.get("fps", 24))
-	duration_frames = int(data.get("duration_frames", 120))
+	duration_frames = maxi(1, int(data.get("duration_frames", 120)))
+	playback_start = clampi(int(data.get("playback_start", 0)), 0, duration_frames)
+	playback_end = clampi(int(data.get("playback_end", duration_frames)), playback_start, duration_frames)
 	current_frame = clampi(int(data.get("current_frame", 0)), 0, duration_frames)
 	for raw in data.get("objects", []):
 		var obj := MotionObject.from_dict(raw)
