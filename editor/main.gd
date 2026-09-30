@@ -1781,8 +1781,10 @@ func _update_drawing_tool_ui() -> void:
 	var current_tool: int = int(%DrawingCanvas.tool)
 	# Tool buttons stay grouped; parameter controls are contextual instead of
 	# forming one long undifferentiated strip.
-	for control in [%BitmapBrush,%BitmapPencil,%BitmapSmudge,%BitmapLassoFill,%BitmapEraser,%BitmapLine,%BitmapRect,%BitmapEllipse,%BitmapFillTool,%BitmapClear]:
+	for control in [%BitmapBrush,%BitmapPencil,%BitmapSmudge,%BitmapLassoFill,%BitmapEraser,%BitmapLine,%BitmapRect,%BitmapEllipse,%BitmapFillTool]:
 		control.visible = bitmap
+	# Destructive/action controls belong to context, not the primary tool rail.
+	%BitmapClear.visible = bitmap
 	%BitmapCommit.visible = false
 	var brush_active: bool = bitmap and (current_tool == 0 or current_tool == 1 or current_tool == 2)
 	var lasso_active: bool = bitmap and current_tool == 8
