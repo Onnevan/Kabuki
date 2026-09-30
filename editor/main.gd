@@ -1830,6 +1830,8 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	%RightPanel.visible = workspace == "scene" or workspace == "drawing" or workspace == "rigging" or workspace == "compositor"
 	%DrawingBar.visible = workspace == "drawing"
 	%DrawingAnimBar.visible = workspace == "drawing"
+	%DrawingToolSurface.visible = workspace == "drawing"
+	%DrawingContextSurface.visible = workspace == "drawing"
 	%DrawingPlanes.visible = workspace == "drawing"
 	%ObjectList.visible = workspace != "drawing"
 	%RiggingPanel.visible = workspace == "rigging"
@@ -2309,10 +2311,17 @@ func _responsive_layout() -> void:
 	if camera_view_active: _update_camera_frame_overlay()
 	%DrawingCanvas.position = %ViewportFrame.position
 	%DrawingCanvas.size = %ViewportFrame.size
-	%DrawingBar.position = %ViewportFrame.position + Vector2(12.0, 10.0)
-	%DrawingBar.size = Vector2(maxf(100.0, %ViewportFrame.size.x - 24.0), 40.0)
-	%DrawingAnimBar.position = %ViewportFrame.position + Vector2(12.0, 50.0)
-	%DrawingAnimBar.size = Vector2(maxf(100.0, %ViewportFrame.size.x - 24.0), 36.0)
+	# Drawing uses floating, inset control islands rather than desktop-style bars
+	# glued to the viewport edges.
+	var drawing_width: float = maxf(100.0,%ViewportFrame.size.x-40.0)
+	%DrawingToolSurface.position = %ViewportFrame.position + Vector2(20.0,14.0)
+	%DrawingToolSurface.size = Vector2(drawing_width,46.0)
+	%DrawingBar.position = %DrawingToolSurface.position + Vector2(8.0,5.0)
+	%DrawingBar.size = Vector2(maxf(84.0,drawing_width-16.0),36.0)
+	%DrawingContextSurface.position = %ViewportFrame.position + Vector2(20.0,66.0)
+	%DrawingContextSurface.size = Vector2(drawing_width,40.0)
+	%DrawingAnimBar.position = %DrawingContextSurface.position + Vector2(10.0,3.0)
+	%DrawingAnimBar.size = Vector2(maxf(80.0,drawing_width-20.0),34.0)
 
 	%Bottom.position = Vector2(margin, content_bottom + 8.0)
 	%Bottom.size = Vector2(w - margin * 2.0, timeline_h)
