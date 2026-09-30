@@ -34,7 +34,9 @@ const COLORS: Array[Color] = [Color("#ff745f"),Color("#b779ff"),Color("#71d67b")
 
 func _ready()->void:
 	custom_minimum_size=Vector2(0,220)
-	mouse_filter=Control.MOUSE_FILTER_PASS
+	# Stop wheel/MMB here instead of letting the parent editor consume them.
+	mouse_filter=Control.MOUSE_FILTER_STOP
+	focus_mode=Control.FOCUS_ALL
 
 func set_frame(f:int)->void: current_frame=f;queue_redraw()
 func set_timeline_range(total_frames:int,start_frame:int,end_frame:int)->void:
@@ -285,6 +287,8 @@ func _scale_selected(factor:float)->void:
 	queue_redraw()
 
 func _gui_input(e:InputEvent)->void:
+	if e is InputEventMouseButton and e.pressed:
+		grab_focus()
 	if e is InputEventMouseButton and (e.button_index==MOUSE_BUTTON_WHEEL_UP or e.button_index==MOUSE_BUTTON_WHEEL_DOWN) and e.pressed:
 		# Wheel zooms horizontally around the mouse position.  Do not require
 		# modifiers: the timeline itself owns the wheel while hovered.
