@@ -2284,63 +2284,59 @@ func _responsive_layout() -> void:
 	var w: float = size.x
 	var h: float = size.y
 	if w < 900.0 or h < 600.0: return
-	var margin: float = 8.0
-	var top_h: float = 50.0
-	var status_h: float = 20.0
-	var timeline_h: float = clampf(h * 0.245, 190.0, 300.0)
-	var content_top: float = margin + top_h + 8.0
-	var content_bottom: float = h - status_h - timeline_h - 12.0
-	var content_h: float = maxf(260.0, content_bottom - content_top)
-	var left_w: float = clampf(w * 0.205, 220.0, 330.0)
-	var right_w: float = clampf(w * 0.22, 270.0, 360.0)
-	var center_left: float = margin + left_w + 8.0
-	var center_right: float = w - margin - right_w - 8.0
+	# App-like shell: generous gutters, narrow organizational drawers and a
+	# dominant canvas. The timeline is a proper editor, not a footer.
+	var outer: float = 16.0
+	var gap: float = 14.0
+	var top_h: float = 54.0
+	var status_h: float = 18.0
+	var timeline_h: float = clampf(h*0.235,190.0,285.0)
+	var content_top: float = outer+top_h+gap
+	var content_bottom: float = h-status_h-timeline_h-gap
+	var content_h: float = maxf(260.0,content_bottom-content_top)
+	var left_w: float = clampf(w*0.155,220.0,280.0)
+	var right_w: float = clampf(w*0.175,250.0,310.0)
+	var center_left: float = outer+left_w+gap
+	var center_right: float = w-outer-right_w-gap
 
-	%LeftPanel.position = Vector2(margin, content_top)
-	%LeftPanel.size = Vector2(left_w, content_h)
-	%RightPanel.position = Vector2(center_right + 8.0, content_top)
-	%RightPanel.size = Vector2(right_w, content_h)
+	%LeftPanel.position=Vector2(outer,content_top)
+	%LeftPanel.size=Vector2(left_w,content_h)
+	%RightPanel.position=Vector2(center_right+gap,content_top)
+	%RightPanel.size=Vector2(right_w,content_h)
+	%ViewportFrame.position=Vector2(center_left,content_top)
+	%ViewportFrame.size=Vector2(maxf(360.0,center_right-center_left),content_h)
+	%EffectsEngine.position=%ViewportFrame.position
+	%EffectsEngine.size=%ViewportFrame.size
 
-	%ViewportFrame.position = Vector2(center_left, content_top)
-	%ViewportFrame.size = Vector2(maxf(320.0, center_right - center_left), content_h)
-	%EffectsEngine.position = %ViewportFrame.position
-	%EffectsEngine.size = %ViewportFrame.size
-
-	%ViewportTop.position = %ViewportFrame.position + Vector2(12.0, 10.0)
-	%ViewportTop.size = Vector2(maxf(100.0, %ViewportFrame.size.x - 24.0), 40.0)
-	%ToolRail.position = %ViewportFrame.position + Vector2(12.0, 60.0)
-	# Axis HUD is pinned to the viewport's top-right corner, independent of
-	# window size and side-panel widths.
-	var gizmo_size: Vector2 = %ViewGizmo.size
-	if gizmo_size.x <= 1.0: gizmo_size.x = 98.0
-	%ViewGizmo.position = %ViewportFrame.position + Vector2(%ViewportFrame.size.x - gizmo_size.x - 18.0, 60.0)
+	%ViewportTop.position=%ViewportFrame.position+Vector2(18.0,16.0)
+	%ViewportTop.size=Vector2(maxf(100.0,%ViewportFrame.size.x-36.0),42.0)
+	%ToolRail.position=%ViewportFrame.position+Vector2(18.0,70.0)
+	var gizmo_size: Vector2=%ViewGizmo.size
+	if gizmo_size.x<=1.0: gizmo_size.x=98.0
+	%ViewGizmo.position=%ViewportFrame.position+Vector2(%ViewportFrame.size.x-gizmo_size.x-20.0,70.0)
 	if camera_view_active: _update_camera_frame_overlay()
-	%DrawingCanvas.position = %ViewportFrame.position
-	%DrawingCanvas.size = %ViewportFrame.size
-	# Drawing uses floating, inset control islands rather than desktop-style bars
-	# glued to the viewport edges.
-	var drawing_width: float = maxf(100.0,%ViewportFrame.size.x-112.0)
-	# Stable vertical tool rail: tools live here, never mixed with parameters.
-	%DrawingToolSurface.position = %ViewportFrame.position + Vector2(14.0,14.0)
-	%DrawingToolSurface.size = Vector2(54.0,minf(590.0,%ViewportFrame.size.y-28.0))
-	%DrawingToolRail.position = %DrawingToolSurface.position + Vector2(6.0,7.0)
-	%DrawingToolRail.size = Vector2(42.0,maxf(100.0,%DrawingToolSurface.size.y-14.0))
-	# The top HUD contains only parameters for the current tool.
-	%DrawingContextSurface.position = %ViewportFrame.position + Vector2(78.0,14.0)
-	%DrawingContextSurface.size = Vector2(drawing_width,46.0)
-	%DrawingBar.position = %DrawingContextSurface.position + Vector2(10.0,5.0)
-	%DrawingBar.size = Vector2(maxf(80.0,drawing_width-20.0),36.0)
-	# Local canvas animation sits close to time, not beside painting tools.
-	%DrawingAnimBar.position = %ViewportFrame.position + Vector2(82.0,%ViewportFrame.size.y-46.0)
-	%DrawingAnimBar.size = Vector2(maxf(80.0,drawing_width-8.0),34.0)
+	%DrawingCanvas.position=%ViewportFrame.position
+	%DrawingCanvas.size=%ViewportFrame.size
 
-	%Bottom.position = Vector2(margin, content_bottom + 8.0)
-	%Bottom.size = Vector2(w - margin * 2.0, timeline_h)
-	%StatusBar.position = Vector2(12.0, h - status_h)
-	%StatusBar.size = Vector2(w - 24.0, status_h)
+	# Drawing: compact floating rail + contextual capsule. No full-width chrome.
+	var rail_h: float = minf(610.0,%ViewportFrame.size.y-42.0)
+	%DrawingToolSurface.position=%ViewportFrame.position+Vector2(18.0,18.0)
+	%DrawingToolSurface.size=Vector2(58.0,rail_h)
+	%DrawingToolRail.position=%DrawingToolSurface.position+Vector2(8.0,8.0)
+	%DrawingToolRail.size=Vector2(42.0,maxf(100.0,rail_h-16.0))
+	var hud_w: float = minf(650.0,maxf(260.0,%ViewportFrame.size.x-126.0))
+	%DrawingContextSurface.position=%ViewportFrame.position+Vector2(90.0,18.0)
+	%DrawingContextSurface.size=Vector2(hud_w,50.0)
+	%DrawingBar.position=%DrawingContextSurface.position+Vector2(12.0,7.0)
+	%DrawingBar.size=Vector2(hud_w-24.0,36.0)
+	%DrawingAnimBar.position=%ViewportFrame.position+Vector2(92.0,%ViewportFrame.size.y-50.0)
+	%DrawingAnimBar.size=Vector2(minf(600.0,%ViewportFrame.size.x-130.0),34.0)
 
-	# ViewportContainer has stretch=true, so it owns SceneViewport sizing.
-	# Setting SubViewport.size here causes a warning on every resize event.
+	%Bottom.position=Vector2(outer,content_bottom+gap)
+	%Bottom.size=Vector2(w-outer*2.0,timeline_h)
+	%StatusBar.position=Vector2(outer,h-status_h)
+	%StatusBar.size=Vector2(w-outer*2.0,status_h)
+
 
 func _on_timeline_key_selected(path: String, frame: int, mode: String) -> void:
 	%KeyInterpolationPanel.visible = true
