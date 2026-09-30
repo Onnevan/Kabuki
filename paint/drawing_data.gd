@@ -272,6 +272,7 @@ func to_dict() -> Dictionary:
 		"exposures": exposures.duplicate(true), "cel_strokes": cel_strokes.duplicate(true),
 		"next_stroke_index": next_stroke_index,
 		"local_frame": local_frame, "local_duration": local_duration,
+		"local_playback_start": local_playback_start, "local_playback_end": local_playback_end,
 		"scene_start": scene_start, "playback_mode": playback_mode,
 		"playback_speed": playback_speed
 	}
@@ -294,7 +295,10 @@ func load_dict(data: Dictionary) -> void:
 	cel_strokes = data.get("cel_strokes", {}).duplicate(true)
 	next_stroke_index = int(data.get("next_stroke_index", strokes.size()))
 	local_frame = int(data.get("local_frame", 0))
-	local_duration = int(data.get("local_duration", 24))
+	local_duration = maxi(1, int(data.get("local_duration", 24)))
+	local_playback_start = clampi(int(data.get("local_playback_start", 0)), 0, local_duration - 1)
+	local_playback_end = clampi(int(data.get("local_playback_end", local_duration - 1)), local_playback_start, local_duration - 1)
+	local_frame = clampi(local_frame, 0, local_duration - 1)
 	scene_start = int(data.get("scene_start", 0))
 	playback_mode = String(data.get("playback_mode", "loop"))
 	playback_speed = float(data.get("playback_speed", 1.0))
