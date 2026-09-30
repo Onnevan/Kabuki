@@ -106,8 +106,18 @@ func _bounce_out(t: float) -> float:
 	return n1 * t * t + 0.984375
 
 func _lerp_variant(a: Variant, b: Variant, t: float) -> Variant:
-	if a is Vector3 and b is Vector3: return a.lerp(b, t)
-	if a is float or a is int: return lerpf(float(a), float(b), t)
+	if a is Vector3 and b is Vector3: return a.lerp(b,t)
+	if a is Transform3D and b is Transform3D:
+		var ta: Transform3D = a
+		var tb: Transform3D = b
+		var qa: Quaternion = ta.basis.get_rotation_quaternion()
+		var qb: Quaternion = tb.basis.get_rotation_quaternion()
+		var scale: Vector3 = ta.basis.get_scale().lerp(tb.basis.get_scale(),t)
+		var rotation: Quaternion = qa.slerp(qb,t)
+		return Transform3D(Basis(rotation).scaled(scale),ta.origin.lerp(tb.origin,t))
+	if a is Color and b is Color: return a.lerp(b,t)
+	if a is Vector2 and b is Vector2: return a.lerp(b,t)
+	if a is float or a is int: return lerpf(float(a),float(b),t)
 	return a
 
 func get_key_frames(object_id: String, property_path: String) -> Array[int]:
