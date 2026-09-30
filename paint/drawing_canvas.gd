@@ -42,7 +42,9 @@ var active_frame_has_cel := false
 var active_canvas_id := ""
 var lasso_points := PackedVector2Array()
 var lasso_fill_mode := 0
-var lasso_gradient_color := Color(0.92,0.92,0.92,1.0)
+var lasso_color_a := Color(0.08,0.08,0.08,1.0)
+var lasso_color_b := Color(0.92,0.92,0.92,1.0)
+var lasso_gradient_angle := 90.0
 var undo_stack: Array[Image] = []
 var redo_stack: Array[Image] = []
 var onion_skin_enabled := false
@@ -217,8 +219,14 @@ func set_tool(value: int) -> void:
 func set_lasso_fill_mode(value: int) -> void:
 	lasso_fill_mode = value
 
-func set_lasso_gradient_color(value: Color) -> void:
-	lasso_gradient_color = value
+func set_lasso_color_a(value: Color) -> void:
+	lasso_color_a = value
+
+func set_lasso_color_b(value: Color) -> void:
+	lasso_color_b = value
+
+func set_lasso_gradient_angle(value: float) -> void:
+	lasso_gradient_angle = value
 	if tool == TOOL_PENCIL and brush_preset < 4:
 		set_brush_preset(4)
 
@@ -294,8 +302,8 @@ func _gui_input(event: InputEvent) -> void:
 			if painting and (tool == TOOL_LINE or tool == TOOL_RECT or tool == TOOL_ELLIPSE):
 				_commit_shape(stroke_start, mb.position)
 			elif painting and tool == TOOL_LASSO_FILL and lasso_points.size() >= 3:
-				if lasso_fill_mode == 1: _fill_polygon_gradient(lasso_points,_paint_color(),lasso_gradient_color)
-				else: _fill_polygon(lasso_points,_paint_color())
+				if lasso_fill_mode == 1: _fill_polygon_gradient(lasso_points,lasso_color_a,lasso_color_b,lasso_gradient_angle)
+				else: _fill_polygon(lasso_points,lasso_color_a)
 			painting = false
 			lasso_points.clear()
 		queue_redraw()
@@ -468,7 +476,7 @@ func _fill_polygon(poly: PackedVector2Array,color: Color) -> void:
 			if Geometry2D.is_point_in_polygon(Vector2(x+0.5,y+0.5),poly):
 				_blend_pixel(x,y,color,1.0)
 
-func _fill_polygon_gradient(poly: PackedVector2Array,color_a: Color,color_b: Color) -> void:
+func _fill_polygon_gradient(poly: PackedVector2Array,color_a: Color,color_b: Color,angle_degrees: float) -> void:
 	if poly.size()<3: return
 	raster_texture_dirty = true
 	var min_x: int = raster.get_width()-1
@@ -480,15 +488,25 @@ func _fill_polygon_gradient(poly: PackedVector2Array,color_a: Color,color_b: Col
 		min_y=mini(min_y,int(floor(p.y))); max_y=maxi(max_y,int(ceil(p.y)))
 	min_x=maxi(0,min_x); max_x=mini(raster.get_width()-1,max_x)
 	min_y=maxi(0,min_y); max_y=mini(raster.get_height()-1,max_y)
-	var height: float = maxf(1.0,float(max_y-min_y))
+	var radians: float = deg_to_rad(angle_degrees)
+	var direction := Vector2(cos(radians),sin(radians)).normalized()
+	var min_projection: float = INF
+	var max_projection: float = -INF
+	for p in poly:
+		var projection: float = p.dot(direction)
+		min_projection = minf(min_projection,projection)
+		max_projection = maxf(max_projection,projection)
+	var projection_span: float = maxf(0.001,max_projection-min_projection)
+	var start_color: Color = color_a
 	var end_color: Color = color_b
+	start_color.a *= opacity
 	end_color.a *= opacity
 	for y in range(min_y,max_y+1):
-		var t: float = float(y-min_y)/height
-		var row_color: Color = color_a.lerp(end_color,t)
 		for x in range(min_x,max_x+1):
-			if Geometry2D.is_point_in_polygon(Vector2(x+0.5,y+0.5),poly):
-				_blend_pixel(x,y,row_color,1.0)
+			var sample := Vector2(x+0.5,y+0.5)
+			if Geometry2D.is_point_in_polygon(sample,poly):
+				var t: float = clampf((sample.dot(direction)-min_projection)/projection_span,0.0,1.0)
+				_blend_pixel(x,y,start_color.lerp(end_color,t),1.0)
 
 func _flood_fill(seed: Vector2i,replacement: Color) -> void:
 	if not _inside(seed): return
