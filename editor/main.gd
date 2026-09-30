@@ -1778,10 +1778,20 @@ func _set_bitmap_tool(tool: int) -> void:
 
 func _update_drawing_tool_ui() -> void:
 	var bitmap: bool = bool(%DrawingCanvas.bitmap_mode)
-	for control in [%BitmapBrush,%BitmapPencil,%BitmapSmudge,%BitmapLassoFill,%BitmapEraser,%BitmapLine,%BitmapRect,%BitmapEllipse,%BitmapFillTool,%BitmapClear,%BitmapCommit,%BrushPreset,%BrushOpacity,%BrushHardness]:
+	var current_tool: int = int(%DrawingCanvas.tool)
+	# Tool buttons stay grouped; parameter controls are contextual instead of
+	# forming one long undifferentiated strip.
+	for control in [%BitmapBrush,%BitmapPencil,%BitmapSmudge,%BitmapLassoFill,%BitmapEraser,%BitmapLine,%BitmapRect,%BitmapEllipse,%BitmapFillTool,%BitmapClear]:
 		control.visible = bitmap
-	var lasso_active: bool = bitmap and int(%DrawingCanvas.tool) == 8
+	%BitmapCommit.visible = false
+	var brush_active: bool = bitmap and (current_tool == 0 or current_tool == 1 or current_tool == 2)
+	var lasso_active: bool = bitmap and current_tool == 8
 	var gradient_active: bool = lasso_active and %LassoFillMode.selected == 1
+	%BrushSize.visible = brush_active
+	%BrushPreset.visible = brush_active and current_tool != 2
+	%BrushOpacity.visible = brush_active
+	%BrushHardness.visible = brush_active and current_tool == 0
+	%BrushColor.visible = bitmap and (current_tool == 0 or current_tool == 1 or current_tool == 3 or current_tool == 4 or current_tool == 5 or current_tool == 6)
 	%LassoFillMode.visible = lasso_active
 	%LassoColorALabel.visible = lasso_active
 	%LassoColorA.visible = lasso_active
