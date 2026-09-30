@@ -247,6 +247,11 @@ unique_name_in_owner=true
 visible=false
 mouse_filter=2
 
+[node name="DrawingToolRail" type="VBoxContainer" parent="."]
+unique_name_in_owner=true
+visible=false
+theme_override_constants/separation=6
+
 [node name="DrawingContextSurface" type="PanelContainer" parent="."]
 unique_name_in_owner=true
 visible=false
@@ -260,36 +265,44 @@ offset_top=76.0
 offset_right=1034.0
 offset_bottom=116.0
 theme_override_constants/separation=6
-[node name="StrokeTool" type="Button" parent="DrawingBar"]
+[node name="StrokeTool" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(42,42)
 unique_name_in_owner=true
 text="✎"
 tooltip_text="Draw in 3D space"
-[node name="BitmapTool" type="Button" parent="DrawingBar"]
+[node name="BitmapTool" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(42,42)
 unique_name_in_owner=true
 text="▧"
 tooltip_text="Paint on this canvas"
-[node name="EraseTool" type="Button" parent="DrawingBar"]
+[node name="EraseTool" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(42,42)
 unique_name_in_owner=true
 text="⌫"
 tooltip_text="Eraser"
-[node name="SculptTool" type="Button" parent="DrawingBar"]
+[node name="SculptTool" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(42,42)
 unique_name_in_owner=true
 text="≈"
 tooltip_text="Shape spatial strokes"
-[node name="ToolSep" type="VSeparator" parent="DrawingBar"]
-[node name="BitmapBrush" type="Button" parent="DrawingBar"]
+[node name="ToolSep" type="HSeparator" parent="DrawingToolRail"]
+[node name="BitmapBrush" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(42,42)
 unique_name_in_owner=true
 text="●"
 tooltip_text="Soft brush"
-[node name="BitmapPencil" type="Button" parent="DrawingBar"]
+[node name="BitmapPencil" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(42,42)
 unique_name_in_owner=true
 text="✎"
 tooltip_text="Pencil"
-[node name="BitmapSmudge" type="Button" parent="DrawingBar"]
+[node name="BitmapSmudge" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(42,42)
 unique_name_in_owner=true
 text="≈"
 tooltip_text="Smudge / blend paint"
-[node name="BitmapLassoFill" type="Button" parent="DrawingBar"]
+[node name="BitmapLassoFill" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(42,42)
 unique_name_in_owner=true
 text="⬡"
 tooltip_text="Lasso fill"
@@ -340,30 +353,35 @@ value=90.0
 suffix="°"
 tooltip_text="Gradient direction"
 
-[node name="BitmapEraser" type="Button" parent="DrawingBar"]
+[node name="BitmapEraser" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(42,42)
 unique_name_in_owner=true
 text="◌"
 tooltip_text="Bitmap eraser"
-[node name="BitmapLine" type="Button" parent="DrawingBar"]
+[node name="BitmapLine" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(42,42)
 unique_name_in_owner=true
 text="╱"
 tooltip_text="Line"
-[node name="BitmapRect" type="Button" parent="DrawingBar"]
+[node name="BitmapRect" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(42,42)
 unique_name_in_owner=true
 text="□"
 tooltip_text="Rectangle"
-[node name="BitmapEllipse" type="Button" parent="DrawingBar"]
+[node name="BitmapEllipse" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(42,42)
 unique_name_in_owner=true
 text="○"
 tooltip_text="Ellipse"
-[node name="BitmapFillTool" type="Button" parent="DrawingBar"]
+[node name="BitmapFillTool" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(42,42)
 unique_name_in_owner=true
 text="▣"
 tooltip_text="Flood fill"
 [node name="BitmapClear" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
-text="⌧"
-tooltip_text="Clear bitmap"
+text="CLEAR"
+tooltip_text="Clear current bitmap"
 [node name="BitmapCommit" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
 text="✓"
@@ -433,7 +451,7 @@ offset_top=120.0
 offset_right=1034.0
 offset_bottom=156.0
 [node name="AnimLabel" type="Label" parent="DrawingAnimBar"]
-text="ANIMATE"
+text="ANIMATE  ·"
 [node name="CelMenu" type="MenuButton" parent="DrawingAnimBar"]
 unique_name_in_owner=true
 text="CELS ▾"
