@@ -752,8 +752,9 @@ func _select_rig_bone(virtual_id: String) -> void:
 	bone_edit_proxy = Node3D.new()
 	bone_edit_proxy.name = "_BoneEditProxy"
 	active_rig_runtime.add_child(bone_edit_proxy)
-	var rest_world: Transform3D = rig.bones[bone_index].get("rest",Transform3D.IDENTITY)
-	bone_edit_proxy.transform = active_rig_runtime.global_transform.affine_inverse() * rest_world
+	# Selection must start from the CURRENT evaluated pose, never from REST.
+	# Otherwise every new drag visually jumps the edit handle back to bind pose.
+	bone_edit_proxy.transform = active_rig_runtime.skeleton.get_bone_global_pose(bone_index)
 	selected_scene_node = bone_edit_proxy
 	%SelectionLabel.text = String(rig.bones[bone_index].get("name","Bone"))
 	gizmo.attach(bone_edit_proxy)
@@ -985,11 +986,31 @@ func _apply_direct_bone_drag(mouse_pos: Vector2) -> void:
 	bone_edit_proxy.rotate(camera.global_transform.basis.z.normalized(),angle)
 	_sync_selected_scene_transform()
 
+func _bone_channel_path(bone_index: int) -> String:
+	return "rig.bone.%d.pose" % bone_index
+
 func _key_bone_pose() -> void:
-	# Bone animation channels are the next animation-domain step. Keep this hook
-	# separate from object transform keys so direct posing never writes a fake
-	# object transform channel.
-	status.text = "Bone posed · pose key channels pending"
+	if active_rig_id.is_empty() or active_rig_runtime == null or selected_bone_index < 0: return
+	var pose: Transform3D = active_rig_runtime.skeleton.get_bone_pose(selected_bone_index)
+	ProjectStore.set_key(active_rig_id,_bone_channel_path(selected_bone_index),ProjectStore.current_frame,pose,_interp_name())
+	timeline.set_object(active_rig_id)
+	status.text = "Bone pose keyed · frame %d" % ProjectStore.current_frame
+
+func _evaluate_rig_animation(frame: int) -> void:
+	for rig_id_value in rigging_controller.rigs.keys():
+		var rig_id: String = String(rig_id_value)
+		if not scene_nodes.has(rig_id): continue
+		var runtime: Node3D = scene_nodes[rig_id]
+		if not runtime is RigRuntime: continue
+		var rig: RefCounted = rigging_controller.rigs[rig_id]
+		for bone_index in range(rig.bones.size()):
+			var fallback: Transform3D = runtime.skeleton.get_bone_pose(bone_index)
+			var value: Variant = ProjectStore.evaluate(rig_id,_bone_channel_path(bone_index),frame,fallback)
+			if value is Transform3D:
+				runtime.set_bone_pose(bone_index,value)
+	# Keep an active direct-manipulation proxy synchronized while scrubbing.
+	if selected_object_id.begins_with("bone::") and bone_edit_proxy != null and is_instance_valid(bone_edit_proxy) and active_rig_runtime != null and selected_bone_index >= 0:
+		bone_edit_proxy.transform = active_rig_runtime.skeleton.get_bone_global_pose(selected_bone_index)
 
 func _apply_drag(relative: Vector2, mouse_pos: Vector2) -> void:
 	var target := selected_scene_node
@@ -1164,6 +1185,7 @@ func _on_frame_changed(frame: int) -> void:
 	frame_slider.set_value_no_signal(frame)
 	timeline.set_frame(frame)
 	for r in runtime_objects: r.apply_frame(frame)
+	_evaluate_rig_animation(frame)
 	# Generic scene anchors (camera, lights, audio...) also live on the global
 	# timeline. RuntimeObject already evaluates itself above.
 	for object_id in scene_nodes:
