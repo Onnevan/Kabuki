@@ -84,6 +84,7 @@ var current_project_path := ""
 var render_camera_id := ""
 var camera_view_active := false
 var editor_view_before_camera: Dictionary = {}
+var transform_space: int = 0 # 0 global, 1 local
 
 func _ready() -> void:
 	theme = KabukiThemeBuilder.build()
@@ -96,6 +97,7 @@ func _ready() -> void:
 		interpolation.add_item(label)
 	interpolation.select(1)
 	_setup_shading_menu()
+	_setup_viewport_controls()
 	_setup_add_object_menu()
 	_setup_property_panels()
 	_on_auto_key_toggled(auto_key.button_pressed)
@@ -162,6 +164,34 @@ func _process(delta: float) -> void:
 		if accumulator >= 1.0 / ProjectStore.fps:
 			accumulator = 0.0
 			ProjectStore.set_frame((ProjectStore.current_frame + 1) % (ProjectStore.duration_frames + 1))
+
+func _setup_viewport_controls() -> void:
+	%ProjectionMode.clear()
+	%ProjectionMode.add_item("Perspective")
+	%ProjectionMode.add_item("Orthographic")
+	%ProjectionMode.select(0 if camera.projection == Camera3D.PROJECTION_PERSPECTIVE else 1)
+	%ProjectionMode.item_selected.connect(_on_projection_mode_selected)
+	%TransformSpace.clear()
+	%TransformSpace.add_item("Global")
+	%TransformSpace.add_item("Local")
+	%TransformSpace.select(transform_space)
+	%TransformSpace.item_selected.connect(_on_transform_space_selected)
+
+func _on_projection_mode_selected(index: int) -> void:
+	if index == 0:
+		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+		status.text = "Perspective view"
+	else:
+		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+		status.text = "Orthographic view"
+
+func _on_transform_space_selected(index: int) -> void:
+	transform_space = index
+	status.text = "Local transform orientation" if transform_space == 1 else "Global transform orientation"
+	if selected_scene_node != null and is_instance_valid(selected_scene_node):
+		gizmo.attach(selected_scene_node if transform_space == 1 else selected_scene_node)
+	# TransformGizmo reads this flag when drawing and dragging axes.
+	gizmo.set_orientation_local(transform_space == 1)
 
 func _setup_shading_menu() -> void:
 	%ShadingMode.clear()
