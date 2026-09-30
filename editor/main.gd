@@ -705,30 +705,38 @@ func _on_object_selected(index: int) -> void:
 		_select_scene_node(id, scene_nodes[id])
 
 func _pick_rig_bone_at_screen(mouse: Vector2) -> String:
+	# Rigging/Animation are puppet-first workspaces. Pick the CURRENT posed
+	# skeleton with a deliberately generous hit area before considering artwork.
 	if active_rig_id.is_empty() or active_rig_runtime == null: return ""
 	var rig: RefCounted = rigging_controller.rigs.get(active_rig_id)
 	if rig == null: return ""
 	var best_index: int = -1
-	var best_distance: float = 18.0
+	var best_distance: float = 34.0
 	for bone_index in range(rig.bones.size()):
-		var head_world: Vector3 = rig.bones[bone_index].get("rest",Transform3D.IDENTITY).origin
-		var tail_world: Vector3 = head_world + Vector3(0.0,0.45,0.0)
+		var head_in_rig: Vector3 = active_rig_runtime.skeleton.get_bone_global_pose(bone_index).origin
+		var tail_in_rig: Vector3 = head_in_rig + Vector3(0.0,0.45,0.0)
 		var found_child: bool = false
 		for child_index in range(rig.bones.size()):
 			if int(rig.bones[child_index].get("parent",-1)) == bone_index:
-				tail_world = rig.bones[child_index].get("rest",Transform3D.IDENTITY).origin
+				tail_in_rig = active_rig_runtime.skeleton.get_bone_global_pose(child_index).origin
 				found_child = true
 				break
-		if not found_child and active_rig_runtime.terminal_tip_valid:
-			tail_world = active_rig_runtime.terminal_tip
-		var a: Vector2 = camera.unproject_position(head_world)
-		var b: Vector2 = camera.unproject_position(tail_world)
-		var ab: Vector2 = b - a
-		var den: float = ab.length_squared()
-		var distance: float = mouse.distance_to(a)
-		if den > 0.001:
-			var t: float = clampf((mouse-a).dot(ab)/den,0.0,1.0)
-			distance = mouse.distance_to(a+ab*t)
+		if not found_child:
+			var rest_global: Transform3D = active_rig_runtime.skeleton.get_bone_global_rest(bone_index)
+			var pose_global: Transform3D = active_rig_runtime.skeleton.get_bone_global_pose(bone_index)
+			var rest_tail_world: Vector3 = active_rig_runtime.terminal_tip if active_rig_runtime.terminal_tip_valid else (active_rig_runtime.global_transform * (rest_global.origin + Vector3(0.0,0.45,0.0)))
+			var rest_tail_in_rig: Vector3 = active_rig_runtime.global_transform.affine_inverse() * rest_tail_world
+			tail_in_rig = pose_global * (rest_global.affine_inverse() * rest_tail_in_rig)
+		var head_world: Vector3 = active_rig_runtime.global_transform * head_in_rig
+		var tail_world: Vector3 = active_rig_runtime.global_transform * tail_in_rig
+		if camera.is_position_behind(head_world) and camera.is_position_behind(tail_world): continue
+		var screen_a: Vector2 = camera.unproject_position(head_world)
+		var screen_b: Vector2 = camera.unproject_position(tail_world)
+		var segment: Vector2 = screen_b - screen_a
+		var distance: float = mouse.distance_to(screen_a)
+		if segment.length_squared() > 0.001:
+			var t: float = clampf((mouse-screen_a).dot(segment)/segment.length_squared(),0.0,1.0)
+			distance = mouse.distance_to(screen_a+segment*t)
 		if distance < best_distance:
 			best_distance = distance
 			best_index = bone_index
@@ -991,8 +999,15 @@ func _bone_channel_path(bone_index: int) -> String:
 
 func _key_bone_pose() -> void:
 	if active_rig_id.is_empty() or active_rig_runtime == null or selected_bone_index < 0: return
-	var pose: Transform3D = active_rig_runtime.skeleton.get_bone_pose(selected_bone_index)
-	ProjectStore.set_key(active_rig_id,_bone_channel_path(selected_bone_index),ProjectStore.current_frame,pose,_interp_name())
+	var rig: RefCounted = rigging_controller.rigs.get(active_rig_id)
+	if rig == null: return
+	var pose_global: Transform3D = active_rig_runtime.skeleton.get_bone_global_pose(selected_bone_index)
+	var parent_index: int = int(rig.bones[selected_bone_index].get("parent",-1))
+	var pose_local: Transform3D = pose_global
+	if parent_index >= 0:
+		var parent_global: Transform3D = active_rig_runtime.skeleton.get_bone_global_pose(parent_index)
+		pose_local = parent_global.affine_inverse() * pose_global
+	ProjectStore.set_key(active_rig_id,_bone_channel_path(selected_bone_index),ProjectStore.current_frame,pose_local,_interp_name())
 	timeline.set_object(active_rig_id)
 	status.text = "Bone pose keyed · frame %d" % ProjectStore.current_frame
 
@@ -1004,7 +1019,7 @@ func _evaluate_rig_animation(frame: int) -> void:
 		if not runtime is RigRuntime: continue
 		var rig: RefCounted = rigging_controller.rigs[rig_id]
 		for bone_index in range(rig.bones.size()):
-			var fallback: Transform3D = runtime.skeleton.get_bone_pose(bone_index)
+			var fallback: Transform3D = runtime.skeleton.get_bone_rest(bone_index)
 			var value: Variant = ProjectStore.evaluate(rig_id,_bone_channel_path(bone_index),frame,fallback)
 			if value is Transform3D:
 				runtime.set_bone_pose(bone_index,value)
