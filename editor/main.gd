@@ -764,7 +764,9 @@ func _select_rig_bone(virtual_id: String) -> void:
 	# Otherwise every new drag visually jumps the edit handle back to bind pose.
 	bone_edit_proxy.transform = active_rig_runtime.skeleton.get_bone_global_pose(bone_index)
 	selected_scene_node = bone_edit_proxy
-	%SelectionLabel.text = String(rig.bones[bone_index].get("name","Bone"))
+	var bone_name: String = String(rig.bones[bone_index].get("name","Bone"))
+	%SelectionLabel.text = bone_name
+	timeline.set_bone_object(rig_id,bone_index,bone_name)
 	gizmo.attach(bone_edit_proxy)
 	gizmo.set_mode(TransformGizmo.Mode.ROTATE)
 	active_tool = TransformGizmo.Mode.ROTATE
@@ -1013,7 +1015,7 @@ func _key_bone_pose() -> void:
 	ProjectStore.set_key(active_rig_id,_bone_channel_path(selected_bone_index,"position"),ProjectStore.current_frame,pose_local.origin,interpolation_name)
 	ProjectStore.set_key(active_rig_id,_bone_channel_path(selected_bone_index,"rotation"),ProjectStore.current_frame,pose_local.basis.get_rotation_quaternion(),interpolation_name)
 	ProjectStore.set_key(active_rig_id,_bone_channel_path(selected_bone_index,"scale"),ProjectStore.current_frame,pose_local.basis.get_scale(),interpolation_name)
-	timeline.set_object(active_rig_id)
+	timeline.set_bone_object(active_rig_id,selected_bone_index,String(rig.bones[selected_bone_index].get("name","Bone")))
 	status.text = "Bone pose keyed · frame %d" % ProjectStore.current_frame
 
 func _evaluate_rig_animation(frame: int) -> void:
