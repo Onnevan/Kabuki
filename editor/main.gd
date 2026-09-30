@@ -1784,8 +1784,11 @@ func _update_drawing_tool_ui() -> void:
 	for control in [%BitmapBrush,%BitmapPencil,%BitmapSmudge,%BitmapLassoFill,%BitmapEraser,%BitmapLine,%BitmapRect,%BitmapEllipse,%BitmapFillTool]:
 		control.visible = bitmap
 	# Destructive/action controls belong to context, not the primary tool rail.
+	# Clear is an action, not a drawing tool. Show it only when bitmap editing
+	# has context; keep the rail itself visually consistent.
 	%BitmapClear.visible = bitmap
 	%BitmapCommit.visible = false
+	%DrawingContextSurface.visible = workspace == "drawing" and (bitmap or drawing_sculpt_active or drawing_3d_active)
 	var brush_active: bool = bitmap and (current_tool == 0 or current_tool == 1 or current_tool == 2)
 	var lasso_active: bool = bitmap and current_tool == 8
 	var gradient_active: bool = lasso_active and %LassoFillMode.selected == 1
