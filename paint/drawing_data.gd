@@ -14,6 +14,8 @@ var next_stroke_index := 1
 # Every Reference Canvas owns a local clip timeline. Scene time maps into it.
 var local_frame := 0
 var local_duration := 24
+var local_playback_start := 0
+var local_playback_end := 23
 var scene_start := 0
 var playback_mode := "loop" # once, loop, ping_pong, hold, reverse
 var playback_speed := 1.0
@@ -40,6 +42,16 @@ func map_scene_frame(scene_frame: int) -> int:
 
 func set_local_frame(frame: int) -> void:
 	local_frame = clampi(frame, 0, maxi(0, local_duration - 1))
+
+func set_local_duration(frames: int) -> void:
+	local_duration = maxi(1, frames)
+	local_playback_start = clampi(local_playback_start, 0, local_duration - 1)
+	local_playback_end = clampi(local_playback_end, local_playback_start, local_duration - 1)
+	set_local_frame(local_frame)
+
+func set_local_playback_range(start_frame: int, end_frame: int) -> void:
+	local_playback_start = clampi(start_frame, 0, local_duration - 1)
+	local_playback_end = clampi(end_frame, local_playback_start, local_duration - 1)
 
 func _init(owner_object_id := "") -> void:
 	id = str(ResourceUID.create_id()) + "-" + str(Time.get_ticks_usec())
