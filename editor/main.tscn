@@ -283,6 +283,18 @@ unique_name_in_owner=true
 text="⬡"
 tooltip_text="Lasso fill"
 
+[node name="LassoFillMode" type="OptionButton" parent="DrawingBar"]
+unique_name_in_owner=true
+visible=false
+custom_minimum_size=Vector2(92,0)
+tooltip_text="Lasso fill: solid or vertical gradient"
+
+[node name="LassoGradientColor" type="ColorPickerButton" parent="DrawingBar"]
+unique_name_in_owner=true
+visible=false
+color=Color(0.92,0.92,0.92,1)
+tooltip_text="Gradient end color"
+
 [node name="BitmapEraser" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
 text="◌"
