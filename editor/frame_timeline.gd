@@ -14,6 +14,8 @@ var drag_origin_frame := -1
 var drag_original_refs: Array[Dictionary] = []
 var dragging_key := false
 var drawing_exposure_frames: Array[int] = []
+var channel_paths: Array[String] = ["transform.position","transform.rotation","transform.scale"]
+var channel_labels: Array[String] = ["Position","Rotation","Scale"]
 signal key_selected(path: String, frame: int, interpolation: String)
 signal key_deselected
 signal frame_requested(frame: int)
@@ -29,7 +31,23 @@ func _ready()->void:
 	mouse_filter=Control.MOUSE_FILTER_PASS
 
 func set_frame(f:int)->void: current_frame=f;queue_redraw()
-func set_object(id:String)->void: object_id=id;selected_key_frame=-1;selected_key_path="";selected_keys.clear();key_deselected.emit();queue_redraw()
+func set_object(id:String)->void:
+	object_id=id; selected_key_frame=-1; selected_key_path=""; selected_keys.clear(); key_deselected.emit()
+	channel_paths=["transform.position","transform.rotation","transform.scale"]
+	channel_labels=["Position","Rotation","Scale"]
+	expanded=[false,false,false]
+	queue_redraw()
+
+func set_bone_object(rig_id:String,bone_index:int,bone_name:String)->void:
+	object_id=rig_id; selected_key_frame=-1; selected_key_path=""; selected_keys.clear(); key_deselected.emit()
+	channel_paths=[
+		"rig.bone.%d.position" % bone_index,
+		"rig.bone.%d.rotation" % bone_index,
+		"rig.bone.%d.scale" % bone_index
+	]
+	channel_labels=[bone_name+" · Position",bone_name+" · Rotation",bone_name+" · Scale"]
+	expanded=[false,false,false]
+	queue_redraw()
 func refresh_keys(_a:String="",_b:String="",_c:int=0)->void: queue_redraw()
 func set_drawing_exposures(frames: Array[int]) -> void:
 	drawing_exposure_frames = frames.duplicate()
@@ -66,13 +84,13 @@ func _draw()->void:
 	for row in range(3):
 		var y:=_row_y(row)
 		draw_rect(Rect2(0,y-20,LANE_X,27),Color("#202b36"))
-		draw_string(get_theme_default_font(),Vector2(14,y),("▼ " if expanded[row] else "▶ ")+LABELS[row],HORIZONTAL_ALIGNMENT_LEFT,-1,13,COLORS[row])
+		draw_string(get_theme_default_font(),Vector2(14,y),("▼ " if expanded[row] else "▶ ")+channel_labels[row],HORIZONTAL_ALIGNMENT_LEFT,-1,13,COLORS[row])
 		draw_line(Vector2(0,y+8),Vector2(size.x,y+8),Color("#28333f"),1)
-		for k in _keys(CHANNELS[row]):
+		for k in _keys(channel_paths[row]):
 			var kf:=int(k.frame)
 			var x:=LANE_X+float(kf)*step
 			var p:=PackedVector2Array([Vector2(x,y-7),Vector2(x+6,y-1),Vector2(x,y+5),Vector2(x-6,y-1)])
-			draw_colored_polygon(p,Color.WHITE if _is_selected(CHANNELS[row],kf) else COLORS[row])
+			draw_colored_polygon(p,Color.WHITE if _is_selected(channel_paths[row],kf) else COLORS[row])
 		if expanded[row]: _draw_curve(row,y+12.0,step)
 	if not drawing_exposure_frames.is_empty():
 		var ey := HEADER_H + 12.0
@@ -86,6 +104,9 @@ func _draw()->void:
 
 func _component(v:Variant,index:int)->float:
 	if v is Vector3: return [v.x,v.y,v.z][index]
+	if v is Quaternion:
+		var euler: Vector3 = (v as Quaternion).get_euler()
+		return [euler.x,euler.y,euler.z][index]
 	return float(v) if v is float or v is int else 0.0
 
 func _curve_t(t: float, mode: String) -> float:
@@ -123,7 +144,7 @@ func _curve_bounce_out(t: float) -> float:
 	return n1*t*t+0.984375
 
 func _draw_curve(row:int,top:float,step:float)->void:
-	var ks:=_keys(CHANNELS[row])
+	var ks:=_keys(channel_paths[row])
 	draw_rect(Rect2(LANE_X,top,size.x-LANE_X,54),Color("#0d1319"))
 	if ks.is_empty(): return
 	var component_colors: Array[Color] = [Color("#ff6257"),Color("#63d17a"),Color("#4a9cff")]
@@ -157,7 +178,7 @@ func _draw_curve(row:int,top:float,step:float)->void:
 			var kx:float=LANE_X+float(k.frame)*step
 			var ky:float=top+44.0-(_component(k.value,component)-lo)/span*36.0
 			draw_circle(Vector2(kx,ky),2.5,component_colors[component])
-	draw_string(get_theme_default_font(),Vector2(16,top+34),"X   Y   Z   · curve",HORIZONTAL_ALIGNMENT_LEFT,-1,11,Color("#8291a3"))
+	draw_string(get_theme_default_font(),Vector2(16,top+34),"X   Y   Z   · F-Curve",HORIZONTAL_ALIGNMENT_LEFT,-1,11,Color("#8291a3"))
 
 func _frame_from_x(x:float)->int:
 	var usable:=maxf(1.0,size.x-LANE_X-12.0)
@@ -175,9 +196,9 @@ func _hit_key(pos:Vector2)->Dictionary:
 		if pos.distance_to(Vector2(gx,SUMMARY_Y-1))<9.0:return {"path":"*","frame":gf}
 	for row in range(3):
 		var y:=_row_y(row)
-		for k in _keys(CHANNELS[row]):
+		for k in _keys(channel_paths[row]):
 			var x:=LANE_X+float(k.frame)*step
-			if pos.distance_to(Vector2(x,y-1))<9.0:return {"path":CHANNELS[row],"frame":int(k.frame)}
+			if pos.distance_to(Vector2(x,y-1))<9.0:return {"path":channel_paths[row],"frame":int(k.frame)}
 	return {}
 
 func _select_ref(hit:Dictionary,additive:bool)->void:
