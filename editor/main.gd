@@ -1165,18 +1165,20 @@ func _screen_to_view_plane(pos: Vector2, point: Vector3) -> Vector3:
 	var t := (point - origin).dot(normal) / denom
 	return origin + dir * t
 
-func _lock_drawing_view_to_nearest_axis() -> void:
+func _lock_drawing_view_to_canvas() -> void:
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	var forward: Vector3 = -camera.global_transform.basis.z.normalized()
-	var axes: Array[Vector3] = [Vector3.RIGHT,Vector3.LEFT,Vector3.UP,Vector3.DOWN,Vector3.BACK,Vector3.FORWARD]
-	var best_axis: Vector3 = Vector3.BACK
-	var best_dot: float = -1.0
-	for axis in axes:
-		var score: float = forward.dot(axis)
-		if score > best_dot:
-			best_dot = score
-			best_axis = axis
-	camera_rig.align_axis(best_axis)
+	orbiting = false
+	# ReferenceCanvas local XY is the drawing surface. Match the editor camera
+	# to its world orientation and look perpendicular to local Z.
+	if active_drawing_group != null and is_instance_valid(active_drawing_group):
+		var canvas_xform: Transform3D = active_drawing_group.global_transform
+		var distance: float = maxf(2.0,(camera.global_position-active_drawing_group.global_position).length())
+		var view_basis: Basis = canvas_xform.basis.orthonormalized()
+		var normal: Vector3 = view_basis.z.normalized()
+		camera.global_transform = Transform3D(view_basis,active_drawing_group.global_position+normal*distance)
+		camera.look_at(active_drawing_group.global_position,view_basis.y.normalized())
+		# Let the rig adopt this exact camera transform so pan/zoom continue from it.
+		camera_rig.align_transform(camera.global_transform)
 	_capture_projection_view()
 
 func _align_view_axis(axis: Vector3, label: String) -> void:
@@ -1966,15 +1968,14 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	workspace = next_workspace
 	if workspace == "drawing" and drawing_planes.is_empty():
 		_on_add_drawing_plane()
-	if workspace == "drawing":
-		# Enter Drawing on a stable orthographic axis view.  The active canvas
-		# defines the drawing plane; choose the nearest principal viewing axis
-		# so perspective/orbit can never alter the drawing projection.
-		_lock_drawing_view_to_nearest_axis()
 	if workspace_camera_states.has(workspace):
 		camera_rig.set_state(workspace_camera_states[workspace])
 	else:
 		workspace_camera_states[workspace] = camera_rig.get_state()
+	if workspace == "drawing":
+		# Drawing is a true 2D editor onto the selected ReferenceCanvas.
+		# Always look straight at that canvas after restoring workspace state.
+		_lock_drawing_view_to_canvas()
 	%RightPanel.visible = workspace == "scene" or workspace == "drawing" or workspace == "rigging" or workspace == "compositor"
 	%DrawingAnimBar.visible = workspace == "drawing"
 	%DrawingToolSurface.visible = workspace == "drawing"
@@ -2003,7 +2004,7 @@ func _on_workspace_tab_changed(tab: int) -> void:
 		%LookTitle.text = "◇  LOOK / FILTERS"
 
 func _on_draw_stroke3d_pressed() -> void:
-	_capture_projection_view()
+	_lock_drawing_view_to_canvas()
 	drawing_3d_active = true
 	drawing_sculpt_active = false
 	drawing_erase_active = false
@@ -2013,7 +2014,7 @@ func _on_draw_stroke3d_pressed() -> void:
 	status.text = "Spatial stroke · active reference canvas"
 
 func _on_draw_bitmap_pressed() -> void:
-	_capture_projection_view()
+	_lock_drawing_view_to_canvas()
 	var data: RefCounted = _active_drawing_data()
 	if data != null: %DrawingCanvas.set_local_frame(data.local_frame)
 	drawing_3d_active = false
@@ -2032,7 +2033,7 @@ func _on_draw_sculpt_pressed() -> void:
 	%DrawingCanvas.bitmap_mode = false
 	%DrawingCanvas.visible = false
 	_update_drawing_tool_ui()
-	status.text = "Sculpt · drag to push strokes in depth · middle mouse orbits viewport"
+	status.text = "Sculpt · 2D canvas view · middle mouse pans"
 
 func _on_draw_eraser_pressed() -> void:
 	drawing_3d_active = false
