@@ -8,6 +8,7 @@ var target: Node3D
 var parts: Array[Node3D] = []
 var mats: Array[StandardMaterial3D] = []
 var active_axis := Axis.NONE
+var orientation_local := false
 
 func _ready() -> void:
 	mats=[_mat(Color("#ff4d5a")),_mat(Color("#57d47b")),_mat(Color("#4f86ff"))]
@@ -63,6 +64,9 @@ func attach(n:Node3D)->void:target=n;visible=target!=null;_sync()
 func set_mode(m:Mode)->void:
 	if mode==m:return
 	mode=m;_rebuild()
+func set_orientation_local(enabled:bool)->void:
+	orientation_local=enabled
+	_sync()
 func axis_vector(a:int)->Vector3:
 	return [Vector3.RIGHT,Vector3.UP,Vector3.BACK][a] if a>=0 and a<3 else Vector3.ZERO
 func pick_axis(mouse:Vector2,camera:Camera3D)->int:
@@ -96,6 +100,8 @@ func _point_segment_distance(p:Vector2,a:Vector2,b:Vector2)->float:
 func _process(_d:float)->void:_sync()
 func _sync()->void:
 	if target==null or not is_instance_valid(target):visible=false;return
-	visible=true;global_position=target.global_position;global_rotation=Vector3.ZERO
+	visible=true;global_position=target.global_position
+	if orientation_local: global_basis=target.global_basis.orthonormalized()
+	else: global_rotation=Vector3.ZERO
 	var cam:=get_viewport().get_camera_3d()
 	if cam:scale=Vector3.ONE*maxf(.10,cam.global_position.distance_to(global_position)*.105)
