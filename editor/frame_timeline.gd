@@ -3,6 +3,10 @@ extends Control
 
 var frame_count := 60
 var current_frame := 0
+var range_start := 0
+var range_end := 60
+var view_start := 0.0
+var view_end := 60.0
 var object_id := ""
 var scrubbing := false
 var expanded := [false, false, false]
@@ -31,6 +35,26 @@ func _ready()->void:
 	mouse_filter=Control.MOUSE_FILTER_PASS
 
 func set_frame(f:int)->void: current_frame=f;queue_redraw()
+func set_timeline_range(total_frames:int,start_frame:int,end_frame:int)->void:
+	frame_count=maxi(1,total_frames)
+	range_start=clampi(start_frame,0,frame_count)
+	range_end=clampi(end_frame,range_start,frame_count)
+	if view_end<=view_start or view_end>frame_count or is_equal_approx(view_end,60.0):
+		view_start=0.0;view_end=float(frame_count)
+	queue_redraw()
+func zoom_at(factor:float,pivot_frame:float)->void:
+	var old_span:float=maxf(1.0,view_end-view_start)
+	var new_span:float=clampf(old_span*factor,4.0,float(frame_count))
+	var ratio:float=clampf((pivot_frame-view_start)/old_span,0.0,1.0)
+	view_start=clampf(pivot_frame-new_span*ratio,0.0,maxf(0.0,float(frame_count)-new_span))
+	view_end=view_start+new_span
+	queue_redraw()
+func frame_to_x(frame:float)->float:
+	var usable:float=maxf(1.0,size.x-LANE_X-12.0)
+	return LANE_X+(frame-view_start)/maxf(1.0,view_end-view_start)*usable
+func x_to_frame(x:float)->float:
+	var usable:float=maxf(1.0,size.x-LANE_X-12.0)
+	return view_start+(x-LANE_X)/usable*maxf(1.0,view_end-view_start)
 func set_object(id:String)->void:
 	object_id=id; selected_key_frame=-1; selected_key_path=""; selected_keys.clear(); key_deselected.emit()
 	channel_paths=["transform.position","transform.rotation","transform.scale"]
@@ -68,18 +92,24 @@ func _draw()->void:
 	draw_rect(Rect2(Vector2.ZERO,size),Color("#0A1118"))
 	draw_rect(Rect2(0,0,LANE_X,size.y),Color("#101A23"))
 	draw_line(Vector2(LANE_X,0),Vector2(LANE_X,size.y),Color("#22313D"),1)
-	var usable:=maxf(1.0,size.x-LANE_X-12.0)
-	var step:=usable/float(frame_count)
-	for f in range(frame_count+1):
-		var x:=LANE_X+float(f)*step
-		var major:=f%5==0
+	var visible_span:float=maxf(1.0,view_end-view_start)
+	var step:float=maxf(1.0,size.x-LANE_X-12.0)/visible_span
+	var first_frame:int=maxi(0,int(floor(view_start)))
+	var last_frame:int=mini(frame_count,int(ceil(view_end)))
+	var major_every:int=1 if visible_span<=24.0 else (5 if visible_span<=120.0 else 10)
+	# Playback range is visible as a subtle active band.
+	var rx0:float=frame_to_x(float(range_start));var rx1:float=frame_to_x(float(range_end))
+	draw_rect(Rect2(rx0,HEADER_H,maxf(1.0,rx1-rx0),size.y-HEADER_H),Color("#17364A",0.18))
+	for f in range(first_frame,last_frame+1):
+		var x:float=frame_to_x(float(f))
+		var major:bool=f%major_every==0
 		draw_line(Vector2(x,HEADER_H if major else HEADER_H-5),Vector2(x,size.y),Color("#31414F",0.46 if major else 0.12),1)
 		if major: draw_string(get_theme_default_font(),Vector2(x+4,25),str(f),HORIZONTAL_ALIGNMENT_LEFT,-1,12,Color("#778896"))
 	draw_string(get_theme_default_font(),Vector2(18,27),("▼ " if expanded.has(true) else "▶ ")+"Selected Object",HORIZONTAL_ALIGNMENT_LEFT,-1,14,Color("#D5E0E9"))
 	draw_rect(Rect2(10,SUMMARY_Y-18,LANE_X-20,30),Color("#182733"))
 	draw_string(get_theme_default_font(),Vector2(18,SUMMARY_Y+4),"◆  All Channels",HORIZONTAL_ALIGNMENT_LEFT,-1,12,Color("#dbe4ef"))
 	for gf in ProjectStore.get_object_key_frames(object_id):
-		var gx:=LANE_X+float(gf)*step
+		var gx:=frame_to_x(float(gf))
 		var gp:=PackedVector2Array([Vector2(gx,SUMMARY_Y-7),Vector2(gx+6,SUMMARY_Y-1),Vector2(gx,SUMMARY_Y+5),Vector2(gx-6,SUMMARY_Y-1)])
 		draw_colored_polygon(gp,Color.WHITE if _is_selected("*",gf) else Color("#8fa8c2"))
 	for row in range(3):
@@ -89,7 +119,7 @@ func _draw()->void:
 		draw_line(Vector2(0,y+8),Vector2(size.x,y+8),Color("#23323E",0.7),1)
 		for k in _keys(channel_paths[row]):
 			var kf:=int(k.frame)
-			var x:=LANE_X+float(kf)*step
+			var x:=frame_to_x(float(kf))
 			var p:=PackedVector2Array([Vector2(x,y-7),Vector2(x+6,y-1),Vector2(x,y+5),Vector2(x-6,y-1)])
 			draw_colored_polygon(p,Color.WHITE if _is_selected(channel_paths[row],kf) else COLORS[row])
 		if expanded[row]: _draw_curve(row,y+12.0,step)
@@ -97,9 +127,9 @@ func _draw()->void:
 		var ey := HEADER_H + 12.0
 		draw_string(get_theme_default_font(),Vector2(14,ey+4),"Drawing Cels",HORIZONTAL_ALIGNMENT_LEFT,-1,12,Color("#f0c96b"))
 		for ef in drawing_exposure_frames:
-			var ex := LANE_X + float(ef) * step
+			var ex := frame_to_x(float(ef))
 			draw_rect(Rect2(ex-4, ey-7, 8, 14), Color("#f0c96b"))
-	var px:=LANE_X+float(current_frame)*step
+	var px:=frame_to_x(float(current_frame))
 	draw_line(Vector2(px,HEADER_H-2),Vector2(px,size.y),Color("#3AA7EB"),2)
 	draw_circle(Vector2(px,HEADER_H-4),7,Color("#3AA7EB"))
 
@@ -176,14 +206,13 @@ func _draw_curve(row:int,top:float,step:float)->void:
 					pts.append(Vector2(x,yy))
 		if pts.size()>1: draw_polyline(pts,component_colors[component],1.5,true)
 		for k in ks:
-			var kx:float=LANE_X+float(k.frame)*step
+			var kx:float=frame_to_x(float(k.frame))
 			var ky:float=top+44.0-(_component(k.value,component)-lo)/span*36.0
 			draw_circle(Vector2(kx,ky),2.5,component_colors[component])
 	draw_string(get_theme_default_font(),Vector2(16,top+34),"X   Y   Z   · F-Curve",HORIZONTAL_ALIGNMENT_LEFT,-1,11,Color("#8291a3"))
 
 func _frame_from_x(x:float)->int:
-	var usable:=maxf(1.0,size.x-LANE_X-12.0)
-	return clampi(roundi((x-LANE_X)/usable*frame_count),0,frame_count)
+	return clampi(roundi(x_to_frame(x)),0,frame_count)
 
 func _is_selected(path:String,frame:int)->bool:
 	for ref in selected_keys:
@@ -193,12 +222,12 @@ func _is_selected(path:String,frame:int)->bool:
 func _hit_key(pos:Vector2)->Dictionary:
 	var usable:=maxf(1.0,size.x-LANE_X-12.0);var step:=usable/float(frame_count)
 	for gf in ProjectStore.get_object_key_frames(object_id):
-		var gx:=LANE_X+float(gf)*step
+		var gx:=frame_to_x(float(gf))
 		if pos.distance_to(Vector2(gx,SUMMARY_Y-1))<9.0:return {"path":"*","frame":gf}
 	for row in range(3):
 		var y:=_row_y(row)
 		for k in _keys(channel_paths[row]):
-			var x:=LANE_X+float(k.frame)*step
+			var x:=frame_to_x(float(k.frame))
 			if pos.distance_to(Vector2(x,y-1))<9.0:return {"path":channel_paths[row],"frame":int(k.frame)}
 	return {}
 
@@ -245,6 +274,10 @@ func _scale_selected(factor:float)->void:
 	queue_redraw()
 
 func _gui_input(e:InputEvent)->void:
+	if e is InputEventMouseButton and (e.button_index==MOUSE_BUTTON_WHEEL_UP or e.button_index==MOUSE_BUTTON_WHEEL_DOWN) and e.pressed:
+		var pivot:float=x_to_frame(e.position.x)
+		zoom_at(0.8 if e.button_index==MOUSE_BUTTON_WHEEL_UP else 1.25,pivot)
+		accept_event();return
 	if e is InputEventMouseButton and e.button_index==MOUSE_BUTTON_LEFT:
 		if e.pressed:
 			if e.position.x<LANE_X:
