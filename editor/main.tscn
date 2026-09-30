@@ -33,7 +33,8 @@ theme_override_constants/separation=5
 [node name="Brand" type="Label" parent="TopBar"]
 custom_minimum_size=Vector2(145,44)
 text="KABUKI"
-theme_override_font_sizes/font_size=24
+theme_override_colors/font_color=Color(0.72,0.82,0.92,1)
+theme_override_font_sizes/font_size=22
 vertical_alignment=1
 [node name="WorkspaceTabs" type="TabBar" parent="TopBar"]
 unique_name_in_owner=true
@@ -89,8 +90,9 @@ theme_override_constants/separation=5
 [node name="SceneHead" type="HBoxContainer" parent="LeftPanel/ScenePanel/SceneBox"]
 [node name="Title" type="Label" parent="LeftPanel/ScenePanel/SceneBox/SceneHead"]
 unique_name_in_owner=true
-text="Scene"
-theme_override_font_sizes/font_size=16
+text="OBJECTS"
+theme_override_colors/font_color=Color(0.58,0.68,0.78,1)
+theme_override_font_sizes/font_size=13
 [node name="SceneGrow" type="Control" parent="LeftPanel/ScenePanel/SceneBox/SceneHead"]
 size_flags_horizontal=3
 [node name="AddObj" type="MenuButton" parent="LeftPanel/ScenePanel/SceneBox/SceneHead"]
@@ -140,24 +142,25 @@ text="Delete"
 [node name="RiggingPanel" type="PanelContainer" parent="LeftPanel"]
 unique_name_in_owner=true
 visible=false
-custom_minimum_size=Vector2(0,240)
+custom_minimum_size=Vector2(0,150)
 [node name="RiggingBox" type="VBoxContainer" parent="LeftPanel/RiggingPanel"]
 [node name="RiggingTitle" type="Label" parent="LeftPanel/RiggingPanel/RiggingBox"]
-text="RIGGING"
-theme_override_font_sizes/font_size=16
+text="PUPPET"
+theme_override_colors/font_color=Color(0.58,0.68,0.78,1)
+theme_override_font_sizes/font_size=13
 [node name="CreateSkeleton" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
-text="CREATE SKELETON"
+text="＋  CREATE SKELETON"
 tooltip_text="Draw a skeleton directly on the selected artwork; skinning is applied automatically when finished"
 [node name="RiggingHint" type="Label" parent="LeftPanel/RiggingPanel/RiggingBox"]
-text="Hierarchy · Pivot · Bones · Skin"
+text="Tap bones in the viewport to pose"
 [node name="RigSelectionHint" type="Label" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
-text="Select child, then PICK PARENT"
+text="Bones · Weights · IK"
 autowrap_mode=2
 [node name="PickRigParent" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
-text="PICK PARENT"
+text="PARENT…"
 tooltip_text="Keep the current object as child, then select its parent in the Objects list"
 [node name="CancelRigParent" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
@@ -169,10 +172,10 @@ visible=false
 text="SET PARENT"
 [node name="ClearRigParent" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
-text="CLEAR PARENT"
+text="UNPARENT"
 [node name="PivotHere" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
-text="PIVOT TO VIEW CURSOR"
+text="SET PIVOT"
 tooltip_text="Move pivot to the current editor orbit pivot without moving visible geometry"
 [node name="BonesSeparator" type="HSeparator" parent="LeftPanel/RiggingPanel/RiggingBox"]
 [node name="AddBone" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
@@ -189,10 +192,11 @@ tooltip_text="Automatic vertex assignment for tessellated meshes"
 custom_minimum_size=Vector2(0,180)
 [node name="Assets" type="VBoxContainer" parent="LeftPanel/AssetsPanel"]
 [node name="AssetsTitle" type="Label" parent="LeftPanel/AssetsPanel/Assets"]
-text="Assets"
-theme_override_font_sizes/font_size=16
+text="LIBRARY"
+theme_override_colors/font_color=Color(0.58,0.68,0.78,1)
+theme_override_font_sizes/font_size=13
 [node name="AssetsHint" type="Label" parent="LeftPanel/AssetsPanel/Assets"]
-text="Images · Models · Drawings"
+text="Images  ·  Models  ·  Drawings"
 [node name="AssetImport" type="Button" parent="LeftPanel/AssetsPanel/Assets"]
 text="＋  Import asset"
 
