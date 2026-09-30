@@ -920,7 +920,12 @@ func _navigate_zoom(amount: float) -> void:
 
 func _on_canvas_gui_input(event: InputEvent) -> void:
 	if workspace == "drawing":
-		# Navigation remains available while drawing: MMB orbit, Shift+MMB pan, wheel zoom.
+		# DRAWING is deliberately a 2D editing view onto a 3D reference plane.
+		# Keep the camera orthographic and axis-locked: MMB pans, wheel zooms.
+		# Orbiting here changes the projection used by drawing tools and causes
+		# strokes/bitmap layers to appear projected onto the canvas.
+		if camera.projection != Camera3D.PROJECTION_ORTHOGONAL:
+			camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 		if event is InputEventMouseButton:
 			last_mouse = event.position
 			if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
@@ -928,8 +933,8 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
 				_navigate_zoom(1.0); return
 			elif event.button_index == MOUSE_BUTTON_MIDDLE:
-				if Input.is_key_pressed(KEY_SHIFT): panning = event.pressed
-				else: orbiting = event.pressed
+				panning = event.pressed
+				orbiting = false
 				return
 			elif event.button_index == MOUSE_BUTTON_LEFT:
 				if workspace == "rigging" and rig_bone_draw_active:
@@ -1160,8 +1165,25 @@ func _screen_to_view_plane(pos: Vector2, point: Vector3) -> Vector3:
 	var t := (point - origin).dot(normal) / denom
 	return origin + dir * t
 
+func _lock_drawing_view_to_nearest_axis() -> void:
+	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	var forward: Vector3 = -camera.global_transform.basis.z.normalized()
+	var axes: Array[Vector3] = [Vector3.RIGHT,Vector3.LEFT,Vector3.UP,Vector3.DOWN,Vector3.BACK,Vector3.FORWARD]
+	var best_axis: Vector3 = Vector3.BACK
+	var best_dot: float = -1.0
+	for axis in axes:
+		var score: float = forward.dot(axis)
+		if score > best_dot:
+			best_dot = score
+			best_axis = axis
+	camera_rig.align_axis(best_axis)
+	_capture_projection_view()
+
 func _align_view_axis(axis: Vector3, label: String) -> void:
 	camera_rig.align_axis(axis)
+	if workspace == "drawing":
+		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+		_capture_projection_view()
 	status.text = "View aligned to " + label
 
 func _capture_projection_view() -> void:
@@ -1944,6 +1966,11 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	workspace = next_workspace
 	if workspace == "drawing" and drawing_planes.is_empty():
 		_on_add_drawing_plane()
+	if workspace == "drawing":
+		# Enter Drawing on a stable orthographic axis view.  The active canvas
+		# defines the drawing plane; choose the nearest principal viewing axis
+		# so perspective/orbit can never alter the drawing projection.
+		_lock_drawing_view_to_nearest_axis()
 	if workspace_camera_states.has(workspace):
 		camera_rig.set_state(workspace_camera_states[workspace])
 	else:
