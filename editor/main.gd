@@ -1987,6 +1987,10 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	if workspace == "rigging": _refresh_rig_parent_choices()
 	%DrawingCanvas.visible = workspace == "drawing" and %DrawingCanvas.bitmap_mode
 	%ViewportTop.visible = workspace != "drawing"
+	# The axis/camera view gizmo belongs to spatial scene navigation. Drawing is
+	# canvas-locked 2D, and Animation should focus on posing/timing rather than
+	# exposing scene-view orientation controls.
+	%ViewGizmo.visible = workspace != "drawing" and workspace != "animation"
 	%ToolRail.visible = workspace != "drawing"
 	%Title.text = "OBJECTS" if workspace != "drawing" else "DRAWINGS"
 	%Status.text = workspace.to_upper() + " workspace"
