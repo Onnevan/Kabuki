@@ -2281,23 +2281,23 @@ func _refresh_transform_readout() -> void:
 	_show_transform(selected_scene_node)
 
 func _responsive_layout() -> void:
-	var w: float = size.x
-	var h: float = size.y
-	if w < 900.0 or h < 600.0: return
-	# App-like shell: generous gutters, narrow organizational drawers and a
-	# dominant canvas. The timeline is a proper editor, not a footer.
-	var outer: float = 16.0
-	var gap: float = 14.0
-	var top_h: float = 54.0
-	var status_h: float = 18.0
-	var timeline_h: float = clampf(h*0.235,190.0,285.0)
-	var content_top: float = outer+top_h+gap
-	var content_bottom: float = h-status_h-timeline_h-gap
-	var content_h: float = maxf(260.0,content_bottom-content_top)
-	var left_w: float = clampf(w*0.155,220.0,280.0)
-	var right_w: float = clampf(w*0.175,250.0,310.0)
-	var center_left: float = outer+left_w+gap
-	var center_right: float = w-outer-right_w-gap
+	var w: float=size.x
+	var h: float=size.y
+	if w<900.0 or h<600.0: return
+	# Reference-design proportions: the shell is intentionally substantial.
+	# At high resolutions controls must not collapse into desktop-sized chrome.
+	var outer: float=14.0
+	var gap: float=14.0
+	var top_h: float=72.0
+	var status_h: float=18.0
+	var timeline_h: float=clampf(h*0.275,230.0,390.0)
+	var content_top: float=outer+top_h+gap
+	var content_bottom: float=h-status_h-timeline_h-gap
+	var content_h: float=maxf(260.0,content_bottom-content_top)
+	var left_w: float=clampf(w*0.165,250.0,340.0)
+	var right_w: float=clampf(w*0.19,290.0,380.0)
+	var center_left: float=outer+left_w+gap
+	var center_right: float=w-outer-right_w-gap
 
 	%LeftPanel.position=Vector2(outer,content_top)
 	%LeftPanel.size=Vector2(left_w,content_h)
@@ -2308,29 +2308,30 @@ func _responsive_layout() -> void:
 	%EffectsEngine.position=%ViewportFrame.position
 	%EffectsEngine.size=%ViewportFrame.size
 
-	%ViewportTop.position=%ViewportFrame.position+Vector2(18.0,16.0)
-	%ViewportTop.size=Vector2(maxf(100.0,%ViewportFrame.size.x-36.0),42.0)
-	%ToolRail.position=%ViewportFrame.position+Vector2(18.0,70.0)
+	%ViewportTop.position=%ViewportFrame.position+Vector2(22.0,20.0)
+	%ViewportTop.size=Vector2(maxf(100.0,%ViewportFrame.size.x-44.0),48.0)
+	%ToolRail.position=%ViewportFrame.position+Vector2(22.0,82.0)
 	var gizmo_size: Vector2=%ViewGizmo.size
-	if gizmo_size.x<=1.0: gizmo_size.x=98.0
-	%ViewGizmo.position=%ViewportFrame.position+Vector2(%ViewportFrame.size.x-gizmo_size.x-20.0,70.0)
+	if gizmo_size.x<=1.0: gizmo_size.x=108.0
+	%ViewGizmo.position=%ViewportFrame.position+Vector2(%ViewportFrame.size.x-gizmo_size.x-24.0,82.0)
 	if camera_view_active: _update_camera_frame_overlay()
 	%DrawingCanvas.position=%ViewportFrame.position
 	%DrawingCanvas.size=%ViewportFrame.size
 
-	# Drawing: compact floating rail + contextual capsule. No full-width chrome.
-	var rail_h: float = minf(610.0,%ViewportFrame.size.y-42.0)
-	%DrawingToolSurface.position=%ViewportFrame.position+Vector2(18.0,18.0)
-	%DrawingToolSurface.size=Vector2(58.0,rail_h)
-	%DrawingToolRail.position=%DrawingToolSurface.position+Vector2(8.0,8.0)
-	%DrawingToolRail.size=Vector2(42.0,maxf(100.0,rail_h-16.0))
-	var hud_w: float = minf(650.0,maxf(260.0,%ViewportFrame.size.x-126.0))
-	%DrawingContextSurface.position=%ViewportFrame.position+Vector2(90.0,18.0)
-	%DrawingContextSurface.size=Vector2(hud_w,50.0)
-	%DrawingBar.position=%DrawingContextSurface.position+Vector2(12.0,7.0)
-	%DrawingBar.size=Vector2(hud_w-24.0,36.0)
-	%DrawingAnimBar.position=%ViewportFrame.position+Vector2(92.0,%ViewportFrame.size.y-50.0)
-	%DrawingAnimBar.size=Vector2(minf(600.0,%ViewportFrame.size.x-130.0),34.0)
+	# Drawing follows the approved mockup: a chunky floating rail and one
+	# purposeful context card, never a thin full-width toolbar.
+	var rail_h: float=minf(660.0,%ViewportFrame.size.y-52.0)
+	%DrawingToolSurface.position=%ViewportFrame.position+Vector2(20.0,20.0)
+	%DrawingToolSurface.size=Vector2(68.0,rail_h)
+	%DrawingToolRail.position=%DrawingToolSurface.position+Vector2(9.0,10.0)
+	%DrawingToolRail.size=Vector2(50.0,maxf(100.0,rail_h-20.0))
+	var hud_w: float=minf(760.0,maxf(340.0,%ViewportFrame.size.x-156.0))
+	%DrawingContextSurface.position=%ViewportFrame.position+Vector2(104.0,20.0)
+	%DrawingContextSurface.size=Vector2(hud_w,58.0)
+	%DrawingBar.position=%DrawingContextSurface.position+Vector2(14.0,9.0)
+	%DrawingBar.size=Vector2(hud_w-28.0,40.0)
+	%DrawingAnimBar.position=%ViewportFrame.position+Vector2(106.0,%ViewportFrame.size.y-58.0)
+	%DrawingAnimBar.size=Vector2(minf(720.0,%ViewportFrame.size.x-156.0),42.0)
 
 	%Bottom.position=Vector2(outer,content_bottom+gap)
 	%Bottom.size=Vector2(w-outer*2.0,timeline_h)
