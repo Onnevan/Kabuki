@@ -115,6 +115,10 @@ func _lerp_variant(a: Variant, b: Variant, t: float) -> Variant:
 		var scale: Vector3 = ta.basis.get_scale().lerp(tb.basis.get_scale(),t)
 		var rotation: Quaternion = qa.slerp(qb,t)
 		return Transform3D(Basis(rotation).scaled(scale),ta.origin.lerp(tb.origin,t))
+	if a is Quaternion and b is Quaternion:
+		var qa: Quaternion = a
+		var qb: Quaternion = b
+		return qa.slerp(qb,t)
 	if a is Color and b is Color: return a.lerp(b,t)
 	if a is Vector2 and b is Vector2: return a.lerp(b,t)
 	if a is float or a is int: return lerpf(float(a),float(b),t)
