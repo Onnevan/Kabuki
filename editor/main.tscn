@@ -1,159 +1,1037 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource path="res://editor/main.gd" type="Script" id="1"]
+[ext_resource path="res://editor/editor_camera_rig.gd" type="Script" id="2"]
+[ext_resource path="res://editor/transform_gizmo.gd" type="Script" id="3"]
+[ext_resource path="res://editor/world_grid.gd" type="Script" id="4"]
+[ext_resource path="res://editor/frame_timeline.gd" type="Script" id="5"]
+[ext_resource path="res://render/effects_engine.gd" type="Script" id="6"]
+[ext_resource path="res://paint/drawing_canvas.gd" type="Script" id="7"]
 
 [node name="Main" type="Control"]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("1")
+layout_mode=3
+anchors_preset=15
+anchor_right=1.0
+anchor_bottom=1.0
+grow_horizontal=2
+grow_vertical=2
+script=ExtResource("1")
 
 [node name="BG" type="ColorRect" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-color = Color(0.055,0.06,0.075,1)
+layout_mode=1
+anchors_preset=15
+anchor_right=1.0
+anchor_bottom=1.0
+color=Color(0.039,0.059,0.078,1)
 
-[node name="Top" type="HBoxContainer" parent="."]
-layout_mode = 0
-offset_left = 16.0
-offset_top = 12.0
-offset_right = 1350.0
-offset_bottom = 54.0
-theme_override_constants/separation = 12
-[node name="Title" type="Label" parent="Top"]
-text = "KABUKI  v0.1"
-[node name="Import" type="Button" parent="Top"]
-text = "+ Import PNG"
-[node name="Status" type="Label" parent="Top"]
-unique_name_in_owner = true
-text = "Architecture prototype"
+[node name="TopBar" type="HBoxContainer" parent="."]
+offset_left=14.0
+offset_top=10.0
+offset_right=1352.0
+offset_bottom=56.0
+theme_override_constants/separation=8
+[node name="Brand" type="Label" parent="TopBar"]
+custom_minimum_size=Vector2(126,40)
+text="KABUKI"
+theme_override_colors/font_color=Color(0.76,0.84,0.91,1)
+theme_override_font_sizes/font_size=16
+vertical_alignment=1
+[node name="WorkspaceTabs" type="TabBar" parent="TopBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(480,40)
+[node name="EditorTitle" type="Label" parent="TopBar"]
+unique_name_in_owner=true
+text="SCENE EDITOR"
+theme_override_font_sizes/font_size=18
+vertical_alignment=1
 
-[node name="ViewportContainer" type="SubViewportContainer" parent="."]
-layout_mode = 0
-offset_left = 16.0
-offset_top = 64.0
-offset_right = 1030.0
-offset_bottom = 700.0
-stretch = true
-[node name="SceneViewport" type="SubViewport" parent="ViewportContainer"]
-unique_name_in_owner = true
-handle_input_locally = false
-size = Vector2i(1014,636)
-render_target_update_mode = 4
-[node name="WorldRoot" type="Node3D" parent="ViewportContainer/SceneViewport"]
-unique_name_in_owner = true
-[node name="Camera3D" type="Camera3D" parent="ViewportContainer/SceneViewport"]
-position = Vector3(0,0,3)
-current = true
+[node name="TopSpacer" type="Control" parent="TopBar"]
+size_flags_horizontal=3
+[node name="UndoPaint" type="Button" parent="TopBar"]
+unique_name_in_owner=true
+text="↶"
+tooltip_text="Undo paint (Ctrl+Z)"
+[node name="RedoPaint" type="Button" parent="TopBar"]
+unique_name_in_owner=true
+text="↷"
+tooltip_text="Redo paint (Ctrl+Shift+Z)"
 
-[node name="Inspector" type="VBoxContainer" parent="."]
-layout_mode = 0
-offset_left = 1048.0
-offset_top = 64.0
-offset_right = 1350.0
-offset_bottom = 700.0
-theme_override_constants/separation = 8
-[node name="Header" type="Label" parent="Inspector"]
-text = "OBJECT / EFFECTS"
-[node name="SelectedLabel" type="Label" parent="Inspector"]
-unique_name_in_owner = true
-text = "No object selected"
-[node name="MoveLabel" type="Label" parent="Inspector"]
-text = "Transform (prototype nudge)"
-[node name="MoveRow" type="HBoxContainer" parent="Inspector"]
-[node name="Left" type="Button" parent="Inspector/MoveRow"]
-text = "X-"
-[node name="Right" type="Button" parent="Inspector/MoveRow"]
-text = "X+"
-[node name="Up" type="Button" parent="Inspector/MoveRow"]
-text = "Y+"
-[node name="Down" type="Button" parent="Inspector/MoveRow"]
-text = "Y-"
-[node name="KeyPosition" type="Button" parent="Inspector"]
-text = "Key Position"
-[node name="InterpLabel" type="Label" parent="Inspector"]
-text = "Interpolation"
-[node name="Interpolation" type="OptionButton" parent="Inspector"]
-unique_name_in_owner = true
-[node name="BlurLabel" type="Label" parent="Inspector"]
-text = "Blur"
-[node name="BlurSlider" type="HSlider" parent="Inspector"]
-unique_name_in_owner = true
-max_value = 8.0
-step = 0.1
-[node name="GlowLabel" type="Label" parent="Inspector"]
-text = "Glow / Emission"
-[node name="GlowSlider" type="HSlider" parent="Inspector"]
-unique_name_in_owner = true
-max_value = 3.0
-step = 0.05
-[node name="ExposureLabel" type="Label" parent="Inspector"]
-text = "Exposure"
-[node name="ExposureSlider" type="HSlider" parent="Inspector"]
-unique_name_in_owner = true
-min_value = -3.0
-max_value = 3.0
-step = 0.05
-[node name="SaturationLabel" type="Label" parent="Inspector"]
-text = "Saturation"
-[node name="SaturationSlider" type="HSlider" parent="Inspector"]
-unique_name_in_owner = true
-max_value = 2.0
-step = 0.05
-value = 1.0
-[node name="KeyEffects" type="Button" parent="Inspector"]
-text = "Key Effects"
-[node name="Future" type="Label" parent="Inspector"]
-text = "Reserved components:\nHierarchy / Character\nPaint / Stroke3D\nDeform / Surface Bindings\nAudio / Scene FX"
+[node name="ProjectName" type="Label" parent="TopBar"]
+unique_name_in_owner=true
+text="Untitled"
+vertical_alignment=1
+[node name="SaveProject" type="Button" parent="TopBar"]
+unique_name_in_owner=true
+text="Save"
+[node name="LoadProject" type="Button" parent="TopBar"]
+unique_name_in_owner=true
+text="Open"
+[node name="Import" type="Button" parent="TopBar"]
+text="＋  Import"
+[node name="PreviewMode" type="CheckButton" parent="TopBar"]
+unique_name_in_owner=true
+text="Preview"
+[node name="GridToggle" type="CheckButton" parent="TopBar"]
+unique_name_in_owner=true
+text="▦"
+button_pressed=true
 
-[node name="Timeline" type="VBoxContainer" parent="."]
-layout_mode = 0
-offset_left = 16.0
-offset_top = 716.0
-offset_right = 1350.0
-offset_bottom = 884.0
-[node name="FrameLabel" type="Label" parent="Timeline"]
-unique_name_in_owner = true
-text = "Frame"
-[node name="FrameSlider" type="HSlider" parent="Timeline"]
-unique_name_in_owner = true
-max_value = 120.0
-step = 1.0
-[node name="Controls" type="HBoxContainer" parent="Timeline"]
-[node name="Prev" type="Button" parent="Timeline/Controls"]
-text = "<"
-[node name="PlayButton" type="Button" parent="Timeline/Controls"]
-unique_name_in_owner = true
-text = "Play"
-[node name="Next" type="Button" parent="Timeline/Controls"]
-text = ">"
-[node name="Hint" type="Label" parent="Timeline/Controls"]
-text = "   Import a transparent PNG, move it, key position/effects, change frame, repeat."
+[node name="LeftPanel" type="VBoxContainer" parent="."]
+unique_name_in_owner=true
+offset_left=10.0
+offset_top=70.0
+offset_right=278.0
+offset_bottom=650.0
+theme_override_constants/separation=8
+[node name="ScenePanel" type="PanelContainer" parent="LeftPanel"]
+size_flags_vertical=3
+[node name="SceneBox" type="VBoxContainer" parent="LeftPanel/ScenePanel"]
+theme_override_constants/separation=5
+[node name="SceneHead" type="HBoxContainer" parent="LeftPanel/ScenePanel/SceneBox"]
+[node name="Title" type="Label" parent="LeftPanel/ScenePanel/SceneBox/SceneHead"]
+unique_name_in_owner=true
+text="Objects"
+theme_override_colors/font_color=Color(0.48,0.58,0.67,1)
+theme_override_font_sizes/font_size=11
+[node name="SceneGrow" type="Control" parent="LeftPanel/ScenePanel/SceneBox/SceneHead"]
+size_flags_horizontal=3
+[node name="AddObj" type="MenuButton" parent="LeftPanel/ScenePanel/SceneBox/SceneHead"]
+unique_name_in_owner=true
+text="＋"
+[node name="ObjectList" type="ItemList" parent="LeftPanel/ScenePanel/SceneBox"]
+unique_name_in_owner=true
+size_flags_vertical=3
+[node name="DrawingPlanes" type="VBoxContainer" parent="LeftPanel/ScenePanel/SceneBox"]
+unique_name_in_owner=true
+visible=false
+[node name="PlanesHead" type="HBoxContainer" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes"]
+[node name="PlanesTitle" type="Label" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlanesHead"]
+text="Canvases"
+theme_override_colors/font_color=Color(0.48,0.58,0.67,1)
+theme_override_font_sizes/font_size=11
+[node name="PlanesGrow" type="Control" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlanesHead"]
+size_flags_horizontal=3
+[node name="AddDrawingPlane" type="Button" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlanesHead"]
+unique_name_in_owner=true
+text="＋"
+tooltip_text="Add spatial reference canvas"
+[node name="DrawingPlaneList" type="ItemList" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(0,150)
+select_mode=0
+[node name="PlaneActions" type="HBoxContainer" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes"]
+[node name="PlaneUp" type="Button" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions"]
+unique_name_in_owner=true
+text="↑"
+[node name="PlaneDown" type="Button" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions"]
+unique_name_in_owner=true
+text="↓"
+[node name="PlaneDuplicate" type="Button" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions"]
+unique_name_in_owner=true
+text="Duplicate"
+[node name="PlaneDelete" type="Button" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions"]
+unique_name_in_owner=true
+text="Delete"
+
+[node name="SelectionLabel" type="Label" parent="LeftPanel/ScenePanel/SceneBox"]
+unique_name_in_owner=true
+text="Nothing selected"
+[node name="Actions" type="HBoxContainer" parent="LeftPanel/ScenePanel/SceneBox"]
+[node name="Duplicate" type="Button" parent="LeftPanel/ScenePanel/SceneBox/Actions"]
+text="Duplicate"
+[node name="Delete" type="Button" parent="LeftPanel/ScenePanel/SceneBox/Actions"]
+text="Delete"
+[node name="RiggingPanel" type="PanelContainer" parent="LeftPanel"]
+unique_name_in_owner=true
+visible=false
+custom_minimum_size=Vector2(0,150)
+[node name="RiggingBox" type="VBoxContainer" parent="LeftPanel/RiggingPanel"]
+[node name="RiggingTitle" type="Label" parent="LeftPanel/RiggingPanel/RiggingBox"]
+text="Puppet"
+theme_override_colors/font_color=Color(0.48,0.58,0.67,1)
+theme_override_font_sizes/font_size=11
+[node name="CreateSkeleton" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
+unique_name_in_owner=true
+text="＋  Create skeleton"
+tooltip_text="Draw a skeleton directly on the selected artwork; skinning is applied automatically when finished"
+[node name="RiggingHint" type="Label" parent="LeftPanel/RiggingPanel/RiggingBox"]
+text="Tap bones in the viewport to pose"
+[node name="RigSelectionHint" type="Label" parent="LeftPanel/RiggingPanel/RiggingBox"]
+unique_name_in_owner=true
+text="Drag bones directly in the viewport"
+autowrap_mode=2
+[node name="PickRigParent" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
+unique_name_in_owner=true
+text="MORE…"
+tooltip_text="Keep the current object as child, then select its parent in the Objects list"
+[node name="CancelRigParent" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
+unique_name_in_owner=true
+visible=false
+text="CANCEL PARENTING"
+[node name="SetRigParent" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
+unique_name_in_owner=true
+visible=false
+text="SET PARENT"
+[node name="ClearRigParent" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
+unique_name_in_owner=true
+text="Remove parent"
+[node name="PivotHere" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
+unique_name_in_owner=true
+text="Edit pivot"
+tooltip_text="Move pivot to the current editor orbit pivot without moving visible geometry"
+[node name="BonesSeparator" type="HSeparator" parent="LeftPanel/RiggingPanel/RiggingBox"]
+[node name="AddBone" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
+unique_name_in_owner=true
+visible=false
+text="＋ BONE"
+[node name="AutoWeights" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
+unique_name_in_owner=true
+visible=false
+text="AUTO WEIGHTS"
+tooltip_text="Automatic vertex assignment for tessellated meshes"
+
+[node name="AssetsPanel" type="PanelContainer" parent="LeftPanel"]
+custom_minimum_size=Vector2(0,180)
+[node name="Assets" type="VBoxContainer" parent="LeftPanel/AssetsPanel"]
+[node name="AssetsTitle" type="Label" parent="LeftPanel/AssetsPanel/Assets"]
+text="Library"
+theme_override_colors/font_color=Color(0.48,0.58,0.67,1)
+theme_override_font_sizes/font_size=11
+[node name="AssetsHint" type="Label" parent="LeftPanel/AssetsPanel/Assets"]
+text="Images  ·  Models  ·  Drawings"
+[node name="AssetImport" type="Button" parent="LeftPanel/AssetsPanel/Assets"]
+text="＋  Import asset"
+
+[node name="ViewportFrame" type="PanelContainer" parent="."]
+unique_name_in_owner=true
+offset_left=290.0
+offset_top=70.0
+offset_right=1046.0
+offset_bottom=650.0
+[node name="ViewportContainer" type="SubViewportContainer" parent="ViewportFrame"]
+unique_name_in_owner=true
+layout_mode=2
+stretch=true
+mouse_filter=0
+[node name="SceneViewport" type="SubViewport" parent="ViewportFrame/ViewportContainer"]
+unique_name_in_owner=true
+handle_input_locally=false
+size=Vector2i(752,584)
+render_target_update_mode=4
+[node name="WorldRoot" type="Node3D" parent="ViewportFrame/ViewportContainer/SceneViewport"]
+unique_name_in_owner=true
+[node name="WorldGrid" type="MeshInstance3D" parent="ViewportFrame/ViewportContainer/SceneViewport"]
+unique_name_in_owner=true
+script=ExtResource("4")
+[node name="EditorCameraRig" type="Node3D" parent="ViewportFrame/ViewportContainer/SceneViewport"]
+unique_name_in_owner=true
+script=ExtResource("2")
+[node name="TransformGizmo" type="Node3D" parent="ViewportFrame/ViewportContainer/SceneViewport"]
+unique_name_in_owner=true
+script=ExtResource("3")
+[node name="Camera3D" type="Camera3D" parent="ViewportFrame/ViewportContainer/SceneViewport"]
+unique_name_in_owner=true
+position=Vector3(0,0,3)
+current=true
+
+[node name="DrawingCanvas" type="Control" parent="."]
+unique_name_in_owner=true
+visible=false
+offset_left=290.0
+offset_top=70.0
+offset_right=1046.0
+offset_bottom=650.0
+mouse_filter=0
+script=ExtResource("7")
+
+[node name="DrawingToolSurface" type="PanelContainer" parent="."]
+unique_name_in_owner=true
+visible=false
+mouse_filter=2
+
+[node name="DrawingToolRail" type="VBoxContainer" parent="."]
+unique_name_in_owner=true
+visible=false
+theme_override_constants/separation=6
+
+[node name="DrawingContextSurface" type="PanelContainer" parent="."]
+unique_name_in_owner=true
+visible=false
+mouse_filter=2
+
+[node name="DrawingBar" type="HBoxContainer" parent="."]
+unique_name_in_owner=true
+visible=false
+offset_left=306.0
+offset_top=76.0
+offset_right=1034.0
+offset_bottom=116.0
+theme_override_constants/separation=6
+[node name="StrokeTool" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(50,50)
+unique_name_in_owner=true
+text="✎"
+tooltip_text="Draw in 3D space"
+[node name="BitmapTool" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(50,50)
+unique_name_in_owner=true
+text="▧"
+tooltip_text="Paint on this canvas"
+[node name="EraseTool" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(50,50)
+unique_name_in_owner=true
+text="⌫"
+tooltip_text="Eraser"
+[node name="SculptTool" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(50,50)
+unique_name_in_owner=true
+text="≈"
+tooltip_text="Shape spatial strokes"
+[node name="ToolSep" type="HSeparator" parent="DrawingToolRail"]
+[node name="BitmapBrush" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(50,50)
+unique_name_in_owner=true
+text="●"
+tooltip_text="Soft brush"
+[node name="BitmapPencil" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(50,50)
+unique_name_in_owner=true
+text="✎"
+tooltip_text="Pencil"
+[node name="BitmapSmudge" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(50,50)
+unique_name_in_owner=true
+text="≈"
+tooltip_text="Smudge / blend paint"
+[node name="BitmapLassoFill" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(50,50)
+unique_name_in_owner=true
+text="⬡"
+tooltip_text="Lasso fill"
+
+[node name="LassoFillMode" type="OptionButton" parent="DrawingBar"]
+unique_name_in_owner=true
+visible=false
+custom_minimum_size=Vector2(92,0)
+tooltip_text="Lasso fill: solid or vertical gradient"
+
+[node name="LassoColorALabel" type="Label" parent="DrawingBar"]
+unique_name_in_owner=true
+visible=false
+text="A"
+
+[node name="LassoColorA" type="ColorPickerButton" parent="DrawingBar"]
+unique_name_in_owner=true
+visible=false
+custom_minimum_size=Vector2(34,0)
+color=Color(0.08,0.08,0.08,1)
+tooltip_text="Lasso fill color A"
+
+[node name="LassoColorBLabel" type="Label" parent="DrawingBar"]
+unique_name_in_owner=true
+visible=false
+text="B"
+
+[node name="LassoColorB" type="ColorPickerButton" parent="DrawingBar"]
+unique_name_in_owner=true
+visible=false
+custom_minimum_size=Vector2(34,0)
+color=Color(0.92,0.92,0.92,1)
+tooltip_text="Gradient color B"
+
+[node name="LassoAngleLabel" type="Label" parent="DrawingBar"]
+unique_name_in_owner=true
+visible=false
+text="ANGLE"
+
+[node name="LassoGradientAngle" type="SpinBox" parent="DrawingBar"]
+unique_name_in_owner=true
+visible=false
+custom_minimum_size=Vector2(72,0)
+min_value=-180.0
+max_value=180.0
+step=1.0
+value=90.0
+suffix="°"
+tooltip_text="Gradient direction"
+
+[node name="BitmapEraser" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(50,50)
+unique_name_in_owner=true
+text="◌"
+tooltip_text="Bitmap eraser"
+[node name="BitmapLine" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(50,50)
+unique_name_in_owner=true
+text="╱"
+tooltip_text="Line"
+[node name="BitmapRect" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(50,50)
+unique_name_in_owner=true
+text="□"
+tooltip_text="Rectangle"
+[node name="BitmapEllipse" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(50,50)
+unique_name_in_owner=true
+text="○"
+tooltip_text="Ellipse"
+[node name="BitmapFillTool" type="Button" parent="DrawingToolRail"]
+custom_minimum_size=Vector2(50,50)
+unique_name_in_owner=true
+text="▣"
+tooltip_text="Flood fill"
+[node name="BitmapClear" type="Button" parent="DrawingBar"]
+unique_name_in_owner=true
+text="Clear"
+tooltip_text="Clear current bitmap"
+[node name="BitmapCommit" type="Button" parent="DrawingBar"]
+unique_name_in_owner=true
+text="✓"
+tooltip_text="Commit bitmap to active reference canvas"
+[node name="SculptMode" type="OptionButton" parent="DrawingBar"]
+unique_name_in_owner=true
+tooltip_text="Sculpt subtool: Push, Move, Pinch, Smooth or Inflate"
+[node name="SculptStrength" type="HSlider" parent="DrawingBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(90,0)
+min_value=-0.08
+max_value=0.08
+step=0.002
+value=0.025
+tooltip_text="Depth sculpt strength. Negative values pull toward the camera."
+[node name="BrushSize" type="HSlider" parent="DrawingBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(150,0)
+min_value=1.0
+max_value=50.0
+value=10.0
+[node name="BrushPreset" type="OptionButton" parent="DrawingBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(95,0)
+tooltip_text="Brush preset"
+[node name="BrushOpacity" type="HSlider" parent="DrawingBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(70,0)
+min_value=0.05
+max_value=1.0
+step=0.05
+value=1.0
+tooltip_text="Opacity"
+[node name="BrushHardness" type="HSlider" parent="DrawingBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(70,0)
+min_value=0.0
+max_value=1.0
+step=0.05
+value=0.78
+tooltip_text="Hardness"
+
+[node name="BrushColor" type="ColorPickerButton" parent="DrawingBar"]
+unique_name_in_owner=true
+color=Color(0.08,0.08,0.08,1)
+[node name="Fill" type="CheckButton" parent="DrawingBar"]
+unique_name_in_owner=true
+text="FILL"
+[node name="FillColor" type="ColorPickerButton" parent="DrawingBar"]
+unique_name_in_owner=true
+color=Color(0.8,0.25,0.18,0.55)
+[node name="NewDrawing" type="Button" parent="DrawingBar"]
+visible=false
+text="NEW DRAWING"
+[node name="ClearDrawing" type="Button" parent="DrawingBar"]
+visible=false
+text="CLEAR"
+[node name="FinishBitmap" type="Button" parent="DrawingBar"]
+visible=false
+text="FINISH BITMAP"
+
+[node name="DrawingAnimBar" type="HBoxContainer" parent="."]
+unique_name_in_owner=true
+visible=false
+offset_left=306.0
+offset_top=120.0
+offset_right=1034.0
+offset_bottom=156.0
+[node name="AnimLabel" type="Label" parent="DrawingAnimBar"]
+text="ANIMATE  ·"
+[node name="CelMenu" type="MenuButton" parent="DrawingAnimBar"]
+unique_name_in_owner=true
+text="CELS ▾"
+[node name="NewCel" type="Button" parent="DrawingAnimBar"]
+visible=false
+text="＋ EMPTY"
+[node name="DuplicateCel" type="Button" parent="DrawingAnimBar"]
+visible=false
+text="DUPLICATE"
+[node name="DeleteCel" type="Button" parent="DrawingAnimBar"]
+visible=false
+text="DELETE"
+[node name="HoldCel" type="Button" parent="DrawingAnimBar"]
+visible=false
+text="HOLD"
+[node name="MorphCel" type="Button" parent="DrawingAnimBar"]
+visible=false
+text="MORPH"
+[node name="LocalTimelineLabel" type="Label" parent="DrawingAnimBar"]
+unique_name_in_owner=true
+text="CANVAS"
+[node name="ClipMode" type="OptionButton" parent="DrawingAnimBar"]
+unique_name_in_owner=true
+tooltip_text="Local clip playback: Loop, Ping-Pong, Hold, Reverse or Once"
+[node name="LocalDuration" type="SpinBox" parent="DrawingAnimBar"]
+unique_name_in_owner=true
+min_value=1.0
+max_value=1000.0
+value=24.0
+tooltip_text="Local canvas clip length in frames"
+[node name="SceneStart" type="SpinBox" parent="DrawingAnimBar"]
+unique_name_in_owner=true
+min_value=0.0
+max_value=10000.0
+value=0.0
+tooltip_text="Scene frame where this local clip starts"
+
+[node name="OnionSkin" type="CheckButton" parent="DrawingAnimBar"]
+unique_name_in_owner=true
+text="ONION SKIN"
+
+[node name="EffectsEngine" type="Control" parent="."]
+unique_name_in_owner=true
+offset_left=294.0
+offset_top=66.0
+offset_right=1046.0
+offset_bottom=650.0
+mouse_filter=2
+script=ExtResource("6")
+
+[node name="ViewportTop" type="HBoxContainer" parent="."]
+unique_name_in_owner=true
+offset_left=306.0
+offset_top=76.0
+offset_right=1034.0
+offset_bottom=116.0
+mouse_filter=1
+[node name="ProjectionMode" type="OptionButton" parent="ViewportTop"]
+unique_name_in_owner=true
+tooltip_text="Perspective or orthographic viewport projection"
+[node name="ShadingMode" type="OptionButton" parent="ViewportTop"]
+unique_name_in_owner=true
+[node name="TransformSpace" type="OptionButton" parent="ViewportTop"]
+unique_name_in_owner=true
+tooltip_text="Transform gizmo orientation"
+[node name="ViewportGrow" type="Control" parent="ViewportTop"]
+size_flags_horizontal=3
+[node name="PreviewChip" type="Label" parent="ViewportTop"]
+text="PREVIEW"
+
+[node name="CameraFrame" type="Control" parent="."]
+unique_name_in_owner=true
+visible=false
+mouse_filter=2
+z_index=20
+[node name="Top" type="ColorRect" parent="CameraFrame"]
+unique_name_in_owner=false
+color=Color(0.85,0.9,1,0.9)
+mouse_filter=2
+[node name="Bottom" type="ColorRect" parent="CameraFrame"]
+color=Color(0.85,0.9,1,0.9)
+mouse_filter=2
+[node name="Left" type="ColorRect" parent="CameraFrame"]
+color=Color(0.85,0.9,1,0.9)
+mouse_filter=2
+[node name="Right" type="ColorRect" parent="CameraFrame"]
+color=Color(0.85,0.9,1,0.9)
+mouse_filter=2
+
+[node name="ViewGizmo" type="VBoxContainer" parent="."]
+unique_name_in_owner=true
+offset_left=930.0
+offset_top=126.0
+offset_right=1028.0
+offset_bottom=224.0
+theme_override_constants/separation=2
+[node name="AxisRow" type="HBoxContainer" parent="ViewGizmo"]
+[node name="ViewX" type="Button" parent="ViewGizmo/AxisRow"]
+unique_name_in_owner=true
+text="X"
+tooltip_text="Align view to X axis"
+[node name="ViewY" type="Button" parent="ViewGizmo/AxisRow"]
+unique_name_in_owner=true
+text="Y"
+tooltip_text="Align view to Y axis"
+[node name="ViewZ" type="Button" parent="ViewGizmo/AxisRow"]
+unique_name_in_owner=true
+text="Z"
+tooltip_text="Align view to Z axis"
+[node name="ViewCamera" type="Button" parent="ViewGizmo"]
+unique_name_in_owner=true
+text="▣ CAM"
+tooltip_text="Return to the saved projection view"
+
+[node name="ToolRail" type="VBoxContainer" parent="."]
+unique_name_in_owner=true
+offset_left=306.0
+offset_top=126.0
+offset_right=352.0
+offset_bottom=350.0
+theme_override_constants/separation=5
+[node name="SelectTool" type="Button" parent="ToolRail"]
+text="➤"
+[node name="MoveTool" type="Button" parent="ToolRail"]
+text="✣"
+[node name="RotateTool" type="Button" parent="ToolRail"]
+text="◯"
+[node name="ScaleTool" type="Button" parent="ToolRail"]
+text="□"
+[node name="FrameSelected" type="Button" parent="ToolRail"]
+text="⌖"
+
+[node name="RightPanel" type="VBoxContainer" parent="."]
+unique_name_in_owner=true
+offset_left=1054.0
+offset_top=66.0
+offset_right=1358.0
+offset_bottom=650.0
+theme_override_constants/separation=8
+[node name="InspectorPanel" type="PanelContainer" parent="RightPanel"]
+size_flags_vertical=3
+[node name="InspectorScroll" type="ScrollContainer" parent="RightPanel/InspectorPanel"]
+layout_mode=2
+horizontal_scroll_mode=0
+vertical_scroll_mode=1
+[node name="Inspector" type="VBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll"]
+layout_mode=2
+size_flags_horizontal=3
+[node name="InspectorTabs" type="HBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+[node name="Properties" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/InspectorTabs"]
+text="Properties"
+theme_override_font_sizes/font_size=18
+[node name="MaterialTab" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/InspectorTabs"]
+text="Material"
+[node name="ObjectSection" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+text="Transform"
+[node name="PositionRow" type="HBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+[node name="Label" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/PositionRow"]
+custom_minimum_size=Vector2(62,0)
+text="Position"
+[node name="PosX" type="SpinBox" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/PositionRow"]
+unique_name_in_owner=true
+size_flags_horizontal=3
+min_value=-10000.0
+max_value=10000.0
+step=0.01
+
+[node name="PosY" type="SpinBox" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/PositionRow"]
+unique_name_in_owner=true
+size_flags_horizontal=3
+min_value=-10000.0
+max_value=10000.0
+step=0.01
+
+[node name="PosZ" type="SpinBox" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/PositionRow"]
+unique_name_in_owner=true
+size_flags_horizontal=3
+min_value=-10000.0
+max_value=10000.0
+step=0.01
+
+[node name="RotationRow" type="HBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+[node name="Label" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/RotationRow"]
+custom_minimum_size=Vector2(62,0)
+text="Rotation"
+[node name="RotX" type="SpinBox" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/RotationRow"]
+unique_name_in_owner=true
+size_flags_horizontal=3
+min_value=-10000.0
+max_value=10000.0
+step=0.1
+
+[node name="RotY" type="SpinBox" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/RotationRow"]
+unique_name_in_owner=true
+size_flags_horizontal=3
+min_value=-10000.0
+max_value=10000.0
+step=0.1
+
+[node name="RotZ" type="SpinBox" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/RotationRow"]
+unique_name_in_owner=true
+size_flags_horizontal=3
+min_value=-10000.0
+max_value=10000.0
+step=0.1
+
+[node name="ScaleRow" type="HBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+[node name="Label" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ScaleRow"]
+custom_minimum_size=Vector2(62,0)
+text="Scale"
+[node name="SclX" type="SpinBox" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ScaleRow"]
+unique_name_in_owner=true
+size_flags_horizontal=3
+min_value=-1000.0
+max_value=10000.0
+step=0.01
+value=1.0
+[node name="SclY" type="SpinBox" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ScaleRow"]
+unique_name_in_owner=true
+size_flags_horizontal=3
+min_value=-1000.0
+max_value=10000.0
+step=0.01
+value=1.0
+[node name="SclZ" type="SpinBox" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ScaleRow"]
+unique_name_in_owner=true
+size_flags_horizontal=3
+min_value=-1000.0
+max_value=10000.0
+step=0.01
+value=1.0
+[node name="ObjectProperties" type="VBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+[node name="MaterialTitle" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
+text="Material"
+theme_override_font_sizes/font_size=22
+[node name="MaterialColorText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
+text="Base Color"
+[node name="MaterialColor" type="ColorPickerButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
+unique_name_in_owner=true
+color=Color(1,1,1,1)
+[node name="RoughnessText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
+text="Roughness"
+[node name="MaterialRoughness" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
+unique_name_in_owner=true
+max_value=1.0
+step=0.01
+value=0.8
+[node name="MetallicText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
+text="Metallic"
+[node name="MaterialMetallic" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
+unique_name_in_owner=true
+max_value=1.0
+step=0.01
+[node name="MaterialTwoSided" type="CheckButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties"]
+unique_name_in_owner=true
+text="Two sided"
+button_pressed=true
+
+[node name="CameraProperties" type="VBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+visible=false
+[node name="CameraTitle" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+text="Camera"
+theme_override_font_sizes/font_size=16
+[node name="FovLabel" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+text="Field of View"
+[node name="CameraFov" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+unique_name_in_owner=true
+min_value=5.0
+max_value=140.0
+step=0.1
+value=70.0
+[node name="ResolutionLabel" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+text="Render Resolution"
+[node name="ResolutionRow" type="HBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+[node name="CameraResX" type="SpinBox" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties/ResolutionRow"]
+unique_name_in_owner=true
+min_value=64.0
+max_value=8192.0
+step=1.0
+value=1920.0
+[node name="CameraResY" type="SpinBox" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties/ResolutionRow"]
+unique_name_in_owner=true
+min_value=64.0
+max_value=8192.0
+step=1.0
+value=1080.0
+[node name="DofTitle" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+text="Depth of field"
+[node name="CameraDofEnabled" type="CheckButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+unique_name_in_owner=true
+text="Depth of field"
+[node name="FocusLabel" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+text="Focus Distance"
+[node name="CameraFocusDistance" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+unique_name_in_owner=true
+min_value=0.05
+max_value=100.0
+step=0.05
+value=3.0
+[node name="ApertureLabel" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+text="Aperture / Blur"
+[node name="CameraAperture" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/CameraProperties"]
+unique_name_in_owner=true
+min_value=0.0
+max_value=1.0
+step=0.01
+value=0.2
+
+[node name="LightProperties" type="VBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+visible=false
+[node name="LightTitle" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties"]
+text="◇  LIGHT"
+theme_override_font_sizes/font_size=16
+[node name="LightTypeText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties"]
+text="Type"
+[node name="LightType" type="OptionButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties"]
+unique_name_in_owner=true
+[node name="LightEnergyText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties"]
+text="Intensity"
+[node name="LightEnergy" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties"]
+unique_name_in_owner=true
+max_value=16.0
+step=0.05
+value=1.0
+[node name="LightColorText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties"]
+text="Color"
+[node name="LightColor" type="ColorPickerButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties"]
+unique_name_in_owner=true
+color=Color(1,1,1,1)
+[node name="LightShadow" type="CheckButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties"]
+unique_name_in_owner=true
+text="Shadows"
+button_pressed=true
+
+[node name="Sep1" type="HSeparator" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+[node name="LookTitle" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+text="◇  LOOK / FILTERS"
+theme_override_font_sizes/font_size=16
+[node name="BlurText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+text="Blur"
+[node name="Blur" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+max_value=8.0
+step=0.1
+[node name="GlowText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+text="Glow"
+[node name="Glow" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+max_value=3.0
+step=0.05
+[node name="GlowThresholdText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+text="Glow Threshold"
+[node name="GlowThreshold" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+min_value=0.0
+max_value=1.5
+step=0.01
+value=0.7
+[node name="GlowRadiusText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+text="Glow Radius"
+[node name="GlowRadius" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+min_value=0.5
+max_value=12.0
+step=0.25
+value=3.0
+[node name="ExposureText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+text="Exposure"
+[node name="Exposure" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+min_value=-3.0
+max_value=3.0
+step=0.05
+[node name="SaturationText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+text="Saturation"
+[node name="Saturation" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+max_value=2.0
+step=0.05
+value=1.0
+[node name="ResetFilters" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+text="Reset"
+[node name="KeyInterpSep" type="HSeparator" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+[node name="KeyInterpolationPanel" type="VBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+visible=false
+[node name="Title" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
+text="◆  KEYFRAME INTERPOLATION"
+theme_override_font_sizes/font_size=16
+[node name="SelectedKeyInfo" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
+unique_name_in_owner=true
+text="No key selected"
+[node name="Constant" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
+text="Constant"
+[node name="Linear" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
+text="Linear"
+[node name="Bezier" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
+text="Bezier / Smooth"
+[node name="QuadraticIn" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
+text="Quadratic In"
+[node name="QuadraticOut" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
+text="Quadratic Out"
+[node name="QuadraticInOut" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
+text="Quadratic In-Out"
+[node name="CubicInOut" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
+text="Cubic In-Out"
+[node name="Back" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
+text="Back / Overshoot"
+[node name="Bounce" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
+text="Bounce"
+[node name="Elastic" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel"]
+text="Elastic"
+
+[node name="Bottom" type="VBoxContainer" parent="."]
+unique_name_in_owner=true
+offset_left=8.0
+offset_top=658.0
+offset_right=1358.0
+offset_bottom=878.0
+theme_override_constants/separation=4
+[node name="TransportPanel" type="PanelContainer" parent="Bottom"]
+[node name="Transport" type="HBoxContainer" parent="Bottom/TransportPanel"]
+[node name="AnimTitle" type="Label" parent="Bottom/TransportPanel/Transport"]
+text="Animation"
+theme_override_font_sizes/font_size=17
+custom_minimum_size=Vector2(125,0)
+[node name="AutoKey" type="CheckButton" parent="Bottom/TransportPanel/Transport"]
+unique_name_in_owner=true
+text="●"
+[node name="Prev" type="Button" parent="Bottom/TransportPanel/Transport"]
+text="◀◀"
+[node name="PlayButton" type="Button" parent="Bottom/TransportPanel/Transport"]
+unique_name_in_owner=true
+text="▶"
+[node name="Next" type="Button" parent="Bottom/TransportPanel/Transport"]
+text="▶▶"
+[node name="FPS" type="Button" parent="Bottom/TransportPanel/Transport"]
+text="24⌄"
+[node name="TransportGrow" type="Control" parent="Bottom/TransportPanel/Transport"]
+size_flags_horizontal=3
+[node name="FrameText" type="Label" parent="Bottom/TransportPanel/Transport"]
+text="FRAME"
+[node name="FrameLabel" type="Label" parent="Bottom/TransportPanel/Transport"]
+unique_name_in_owner=true
+text="000"
+[node name="Key" type="Button" parent="Bottom/TransportPanel/Transport"]
+unique_name_in_owner=true
+text="◆"
+[node name="Interpolation" type="OptionButton" parent="Bottom/TransportPanel/Transport"]
+unique_name_in_owner=true
+[node name="Timeline" type="Control" parent="Bottom"]
+unique_name_in_owner=true
+script=ExtResource("5")
+size_flags_vertical=3
+[node name="FrameSlider" type="HSlider" parent="Bottom"]
+unique_name_in_owner=true
+visible=false
+max_value=120.0
+step=1.0
+
+[node name="StatusBar" type="HBoxContainer" parent="."]
+unique_name_in_owner=true
+offset_left=12.0
+offset_top=882.0
+offset_right=1354.0
+offset_bottom=898.0
+[node name="Status" type="Label" parent="StatusBar"]
+unique_name_in_owner=true
+text="Ready"
+[node name="StatusGrow" type="Control" parent="StatusBar"]
+size_flags_horizontal=3
+[node name="SceneInfo" type="Label" parent="StatusBar"]
+text="24 fps   ·   Frame 0 / 60"
 
 [node name="FileDialog" type="FileDialog" parent="."]
-unique_name_in_owner = true
-file_mode = 0
-access = 2
-filters = PackedStringArray("*.png ; PNG Images")
+unique_name_in_owner=true
+file_mode=0
+access=2
+filters=PackedStringArray("*.png ; PNG Images")
 
-[connection signal="pressed" from="Top/Import" to="." method="_on_import_pressed"]
+[connection signal="tab_changed" from="TopBar/WorkspaceTabs" to="." method="_on_workspace_tab_changed"]
+[connection signal="toggled" from="TopBar/PreviewMode" to="." method="_on_preview_mode_toggled"]
+[connection signal="pressed" from="TopBar/Import" to="." method="_on_import_pressed"]
+[connection signal="toggled" from="TopBar/GridToggle" to="." method="_on_grid_toggled"]
+[connection signal="pressed" from="LeftPanel/AssetsPanel/Assets/AssetImport" to="." method="_on_import_pressed"]
 [connection signal="file_selected" from="FileDialog" to="." method="_on_file_selected"]
-[connection signal="pressed" from="Inspector/MoveRow/Left" to="." method="_on_nudge_pressed" binds=[Vector3(-1,0,0)]]
-[connection signal="pressed" from="Inspector/MoveRow/Right" to="." method="_on_nudge_pressed" binds=[Vector3(1,0,0)]]
-[connection signal="pressed" from="Inspector/MoveRow/Up" to="." method="_on_nudge_pressed" binds=[Vector3(0,1,0)]]
-[connection signal="pressed" from="Inspector/MoveRow/Down" to="." method="_on_nudge_pressed" binds=[Vector3(0,-1,0)]]
-[connection signal="pressed" from="Inspector/KeyPosition" to="." method="_on_key_position_pressed"]
-[connection signal="value_changed" from="Inspector/BlurSlider" to="." method="_on_effect_changed" binds=["effects.blur"]]
-[connection signal="value_changed" from="Inspector/GlowSlider" to="." method="_on_effect_changed" binds=["effects.glow"]]
-[connection signal="value_changed" from="Inspector/ExposureSlider" to="." method="_on_effect_changed" binds=["effects.exposure"]]
-[connection signal="value_changed" from="Inspector/SaturationSlider" to="." method="_on_effect_changed" binds=["effects.saturation"]]
-[connection signal="pressed" from="Inspector/KeyEffects" to="." method="_on_key_effects_pressed"]
-[connection signal="value_changed" from="Timeline/FrameSlider" to="." method="_on_frame_slider_value_changed"]
-[connection signal="pressed" from="Timeline/Controls/Prev" to="." method="_on_prev_pressed"]
-[connection signal="pressed" from="Timeline/Controls/PlayButton" to="." method="_on_play_pressed"]
-[connection signal="pressed" from="Timeline/Controls/Next" to="." method="_on_next_pressed"]
+[connection signal="item_selected" from="LeftPanel/ScenePanel/SceneBox/ObjectList" to="." method="_on_object_selected"]
+[connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/Actions/Duplicate" to="." method="_on_duplicate_pressed"]
+[connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/Actions/Delete" to="." method="_on_delete_pressed"]
+[connection signal="gui_input" from="ViewportFrame/ViewportContainer" to="." method="_on_canvas_gui_input"]
+[connection signal="pressed" from="ToolRail/MoveTool" to="." method="_on_tool_move_pressed"]
+[connection signal="pressed" from="ToolRail/RotateTool" to="." method="_on_tool_rotate_pressed"]
+[connection signal="pressed" from="ToolRail/ScaleTool" to="." method="_on_tool_scale_pressed"]
+[connection signal="pressed" from="ToolRail/FrameSelected" to="." method="_on_frame_selected_pressed"]
+[connection signal="pressed" from="Bottom/TransportPanel/Transport/Prev" to="." method="_on_prev_pressed"]
+[connection signal="pressed" from="Bottom/TransportPanel/Transport/PlayButton" to="." method="_on_play_pressed"]
+[connection signal="pressed" from="Bottom/TransportPanel/Transport/Next" to="." method="_on_next_pressed"]
+[connection signal="toggled" from="Bottom/TransportPanel/Transport/AutoKey" to="." method="_on_auto_key_toggled"]
+[connection signal="pressed" from="Bottom/TransportPanel/Transport/Key" to="." method="_on_key_pressed"]
+[connection signal="item_selected" from="Bottom/TransportPanel/Transport/Interpolation" to="." method="_on_interpolation_item_selected"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/Blur" to="." method="_on_filter_changed"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/Glow" to="." method="_on_filter_changed"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/Exposure" to="." method="_on_filter_changed"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/Saturation" to="." method="_on_filter_changed"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/ResetFilters" to="." method="_on_reset_filters_pressed"]
+
+[connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/GlowThreshold" to="." method="_on_filter_changed"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/GlowRadius" to="." method="_on_filter_changed"]
+
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/Constant" to="." method="_on_key_interp_constant"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/Linear" to="." method="_on_key_interp_linear"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/Bezier" to="." method="_on_key_interp_bezier"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/QuadraticIn" to="." method="_on_key_interp_quadratic_in"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/QuadraticOut" to="." method="_on_key_interp_quadratic_out"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/QuadraticInOut" to="." method="_on_key_interp_quadratic_in_out"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/CubicInOut" to="." method="_on_key_interp_cubic_in_out"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/Back" to="." method="_on_key_interp_back"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/Bounce" to="." method="_on_key_interp_bounce"]
+[connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/KeyInterpolationPanel/Elastic" to="." method="_on_key_interp_elastic"]
+
+[connection signal="color_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties/MaterialColor" to="." method="_on_material_color_changed"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties/MaterialRoughness" to="." method="_on_material_roughness_changed"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties/MaterialMetallic" to="." method="_on_material_metallic_changed"]
+[connection signal="toggled" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/ObjectProperties/MaterialTwoSided" to="." method="_on_material_two_sided_toggled"]
+[connection signal="item_selected" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties/LightType" to="." method="_on_light_type_selected"]
+[connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties/LightEnergy" to="." method="_on_light_energy_changed"]
+[connection signal="color_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties/LightColor" to="." method="_on_light_color_changed"]
+[connection signal="toggled" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/LightProperties/LightShadow" to="." method="_on_light_shadow_toggled"]
+
+
+[connection signal="pressed" from="DrawingBar/Stroke3D" to="." method="_on_draw_stroke3d_pressed"]
+[connection signal="pressed" from="DrawingBar/Bitmap" to="." method="_on_draw_bitmap_pressed"]
+[connection signal="value_changed" from="DrawingBar/BrushSize" to="." method="_on_brush_size_changed"]
+[connection signal="color_changed" from="DrawingBar/BrushColor" to="." method="_on_brush_color_changed"]
+[connection signal="pressed" from="DrawingBar/ClearDrawing" to="DrawingCanvas" method="clear_canvas"]
+[connection signal="pressed" from="DrawingBar/FinishBitmap" to="DrawingCanvas" method="finish_bitmap"]
+[connection signal="bitmap_finished" from="DrawingCanvas" to="." method="_on_bitmap_finished"]
+
+[connection signal="toggled" from="DrawingBar/Fill" to="." method="_on_fill_toggled"]
+[connection signal="pressed" from="DrawingBar/NewDrawing" to="." method="_on_new_drawing_pressed"]
+
+[connection signal="pressed" from="DrawingBar/Sculpt" to="." method="_on_draw_sculpt_pressed"]
+
+[connection signal="pressed" from="DrawingAnimBar/NewCel" to="." method="_on_drawing_new_cel"]
+[connection signal="pressed" from="DrawingAnimBar/DuplicateCel" to="." method="_on_drawing_duplicate_cel"]
+[connection signal="pressed" from="DrawingAnimBar/DeleteCel" to="." method="_on_drawing_delete_cel"]
+[connection signal="pressed" from="DrawingAnimBar/HoldCel" to="." method="_on_drawing_hold_cel"]
+[connection signal="pressed" from="DrawingAnimBar/MorphCel" to="." method="_on_drawing_morph_cel"]
+[connection signal="toggled" from="DrawingAnimBar/OnionSkin" to="." method="_on_onion_skin_toggled"]
+
+[connection signal="item_selected" from="DrawingBar/SculptMode" to="." method="_on_sculpt_mode_selected"]
+[connection signal="color_changed" from="DrawingBar/FillColor" to="." method="_on_fill_color_changed"]
+
+[connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlanesHead/AddDrawingPlane" to="." method="_on_add_drawing_plane"]
+[connection signal="item_selected" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/DrawingPlaneList" to="." method="_on_drawing_plane_selected"]
+[connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions/PlaneUp" to="." method="_on_plane_up"]
+[connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions/PlaneDown" to="." method="_on_plane_down"]
+[connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions/PlaneDuplicate" to="." method="_on_plane_duplicate"]
+
+[node name="TessellationDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner=true
+title="Bitmap Tessellation"
+dialog_text="Choose mesh density for future deformation."
+ok_button_text="Create Mesh"
+
+[node name="TessellationBox" type="VBoxContainer" parent="TessellationDialog"]
+[node name="TessellationLabel" type="Label" parent="TessellationDialog/TessellationBox"]
+text="Target Poisson samples"
+[node name="TessellationSamples" type="SpinBox" parent="TessellationDialog/TessellationBox"]
+unique_name_in_owner=true
+min_value=200.0
+max_value=6000.0
+step=100.0
+value=1400.0
+tooltip_text="Higher values preserve more detail and create a denser deformation mesh"
+[node name="TessellationHint" type="Label" parent="TessellationDialog/TessellationBox"]
+text="600–1000 light · 1400 balanced · 2500+ detailed"
