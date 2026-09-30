@@ -289,11 +289,45 @@ visible=false
 custom_minimum_size=Vector2(92,0)
 tooltip_text="Lasso fill: solid or vertical gradient"
 
-[node name="LassoGradientColor" type="ColorPickerButton" parent="DrawingBar"]
+[node name="LassoColorALabel" type="Label" parent="DrawingBar"]
 unique_name_in_owner=true
 visible=false
+text="A"
+
+[node name="LassoColorA" type="ColorPickerButton" parent="DrawingBar"]
+unique_name_in_owner=true
+visible=false
+custom_minimum_size=Vector2(34,0)
+color=Color(0.08,0.08,0.08,1)
+tooltip_text="Lasso fill color A"
+
+[node name="LassoColorBLabel" type="Label" parent="DrawingBar"]
+unique_name_in_owner=true
+visible=false
+text="B"
+
+[node name="LassoColorB" type="ColorPickerButton" parent="DrawingBar"]
+unique_name_in_owner=true
+visible=false
+custom_minimum_size=Vector2(34,0)
 color=Color(0.92,0.92,0.92,1)
-tooltip_text="Gradient end color"
+tooltip_text="Gradient color B"
+
+[node name="LassoAngleLabel" type="Label" parent="DrawingBar"]
+unique_name_in_owner=true
+visible=false
+text="ANGLE"
+
+[node name="LassoGradientAngle" type="SpinBox" parent="DrawingBar"]
+unique_name_in_owner=true
+visible=false
+custom_minimum_size=Vector2(72,0)
+min_value=-180.0
+max_value=180.0
+step=1.0
+value=90.0
+suffix="°"
+tooltip_text="Gradient direction"
 
 [node name="BitmapEraser" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
