@@ -511,12 +511,14 @@ offset_top=76.0
 offset_right=1034.0
 offset_bottom=116.0
 mouse_filter=1
-[node name="Perspective" type="Button" parent="ViewportTop"]
-text="Perspective⌄"
+[node name="ProjectionMode" type="OptionButton" parent="ViewportTop"]
+unique_name_in_owner=true
+tooltip_text="Perspective or orthographic viewport projection"
 [node name="ShadingMode" type="OptionButton" parent="ViewportTop"]
 unique_name_in_owner=true
-[node name="Global" type="Button" parent="ViewportTop"]
-text="◉ Global⌄"
+[node name="TransformSpace" type="OptionButton" parent="ViewportTop"]
+unique_name_in_owner=true
+tooltip_text="Transform gizmo orientation"
 [node name="ViewportGrow" type="Control" parent="ViewportTop"]
 size_flags_horizontal=3
 [node name="PreviewChip" type="Label" parent="ViewportTop"]
