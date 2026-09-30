@@ -40,43 +40,12 @@ func rebuild_bones() -> void:
 		skeleton.set_bone_pose(i,rest_local)
 		_create_bone_gizmo(i,rest_in_rig.origin,parent_index)
 
-func _create_bone_gizmo(index: int, head: Vector3, parent_index: int) -> void:
-	# RigData stores one joint per bone origin. For a chain, bone N runs from
-	# joint N to joint N+1; the final bone uses the explicitly tracked terminal tip.
-	var tail := head + Vector3(0.0,0.45,0.0)
-	if index + 1 < rig.bones.size():
-		var next_rest: Transform3D = rig.bones[index + 1].get("rest",Transform3D.IDENTITY)
-		tail = (global_transform.affine_inverse() * next_rest).origin
-	elif terminal_tip_valid:
-		tail = global_transform.affine_inverse() * terminal_tip
-	var direction: Vector3 = tail - head
-	var length: float = maxf(direction.length(),0.12)
-	var radius: float = maxf(0.035,length*0.11)
-	# Build the tapered bone directly along its real direction. This avoids the
-	# ambiguous Quaternion orientation that could turn a flat 2D bone edge-on.
-	var up: Vector3 = direction.normalized()
-	var view_axis := Vector3(0,0,1)
-	var side: Vector3 = up.cross(view_axis)
-	if side.length_squared() < 0.000001: side = up.cross(Vector3.RIGHT)
-	side = side.normalized() * radius
-	var depth: Vector3 = up.cross(side).normalized() * radius * 0.55
-	var verts := PackedVector3Array([
-		head - side, head + side, head + depth, head - depth,
-		tail
-	])
-	var indices := PackedInt32Array([
-		0,1,4, 1,2,4, 2,3,4, 3,0,4,
-		0,3,2, 0,2,1
-	])
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_INDEX] = indices
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+func _create_bone_gizmo(index: int, head: Vector3, _parent_index: int) -> void:
+	var tail: Vector3 = _rest_tail_in_rig(index,head)
 	var gizmo := MeshInstance3D.new()
 	gizmo.name = "_BoneGizmo_%d" % index
-	gizmo.mesh = mesh
+	gizmo.mesh = _bone_mesh(head,tail)
+	gizmo.set_meta("bone_index",index)
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.albedo_color = Color(0.22,0.62,1.0,0.95)
@@ -87,6 +56,59 @@ func _create_bone_gizmo(index: int, head: Vector3, parent_index: int) -> void:
 	gizmo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(gizmo)
 	bone_gizmos.append(gizmo)
+
+func _rest_tail_in_rig(index: int, head: Vector3) -> Vector3:
+	for child_index in range(rig.bones.size()):
+		if int(rig.bones[child_index].get("parent",-1)) == index:
+			var child_rest: Transform3D = rig.bones[child_index].get("rest",Transform3D.IDENTITY)
+			return (global_transform.affine_inverse() * child_rest).origin
+	if terminal_tip_valid:
+		return global_transform.affine_inverse() * terminal_tip
+	return head + Vector3(0.0,0.45,0.0)
+
+func _bone_mesh(head: Vector3, tail: Vector3) -> ArrayMesh:
+	var direction: Vector3 = tail - head
+	var length: float = maxf(direction.length(),0.12)
+	var radius: float = maxf(0.035,length*0.11)
+	var up: Vector3 = direction.normalized() if direction.length_squared() > 0.000001 else Vector3.UP
+	var view_axis := Vector3(0,0,1)
+	var side: Vector3 = up.cross(view_axis)
+	if side.length_squared() < 0.000001: side = up.cross(Vector3.RIGHT)
+	side = side.normalized() * radius
+	var depth: Vector3 = up.cross(side).normalized() * radius * 0.55
+	var verts := PackedVector3Array([head-side,head+side,head+depth,head-depth,tail])
+	var indices := PackedInt32Array([0,1,4,1,2,4,2,3,4,3,0,4,0,3,2,0,2,1])
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+	return mesh
+
+func _process(_delta: float) -> void:
+	_update_bone_gizmos_from_pose()
+
+func _update_bone_gizmos_from_pose() -> void:
+	if skeleton == null or rig == null: return
+	for i in range(mini(bone_gizmos.size(),skeleton.get_bone_count())):
+		var gizmo: MeshInstance3D = bone_gizmos[i]
+		if not is_instance_valid(gizmo): continue
+		var pose_global: Transform3D = skeleton.get_bone_global_pose(i)
+		var head: Vector3 = pose_global.origin
+		var tail: Vector3
+		var child_found: bool = false
+		for child_index in range(rig.bones.size()):
+			if int(rig.bones[child_index].get("parent",-1)) == i:
+				tail = skeleton.get_bone_global_pose(child_index).origin
+				child_found = true
+				break
+		if not child_found:
+			var rest_global: Transform3D = skeleton.get_bone_global_rest(i)
+			var rest_tail: Vector3 = _rest_tail_in_rig(i,rest_global.origin)
+			var local_tail: Vector3 = rest_global.affine_inverse() * rest_tail
+			tail = pose_global * local_tail
+		gizmo.mesh = _bone_mesh(head,tail)
 
 func set_terminal_tip(world_tip: Vector3) -> void:
 	terminal_tip = world_tip
