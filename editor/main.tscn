@@ -478,6 +478,20 @@ text="CANVAS"
 [node name="ClipMode" type="OptionButton" parent="DrawingAnimBar"]
 unique_name_in_owner=true
 tooltip_text="Local clip playback: Loop, Ping-Pong, Hold, Reverse or Once"
+[node name="LocalStartLabel" type="Label" parent="DrawingAnimBar"]
+text="Range"
+[node name="LocalPlaybackStart" type="SpinBox" parent="DrawingAnimBar"]
+unique_name_in_owner=true
+min_value=0.0
+max_value=1000.0
+value=0.0
+[node name="LocalPlaybackEnd" type="SpinBox" parent="DrawingAnimBar"]
+unique_name_in_owner=true
+min_value=0.0
+max_value=1000.0
+value=23.0
+[node name="LocalFramesLabel" type="Label" parent="DrawingAnimBar"]
+text="Frames"
 [node name="LocalDuration" type="SpinBox" parent="DrawingAnimBar"]
 unique_name_in_owner=true
 min_value=1.0
@@ -895,7 +909,39 @@ text="▶"
 [node name="Next" type="Button" parent="Bottom/TransportPanel/Transport"]
 text="▶▶"
 [node name="FPS" type="Button" parent="Bottom/TransportPanel/Transport"]
-text="24⌄"
+text="24 fps"
+[node name="RangeLabel" type="Label" parent="Bottom/TransportPanel/Transport"]
+text="Range"
+[node name="PlaybackStart" type="SpinBox" parent="Bottom/TransportPanel/Transport"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(70,0)
+min_value=0.0
+max_value=100000.0
+step=1.0
+[node name="PlaybackEnd" type="SpinBox" parent="Bottom/TransportPanel/Transport"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(70,0)
+min_value=0.0
+max_value=100000.0
+step=1.0
+value=120.0
+[node name="DurationLabel" type="Label" parent="Bottom/TransportPanel/Transport"]
+text="Frames"
+[node name="TimelineDuration" type="SpinBox" parent="Bottom/TransportPanel/Transport"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(78,0)
+min_value=1.0
+max_value=100000.0
+step=1.0
+value=120.0
+[node name="ZoomOut" type="Button" parent="Bottom/TransportPanel/Transport"]
+unique_name_in_owner=true
+text="−"
+tooltip_text="Zoom timeline out"
+[node name="ZoomIn" type="Button" parent="Bottom/TransportPanel/Transport"]
+unique_name_in_owner=true
+text="+"
+tooltip_text="Zoom timeline in"
 [node name="TransportGrow" type="Control" parent="Bottom/TransportPanel/Transport"]
 size_flags_horizontal=3
 [node name="FrameText" type="Label" parent="Bottom/TransportPanel/Transport"]
