@@ -169,9 +169,12 @@ func bind_mesh(mesh_instance: MeshInstance3D, weights_by_surface: Array) -> bool
 
 func show_weight_debug(mesh_instance: MeshInstance3D, weights_by_surface: Array, bone_index: int = 0) -> void:
 	clear_weight_debug()
-	mesh_instance.visible = false
 	if mesh_instance == null or mesh_instance.mesh == null: return
+	# Weight inspection must be the SAME skinned mesh in its current pose.
+	# Duplicating an unskinned debug mesh made the artwork snap visually back
+	# to REST whenever a bone was selected.
 	var source: Mesh = mesh_instance.mesh
+	var debug_mesh := ArrayMesh.new()
 	for surface_index in range(source.get_surface_count()):
 		var arrays: Array = source.surface_get_arrays(surface_index)
 		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
@@ -185,30 +188,27 @@ func show_weight_debug(mesh_instance: MeshInstance3D, weights_by_surface: Array,
 				if int(influence.get("bone",-1)) == bone_index:
 					weight = float(influence.get("weight",0.0))
 					break
-			# Black = 0, blue/cyan = low-mid, yellow/white = strongest.
 			colors[vi] = _weight_debug_color(weight)
 		arrays[Mesh.ARRAY_COLOR] = colors
-		# Debug overlay must not contain skin arrays: show the undeformed source
-		# topology and its computed weights independently from Skeleton3D.
-		arrays[Mesh.ARRAY_BONES] = null
-		arrays[Mesh.ARRAY_WEIGHTS] = null
-		var debug_mesh := ArrayMesh.new()
+		# Keep ARRAY_BONES and ARRAY_WEIGHTS intact: the overlay must evaluate
+		# through the same Skeleton3D/Skin as the visible artwork.
 		debug_mesh.add_surface_from_arrays(source.surface_get_primitive_type(surface_index),arrays)
-		var overlay := MeshInstance3D.new()
-		overlay.mesh = debug_mesh
-		var mat := StandardMaterial3D.new()
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.vertex_color_use_as_albedo = true
-		mat.no_depth_test = true
-		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		overlay.material_override = mat
-		# Keep the diagnostic copy outside the skinned MeshInstance hierarchy.
-		# As a child it inherited the already-skinned parent's transform and could
-		# look like an extra displaced blob, confusing the diagnostic.
-		add_child(overlay)
-		overlay.transform = mesh_instance.transform
-		overlay.position += Vector3(0.0,0.0,0.01)
-		weight_debug_overlays.append(overlay)
+	var overlay := MeshInstance3D.new()
+	overlay.mesh = debug_mesh
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.vertex_color_use_as_albedo = true
+	mat.no_depth_test = true
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.render_priority = 110
+	overlay.material_override = mat
+	add_child(overlay)
+	overlay.transform = mesh_instance.transform
+	overlay.skin = mesh_instance.skin
+	overlay.skeleton = overlay.get_path_to(skeleton)
+	overlay.position += Vector3(0.0,0.0,0.01)
+	weight_debug_overlays.append(overlay)
+	mesh_instance.visible = false
 
 func clear_weight_debug() -> void:
 	for mesh in bound_meshes.values():
