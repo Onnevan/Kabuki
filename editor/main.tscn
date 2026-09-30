@@ -242,6 +242,16 @@ offset_bottom=650.0
 mouse_filter=0
 script=ExtResource("7")
 
+[node name="DrawingToolSurface" type="PanelContainer" parent="."]
+unique_name_in_owner=true
+visible=false
+mouse_filter=2
+
+[node name="DrawingContextSurface" type="PanelContainer" parent="."]
+unique_name_in_owner=true
+visible=false
+mouse_filter=2
+
 [node name="DrawingBar" type="HBoxContainer" parent="."]
 unique_name_in_owner=true
 visible=false
@@ -249,14 +259,15 @@ offset_left=306.0
 offset_top=76.0
 offset_right=1034.0
 offset_bottom=116.0
+theme_override_constants/separation=6
 [node name="StrokeTool" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
 text="✎"
-tooltip_text="Spatial stroke"
+tooltip_text="Draw in 3D space"
 [node name="BitmapTool" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
 text="▧"
-tooltip_text="Bitmap paint"
+tooltip_text="Paint on this canvas"
 [node name="EraseTool" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
 text="⌫"
@@ -264,7 +275,7 @@ tooltip_text="Eraser"
 [node name="SculptTool" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
 text="≈"
-tooltip_text="Sculpt spatial strokes"
+tooltip_text="Shape spatial strokes"
 [node name="ToolSep" type="VSeparator" parent="DrawingBar"]
 [node name="BitmapBrush" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
@@ -422,7 +433,7 @@ offset_top=120.0
 offset_right=1034.0
 offset_bottom=156.0
 [node name="AnimLabel" type="Label" parent="DrawingAnimBar"]
-text="ANIMATION"
+text="ANIMATE"
 [node name="CelMenu" type="MenuButton" parent="DrawingAnimBar"]
 unique_name_in_owner=true
 text="CELS ▾"
@@ -443,7 +454,7 @@ visible=false
 text="MORPH"
 [node name="LocalTimelineLabel" type="Label" parent="DrawingAnimBar"]
 unique_name_in_owner=true
-text="LOCAL · Canvas"
+text="CANVAS"
 [node name="ClipMode" type="OptionButton" parent="DrawingAnimBar"]
 unique_name_in_owner=true
 tooltip_text="Local clip playback: Loop, Ping-Pong, Hold, Reverse or Once"
