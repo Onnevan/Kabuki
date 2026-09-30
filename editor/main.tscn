@@ -156,11 +156,11 @@ tooltip_text="Draw a skeleton directly on the selected artwork; skinning is appl
 text="Tap bones in the viewport to pose"
 [node name="RigSelectionHint" type="Label" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
-text="Bones · Weights · IK"
+text="Drag bones directly in the viewport"
 autowrap_mode=2
 [node name="PickRigParent" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
-text="PARENT…"
+text="MORE…"
 tooltip_text="Keep the current object as child, then select its parent in the Objects list"
 [node name="CancelRigParent" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
@@ -172,10 +172,10 @@ visible=false
 text="SET PARENT"
 [node name="ClearRigParent" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
-text="UNPARENT"
+text="REMOVE PARENT"
 [node name="PivotHere" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
-text="SET PIVOT"
+text="EDIT PIVOT"
 tooltip_text="Move pivot to the current editor orbit pivot without moving visible geometry"
 [node name="BonesSeparator" type="HSeparator" parent="LeftPanel/RiggingPanel/RiggingBox"]
 [node name="AddBone" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
