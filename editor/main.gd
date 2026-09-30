@@ -703,6 +703,36 @@ func _on_object_selected(index: int) -> void:
 	if scene_nodes.has(id):
 		_select_scene_node(id, scene_nodes[id])
 
+func _pick_rig_bone_at_screen(mouse: Vector2) -> String:
+	if active_rig_id.is_empty() or active_rig_runtime == null: return ""
+	var rig: RefCounted = rigging_controller.rigs.get(active_rig_id)
+	if rig == null: return ""
+	var best_index: int = -1
+	var best_distance: float = 18.0
+	for bone_index in range(rig.bones.size()):
+		var head_world: Vector3 = rig.bones[bone_index].get("rest",Transform3D.IDENTITY).origin
+		var tail_world: Vector3 = head_world + Vector3(0.0,0.45,0.0)
+		var found_child: bool = false
+		for child_index in range(rig.bones.size()):
+			if int(rig.bones[child_index].get("parent",-1)) == bone_index:
+				tail_world = rig.bones[child_index].get("rest",Transform3D.IDENTITY).origin
+				found_child = true
+				break
+		if not found_child and active_rig_runtime.terminal_tip_valid:
+			tail_world = active_rig_runtime.terminal_tip
+		var a: Vector2 = camera.unproject_position(head_world)
+		var b: Vector2 = camera.unproject_position(tail_world)
+		var ab: Vector2 = b - a
+		var den: float = ab.length_squared()
+		var distance: float = mouse.distance_to(a)
+		if den > 0.001:
+			var t: float = clampf((mouse-a).dot(ab)/den,0.0,1.0)
+			distance = mouse.distance_to(a+ab*t)
+		if distance < best_distance:
+			best_distance = distance
+			best_index = bone_index
+	return "bone::%s::%d" % [active_rig_id,best_index] if best_index >= 0 else ""
+
 func _select_rig_bone(virtual_id: String) -> void:
 	var parts: PackedStringArray = virtual_id.split("::")
 	if parts.size() < 3: return
@@ -879,6 +909,13 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 				if event.pressed: _add_rig_bone_point(event.position)
 				return
 			if event.pressed:
+				# RIGGING is bone-first: viewport clicks try visible bones before
+				# artwork. This avoids selecting the skinned mesh while posing.
+				if workspace == "rigging" and not rig_bone_draw_active:
+					var picked_bone: String = _pick_rig_bone_at_screen(event.position)
+					if not picked_bone.is_empty():
+						_select_rig_bone(picked_bone)
+						return
 				gizmo_axis = gizmo.pick_axis(event.position, camera) if selected_scene_node else TransformGizmo.Axis.NONE
 				if gizmo_axis != TransformGizmo.Axis.NONE:
 					dragging = true; transform_start = selected_scene_node.transform; drag_start_mouse = event.position
