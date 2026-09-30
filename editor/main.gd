@@ -46,6 +46,7 @@ var wireframe_overlays: Array[MeshInstance3D] = []
 var selected_scene_node: Node3D
 var selected_object_id := ""
 var selected_bone_index: int = -1
+var direct_bone_drag := false
 var bone_edit_proxy: Node3D
 var drawing_3d_active := false
 var drawing_sculpt_active := false
@@ -769,7 +770,8 @@ func _select_rig_bone(virtual_id: String) -> void:
 			var binding: Dictionary = rig.bindings[object_id]
 			var weights: Array = binding.get("bone_weights",[])
 			active_rig_runtime.show_weight_debug(mesh_node as MeshInstance3D,weights,bone_index)
-	status.text = "Bone selected · weight influence displayed"
+	gizmo.visible = workspace != "rigging" and workspace != "animation"
+	status.text = "Bone selected · drag directly to pose"
 
 func _on_delete_pressed() -> void:
 	if selected_scene_node == null: return
@@ -911,10 +913,11 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 			if event.pressed:
 				# RIGGING is bone-first: viewport clicks try visible bones before
 				# artwork. This avoids selecting the skinned mesh while posing.
-				if workspace == "rigging" and not rig_bone_draw_active:
+				if (workspace == "rigging" or workspace == "animation") and not rig_bone_draw_active:
 					var picked_bone: String = _pick_rig_bone_at_screen(event.position)
 					if not picked_bone.is_empty():
 						_select_rig_bone(picked_bone)
+						_begin_direct_bone_drag(event.position)
 						return
 				gizmo_axis = gizmo.pick_axis(event.position, camera) if selected_scene_node else TransformGizmo.Axis.NONE
 				if gizmo_axis != TransformGizmo.Axis.NONE:
@@ -944,14 +947,49 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 					for r in runtime_objects: r.set_selected(false)
 					object_list.deselect_all(); timeline.set_object(""); %SelectionLabel.text = "Nothing selected"
 			else:
-				if dragging and auto_key.button_pressed: _key_transform()
+				if direct_bone_drag:
+					if workspace == "animation" and auto_key.button_pressed: _key_bone_pose()
+					direct_bone_drag = false
+				elif dragging and auto_key.button_pressed:
+					_key_transform()
 				dragging = false; gizmo_axis = TransformGizmo.Axis.NONE
 	elif event is InputEventMouseMotion:
 		if orbiting: _navigate_orbit(event.relative)
 		elif panning: _navigate_pan(event.relative)
+		elif direct_bone_drag and selected_scene_node:
+			_apply_direct_bone_drag(event.position)
 		elif dragging and selected_scene_node:
 			_apply_drag(event.relative, event.position)
 		last_mouse = event.position
+
+func _begin_direct_bone_drag(mouse_pos: Vector2) -> void:
+	if bone_edit_proxy == null or not is_instance_valid(bone_edit_proxy): return
+	direct_bone_drag = true
+	dragging = false
+	gizmo_axis = TransformGizmo.Axis.NONE
+	transform_start = bone_edit_proxy.transform
+	drag_start_mouse = mouse_pos
+	# Direct manipulation is the primary puppet interaction. The technical
+	# transform gizmo remains available, but is not required.
+	gizmo.visible = false
+
+func _apply_direct_bone_drag(mouse_pos: Vector2) -> void:
+	if bone_edit_proxy == null or active_rig_runtime == null or selected_bone_index < 0: return
+	var pivot_world: Vector3 = active_rig_runtime.global_transform * transform_start.origin
+	var pivot_screen: Vector2 = camera.unproject_position(pivot_world)
+	var start_vec: Vector2 = drag_start_mouse - pivot_screen
+	var current_vec: Vector2 = mouse_pos - pivot_screen
+	if start_vec.length_squared() < 4.0 or current_vec.length_squared() < 4.0: return
+	var angle: float = start_vec.angle_to(current_vec)
+	bone_edit_proxy.transform = transform_start
+	bone_edit_proxy.rotate(camera.global_transform.basis.z.normalized(),angle)
+	_sync_selected_scene_transform()
+
+func _key_bone_pose() -> void:
+	# Bone animation channels are the next animation-domain step. Keep this hook
+	# separate from object transform keys so direct posing never writes a fake
+	# object transform channel.
+	status.text = "Bone posed · pose key channels pending"
 
 func _apply_drag(relative: Vector2, mouse_pos: Vector2) -> void:
 	var target := selected_scene_node
