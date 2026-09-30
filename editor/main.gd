@@ -1831,6 +1831,7 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	%DrawingBar.visible = workspace == "drawing"
 	%DrawingAnimBar.visible = workspace == "drawing"
 	%DrawingToolSurface.visible = workspace == "drawing"
+	%DrawingToolRail.visible = workspace == "drawing"
 	%DrawingContextSurface.visible = workspace == "drawing"
 	%DrawingPlanes.visible = workspace == "drawing"
 	%ObjectList.visible = workspace != "drawing"
@@ -2313,15 +2314,20 @@ func _responsive_layout() -> void:
 	%DrawingCanvas.size = %ViewportFrame.size
 	# Drawing uses floating, inset control islands rather than desktop-style bars
 	# glued to the viewport edges.
-	var drawing_width: float = maxf(100.0,%ViewportFrame.size.x-40.0)
-	%DrawingToolSurface.position = %ViewportFrame.position + Vector2(20.0,14.0)
-	%DrawingToolSurface.size = Vector2(drawing_width,46.0)
-	%DrawingBar.position = %DrawingToolSurface.position + Vector2(8.0,5.0)
-	%DrawingBar.size = Vector2(maxf(84.0,drawing_width-16.0),36.0)
-	%DrawingContextSurface.position = %ViewportFrame.position + Vector2(20.0,66.0)
-	%DrawingContextSurface.size = Vector2(drawing_width,40.0)
-	%DrawingAnimBar.position = %DrawingContextSurface.position + Vector2(10.0,3.0)
-	%DrawingAnimBar.size = Vector2(maxf(80.0,drawing_width-20.0),34.0)
+	var drawing_width: float = maxf(100.0,%ViewportFrame.size.x-112.0)
+	# Stable vertical tool rail: tools live here, never mixed with parameters.
+	%DrawingToolSurface.position = %ViewportFrame.position + Vector2(14.0,14.0)
+	%DrawingToolSurface.size = Vector2(54.0,minf(590.0,%ViewportFrame.size.y-28.0))
+	%DrawingToolRail.position = %DrawingToolSurface.position + Vector2(6.0,7.0)
+	%DrawingToolRail.size = Vector2(42.0,maxf(100.0,%DrawingToolSurface.size.y-14.0))
+	# The top HUD contains only parameters for the current tool.
+	%DrawingContextSurface.position = %ViewportFrame.position + Vector2(78.0,14.0)
+	%DrawingContextSurface.size = Vector2(drawing_width,46.0)
+	%DrawingBar.position = %DrawingContextSurface.position + Vector2(10.0,5.0)
+	%DrawingBar.size = Vector2(maxf(80.0,drawing_width-20.0),36.0)
+	# Local canvas animation sits close to time, not beside painting tools.
+	%DrawingAnimBar.position = %ViewportFrame.position + Vector2(82.0,%ViewportFrame.size.y-46.0)
+	%DrawingAnimBar.size = Vector2(maxf(80.0,drawing_width-8.0),34.0)
 
 	%Bottom.position = Vector2(margin, content_bottom + 8.0)
 	%Bottom.size = Vector2(w - margin * 2.0, timeline_h)
