@@ -156,6 +156,20 @@ func has_exposure(frame: int) -> bool:
 		if int(exposure["frame"]) == frame: return true
 	return false
 
+func previous_exposure_frame(frame: int) -> int:
+	var result := -1
+	for exposure in exposures:
+		var ef := int(exposure["frame"])
+		if ef < frame: result = ef
+		else: break
+	return result
+
+func next_exposure_frame(frame: int) -> int:
+	for exposure in exposures:
+		var ef := int(exposure["frame"])
+		if ef > frame: return ef
+	return -1
+
 func move_exposure(old_frame: int, new_frame: int) -> void:
 	var target := clampi(new_frame,0,maxi(0,local_duration-1))
 	for exposure in exposures:
