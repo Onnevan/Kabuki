@@ -14,10 +14,10 @@ var pan_last_x := 0.0
 var expanded := [false, false, false]
 var selected_key_path := ""
 var selected_key_frame := -1
-var selected_keys: Array[Dictionary] = []
+var selected_keys: Array = []
 var key_clipboard: Array = []
 var drag_origin_frame := -1
-var drag_original_refs: Array[Dictionary] = []
+var drag_original_refs: Array = []
 var dragging_key := false
 var drawing_exposure_frames: Array[int] = []
 var channel_paths: Array[String] = ["transform.position","transform.rotation","transform.scale"]
@@ -256,19 +256,20 @@ func _select_ref(hit:Dictionary,additive:bool)->void:
 	queue_redraw()
 
 func _move_selected(delta:int)->void:
-	if delta==0:return
+	if delta == 0: return
 	var key_refs: Array = selected_keys.duplicate(true)
 	if delta > 0:
-		key_refs.sort_custom(func(a: Dictionary,b: Dictionary) -> bool: return int(a.frame) > int(b.frame))
-	else:
-		key_refs.sort_custom(func(a: Dictionary,b: Dictionary) -> bool: return int(a.frame) < int(b.frame))
+		key_refs.reverse()
 	for key_ref in key_refs:
-		var oldf:=int(key_ref.frame);var newf:=clampi(oldf+delta,0,frame_count)
-		if String(key_ref.path)=="*":ProjectStore.move_object_keys_at_frame(object_id,oldf,newf)
-		else:ProjectStore.move_key(object_id,String(key_ref.path),oldf,newf)
-		key_ref.frame=newf
-	selected_keys.assign(key_refs)
-	selected_key_frame=clampi(selected_key_frame+delta,0,frame_count)
+		var oldf: int = int(key_ref["frame"])
+		var newf: int = clampi(oldf + delta,0,frame_count)
+		if String(key_ref["path"]) == "*":
+			ProjectStore.move_object_keys_at_frame(object_id,oldf,newf)
+		else:
+			ProjectStore.move_key(object_id,String(key_ref["path"]),oldf,newf)
+		key_ref["frame"] = newf
+	selected_keys = key_refs
+	selected_key_frame = clampi(selected_key_frame + delta,0,frame_count)
 
 func _delete_selected()->void:
 	for key_ref in selected_keys:
@@ -357,9 +358,9 @@ func get_selected_interpolation() -> String:
 func set_selected_interpolation(name:String)->void:
 	if selected_keys.is_empty(): return
 	for key_ref in selected_keys:
-		ProjectStore.set_key_interpolation(object_id,String(key_ref.path),int(key_ref.frame),name)
-	var last: Dictionary = selected_keys[selected_keys.size()-1]
-	selected_key_path = String(last.path)
-	selected_key_frame = int(last.frame)
+		ProjectStore.set_key_interpolation(object_id,String(key_ref["path"]),int(key_ref["frame"]),name)
+	var last = selected_keys[selected_keys.size()-1]
+	selected_key_path = String(last["path"])
+	selected_key_frame = int(last["frame"])
 	key_selected.emit(selected_key_path,selected_key_frame,name)
 	queue_redraw()
