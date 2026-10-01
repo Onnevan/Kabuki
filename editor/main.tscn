@@ -1343,6 +1343,12 @@ size_flags_horizontal=3
 [node name="SceneInfo" type="Label" parent="StatusBar"]
 text="24 fps   ·   Frame 0 / 60"
 
+[node name="ProjectFileDialog" type="FileDialog" parent="."]
+unique_name_in_owner=true
+file_mode=0
+access=2
+filters=PackedStringArray("*.kabuki ; KABUKI Projects")
+
 [node name="FileDialog" type="FileDialog" parent="."]
 unique_name_in_owner=true
 file_mode=0
@@ -1354,6 +1360,7 @@ filters=PackedStringArray("*.png ; PNG Images")
 [connection signal="pressed" from="TopBar/Import" to="." method="_on_import_pressed"]
 [connection signal="toggled" from="TopBar/GridToggle" to="." method="_on_grid_toggled"]
 [connection signal="pressed" from="LeftPanel/AssetsPanel/Assets/AssetImport" to="." method="_on_import_pressed"]
+[connection signal="file_selected" from="ProjectFileDialog" to="." method="_on_project_file_selected"]
 [connection signal="file_selected" from="FileDialog" to="." method="_on_file_selected"]
 [connection signal="item_selected" from="LeftPanel/ScenePanel/SceneBox/ObjectList" to="." method="_on_object_selected"]
 [connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/Actions/Duplicate" to="." method="_on_duplicate_pressed"]
