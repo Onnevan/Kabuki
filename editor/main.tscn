@@ -553,6 +553,48 @@ custom_minimum_size=Vector2(32,32)
 color=Color(0.08,0.08,0.08,1)
 tooltip_text="Active drawing color"
 
+[node name="StrokePresetSurface" type="PanelContainer" parent="."]
+unique_name_in_owner=true
+visible=false
+offset_left=370.0
+offset_top=126.0
+offset_right=566.0
+offset_bottom=180.0
+
+[node name="StrokePresetBar" type="HBoxContainer" parent="StrokePresetSurface"]
+unique_name_in_owner=true
+layout_mode=2
+theme_override_constants/separation=4
+
+[node name="StrokeClean" type="Button" parent="StrokePresetSurface/StrokePresetBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(44,44)
+toggle_mode=true
+button_pressed=true
+text="━"
+tooltip_text="Clean · uniform line"
+
+[node name="StrokeInk" type="Button" parent="StrokePresetSurface/StrokePresetBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(44,44)
+toggle_mode=true
+text="〰"
+tooltip_text="Ink · subtle organic width"
+
+[node name="StrokeDry" type="Button" parent="StrokePresetSurface/StrokePresetBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(44,44)
+toggle_mode=true
+text="∿"
+tooltip_text="Dry · lively irregular ink"
+
+[node name="StrokeRough" type="Button" parent="StrokePresetSurface/StrokePresetBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(44,44)
+toggle_mode=true
+text="≋"
+tooltip_text="Rough · strong handmade variation"
+
 [node name="DrawingPlaneSurface" type="PanelContainer" parent="."]
 unique_name_in_owner=true
 visible=false
