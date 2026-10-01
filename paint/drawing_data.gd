@@ -74,6 +74,8 @@ func add_stroke(points: PackedVector3Array, style: Dictionary = {}) -> String:
 		"width_variation": float(style.get("width_variation", 0.0)),
 		"width_frequency": float(style.get("width_frequency", 1.0)),
 		"brush_seed": int(style.get("brush_seed", 1)),
+		"start_cap": String(style.get("start_cap", "flat")),
+		"end_cap": String(style.get("end_cap", "flat")),
 		"visible": true
 	}
 	stroke_order.append(stroke_id)
