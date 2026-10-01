@@ -762,6 +762,20 @@ max_value=10000.0
 value=0.0
 tooltip_text="Scene frame where this local clip starts"
 
+[node name="HoldFramesLabel" type="Label" parent="DrawingAnimBar"]
+unique_name_in_owner=true
+visible=false
+text="Hold"
+[node name="HoldFrames" type="SpinBox" parent="DrawingAnimBar"]
+unique_name_in_owner=true
+visible=false
+custom_minimum_size=Vector2(72,0)
+min_value=0.0
+max_value=1000.0
+step=1.0
+value=4.0
+tooltip_text="Extra scene frames to hold the last local frame before looping"
+
 [node name="OnionSkin" type="CheckButton" parent="DrawingAnimBar"]
 unique_name_in_owner=true
 text="ONION SKIN"
