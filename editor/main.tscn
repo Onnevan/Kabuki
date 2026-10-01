@@ -1137,6 +1137,7 @@ filters=PackedStringArray("*.png ; PNG Images")
 [connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions/PlaneDuplicate" to="." method="_on_plane_duplicate"]
 
 [node name="RigFinishDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
 title="Finish Skeleton"
 ok_button_text="Finish & Bind"
 cancel_button_text="Add Chain"
