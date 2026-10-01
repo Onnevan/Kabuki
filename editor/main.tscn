@@ -493,6 +493,7 @@ tooltip_text="Hardness"
 text="LINE"
 [node name="BrushColor" type="ColorPickerButton" parent="DrawingBar"]
 unique_name_in_owner=true
+custom_minimum_size=Vector2(32,32)
 color=Color(0.08,0.08,0.08,1)
 tooltip_text="Line color"
 [node name="Fill" type="CheckButton" parent="DrawingBar"]
@@ -504,11 +505,13 @@ custom_minimum_size=Vector2(86,0)
 tooltip_text="Fill type"
 [node name="FillColor" type="ColorPickerButton" parent="DrawingBar"]
 unique_name_in_owner=true
+custom_minimum_size=Vector2(32,32)
 color=Color(0.8,0.25,0.18,0.55)
 tooltip_text="Fill color A"
 [node name="FillColorB" type="ColorPickerButton" parent="DrawingBar"]
 unique_name_in_owner=true
 visible=false
+custom_minimum_size=Vector2(32,32)
 color=Color(0.95,0.75,0.2,0.55)
 tooltip_text="Gradient color B"
 [node name="FillGradientAngle" type="SpinBox" parent="DrawingBar"]
@@ -520,6 +523,39 @@ max_value=180.0
 step=1.0
 suffix="°"
 tooltip_text="Gradient angle"
+[node name="ActiveColorLabel" type="Label" parent="DrawingBar"]
+text="COLOR"
+[node name="ActiveColor" type="ColorPickerButton" parent="DrawingBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(32,32)
+color=Color(0.08,0.08,0.08,1)
+tooltip_text="Active drawing color"
+
+[node name="PalettePopup" type="PopupPanel" parent="."]
+unique_name_in_owner=true
+size=Vector2i(300,118)
+[node name="PaletteBox" type="VBoxContainer" parent="PalettePopup"]
+offset_left=10.0
+offset_top=10.0
+offset_right=290.0
+offset_bottom=108.0
+[node name="PaletteTitle" type="Label" parent="PalettePopup/PaletteBox"]
+text="PALETTE"
+[node name="PaletteGrid" type="GridContainer" parent="PalettePopup/PaletteBox"]
+unique_name_in_owner=true
+columns=8
+
+[node name="GradientGuide" type="Control" parent="."]
+unique_name_in_owner=true
+layout_mode=1
+anchors_preset=15
+anchor_right=1.0
+anchor_bottom=1.0
+grow_horizontal=2
+grow_vertical=2
+mouse_filter=2
+visible=false
+
 [node name="NewDrawing" type="Button" parent="DrawingBar"]
 visible=false
 text="NEW DRAWING"
