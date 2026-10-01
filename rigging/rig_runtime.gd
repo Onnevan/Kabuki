@@ -227,6 +227,39 @@ func _weight_debug_color(weight: float) -> Color:
 	if w < 0.5: return Color(0.0,w * 2.0,1.0,1.0)
 	return Color((w - 0.5) * 2.0,1.0,2.0 - w * 2.0,1.0)
 
+func solve_ik(end_bone: int, target_in_rig: Vector3, chain_length: int = 2, influence: float = 1.0) -> void:
+	if rig == null or end_bone < 0 or end_bone >= rig.bones.size(): return
+	var chain: Array[int] = []
+	var cursor: int = end_bone
+	while cursor >= 0 and chain.size() < chain_length:
+		chain.append(cursor)
+		cursor = int(rig.bones[cursor].get("parent",-1))
+	if chain.size() < 2: return
+	var tip: Vector3 = _current_bone_tip(end_bone)
+	for iteration in range(12):
+		for ci in range(1,chain.size()):
+			var joint_index: int = chain[ci]
+			var joint_global: Transform3D = skeleton.get_bone_global_pose(joint_index)
+			var joint: Vector3 = joint_global.origin
+			var to_tip := Vector2(tip.x-joint.x,tip.y-joint.y)
+			var to_target := Vector2(target_in_rig.x-joint.x,target_in_rig.y-joint.y)
+			if to_tip.length_squared() < 0.000001 or to_target.length_squared() < 0.000001: continue
+			var angle: float = to_tip.angle_to(to_target) * clampf(influence,0.0,1.0)
+			var local_pose: Transform3D = skeleton.get_bone_pose(joint_index)
+			local_pose.basis = local_pose.basis.rotated(Vector3(0,0,1),angle)
+			skeleton.set_bone_pose(joint_index,local_pose)
+			tip = _current_bone_tip(end_bone)
+		if Vector2(tip.x-target_in_rig.x,tip.y-target_in_rig.y).length() < 0.002: break
+
+func _current_bone_tip(bone_index: int) -> Vector3:
+	for child_index in range(rig.bones.size()):
+		if int(rig.bones[child_index].get("parent",-1)) == bone_index:
+			return skeleton.get_bone_global_pose(child_index).origin
+	var pose_global: Transform3D = skeleton.get_bone_global_pose(bone_index)
+	var rest_global: Transform3D = skeleton.get_bone_global_rest(bone_index)
+	var rest_tip: Vector3 = _rest_tail_in_rig(bone_index,rest_global.origin)
+	return pose_global * (rest_global.affine_inverse() * rest_tip)
+
 func set_bone_pose(index: int, pose: Transform3D) -> void:
 	if index < 0 or index >= skeleton.get_bone_count(): return
 	skeleton.set_bone_pose(index,pose)
