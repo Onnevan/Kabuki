@@ -489,15 +489,37 @@ step=0.05
 value=0.78
 tooltip_text="Hardness"
 
+[node name="LineColorLabel" type="Label" parent="DrawingBar"]
+text="LINE"
 [node name="BrushColor" type="ColorPickerButton" parent="DrawingBar"]
 unique_name_in_owner=true
 color=Color(0.08,0.08,0.08,1)
+tooltip_text="Line color"
 [node name="Fill" type="CheckButton" parent="DrawingBar"]
 unique_name_in_owner=true
 text="FILL"
+[node name="FillMode" type="OptionButton" parent="DrawingBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(86,0)
+tooltip_text="Fill type"
 [node name="FillColor" type="ColorPickerButton" parent="DrawingBar"]
 unique_name_in_owner=true
 color=Color(0.8,0.25,0.18,0.55)
+tooltip_text="Fill color A"
+[node name="FillColorB" type="ColorPickerButton" parent="DrawingBar"]
+unique_name_in_owner=true
+visible=false
+color=Color(0.95,0.75,0.2,0.55)
+tooltip_text="Gradient color B"
+[node name="FillGradientAngle" type="SpinBox" parent="DrawingBar"]
+unique_name_in_owner=true
+visible=false
+custom_minimum_size=Vector2(72,0)
+min_value=-180.0
+max_value=180.0
+step=1.0
+suffix="°"
+tooltip_text="Gradient angle"
 [node name="NewDrawing" type="Button" parent="DrawingBar"]
 visible=false
 text="NEW DRAWING"
