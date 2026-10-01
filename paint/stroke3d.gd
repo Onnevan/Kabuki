@@ -4,7 +4,7 @@ extends MeshInstance3D
 var points := PackedVector3Array()
 var stroke_color := Color(0.08, 0.08, 0.08, 1.0)
 var radius := 0.012
-var sides := 6
+var sides := 10
 var fill_enabled := false
 var fill_color := Color(0.8, 0.25, 0.18, 0.55)
 var closed := false
@@ -110,29 +110,83 @@ func _base_material(color: Color) -> StandardMaterial3D:
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	return mat
 
+func _smoothed_points() -> PackedVector3Array:
+	if points.size() < 3:
+		return points.duplicate()
+	# Catmull-Rom keeps the stroke passing through the artist's sampled points,
+	# while adding enough intermediate samples for a continuous silhouette.
+	var out := PackedVector3Array()
+	var subdivisions := 3
+	for i in range(points.size() - 1):
+		var p0: Vector3 = points[maxi(i - 1, 0)]
+		var p1: Vector3 = points[i]
+		var p2: Vector3 = points[i + 1]
+		var p3: Vector3 = points[mini(i + 2, points.size() - 1)]
+		for step in range(subdivisions):
+			var t: float = float(step) / float(subdivisions)
+			var t2 := t * t
+			var t3 := t2 * t
+			var p: Vector3 = 0.5 * ((2.0 * p1) + (-p0 + p2) * t + (2.0*p0 - 5.0*p1 + 4.0*p2 - p3) * t2 + (-p0 + 3.0*p1 - 3.0*p2 + p3) * t3)
+			if out.is_empty() or out[-1].distance_squared_to(p) > 0.0000001:
+				out.append(p)
+	out.append(points[-1])
+	return out
+
 func _build_line_surface(result: ArrayMesh) -> void:
+	var curve_points := _smoothed_points()
+	if curve_points.size() < 2: return
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var direction := (points[1] - points[0]).normalized()
-	var up := Vector3.UP
-	if absf(direction.dot(up)) > 0.92: up = Vector3.RIGHT
-	var side := direction.cross(up).normalized()
-	up = side.cross(direction).normalized()
-	for i in range(points.size() - 1):
-		var p0 := points[i]
-		var p1 := points[i + 1]
-		var tangent := (p1 - p0).normalized()
-		if tangent.length_squared() > 0.0:
-			side = tangent.cross(up).normalized()
-			if side.length_squared() < 0.001: side = Vector3.RIGHT
-			up = side.cross(tangent).normalized()
+	# Build one continuous tube. A parallel-transport-like frame carries the
+	# previous ring orientation forward, avoiding the per-segment frame resets
+	# that made the old stroke look like disconnected quadrangles.
+	var tangents := PackedVector3Array()
+	for i in range(curve_points.size()):
+		var tangent: Vector3
+		if i == 0:
+			tangent = (curve_points[1] - curve_points[0]).normalized()
+		elif i == curve_points.size() - 1:
+			tangent = (curve_points[-1] - curve_points[-2]).normalized()
+		else:
+			tangent = (curve_points[i + 1] - curve_points[i - 1]).normalized()
+		tangents.append(tangent)
+	var ref := Vector3(0,0,1)
+	if absf(tangents[0].dot(ref)) > 0.95: ref = Vector3.UP
+	var side := tangents[0].cross(ref).normalized()
+	if side.length_squared() < 0.0001: side = Vector3.RIGHT
+	var up := side.cross(tangents[0]).normalized()
+	var ring_side: Array[Vector3] = []
+	var ring_up: Array[Vector3] = []
+	for i in range(curve_points.size()):
+		if i > 0:
+			side = (side - tangents[i] * side.dot(tangents[i])).normalized()
+			if side.length_squared() < 0.0001:
+				side = tangents[i].cross(up).normalized()
+			up = side.cross(tangents[i]).normalized()
+		ring_side.append(side)
+		ring_up.append(up)
+	for i in range(curve_points.size() - 1):
 		for j in range(sides):
 			var a0 := TAU * float(j) / float(sides)
 			var a1 := TAU * float(j + 1) / float(sides)
-			var r0 := side * cos(a0) * radius + up * sin(a0) * radius
-			var r1 := side * cos(a1) * radius + up * sin(a1) * radius
-			_tri(st, p0 + r0, p1 + r0, p1 + r1)
-			_tri(st, p0 + r0, p1 + r1, p0 + r1)
+			var r00: Vector3 = ring_side[i] * cos(a0) * radius + ring_up[i] * sin(a0) * radius
+			var r01: Vector3 = ring_side[i] * cos(a1) * radius + ring_up[i] * sin(a1) * radius
+			var r10: Vector3 = ring_side[i + 1] * cos(a0) * radius + ring_up[i + 1] * sin(a0) * radius
+			var r11: Vector3 = ring_side[i + 1] * cos(a1) * radius + ring_up[i + 1] * sin(a1) * radius
+			_tri(st, curve_points[i] + r00, curve_points[i + 1] + r10, curve_points[i + 1] + r11)
+			_tri(st, curve_points[i] + r00, curve_points[i + 1] + r11, curve_points[i] + r01)
+	# Flat caps prevent open ends without adding disconnected end geometry.
+	var start_center := curve_points[0]
+	var end_center := curve_points[-1]
+	for j in range(sides):
+		var a0 := TAU * float(j) / float(sides)
+		var a1 := TAU * float(j + 1) / float(sides)
+		var s0: Vector3 = ring_side[0] * cos(a0) * radius + ring_up[0] * sin(a0) * radius
+		var s1: Vector3 = ring_side[0] * cos(a1) * radius + ring_up[0] * sin(a1) * radius
+		var e0: Vector3 = ring_side[-1] * cos(a0) * radius + ring_up[-1] * sin(a0) * radius
+		var e1: Vector3 = ring_side[-1] * cos(a1) * radius + ring_up[-1] * sin(a1) * radius
+		_tri(st, start_center, start_center + s1, start_center + s0)
+		_tri(st, end_center, end_center + e0, end_center + e1)
 	st.commit(result)
 	result.surface_set_material(result.get_surface_count() - 1, _base_material(stroke_color))
 
