@@ -305,7 +305,10 @@ func load_dict(data: Dictionary) -> void:
 		strokes[String(stroke_id)] = rec
 	stroke_order.clear()
 	for stroke_id in data.get("stroke_order", []): stroke_order.append(String(stroke_id))
-	exposures = data.get("exposures", []).duplicate(true)
+	exposures.clear()
+	for raw_exposure in data.get("exposures", []):
+		if raw_exposure is Dictionary:
+			exposures.append((raw_exposure as Dictionary).duplicate(true))
 	cel_strokes = data.get("cel_strokes", {}).duplicate(true)
 	next_stroke_index = int(data.get("next_stroke_index", strokes.size()))
 	local_frame = int(data.get("local_frame", 0))
