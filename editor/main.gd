@@ -113,6 +113,7 @@ func _ready() -> void:
 	%ActiveColor.color_changed.connect(_on_active_color_changed)
 	%GradientGuide.draw.connect(_draw_gradient_guide)
 	_setup_drawing_palette()
+	_setup_color_swatches()
 	theme = KabukiThemeBuilder.build()
 	ProjectStore.frame_changed.connect(_on_frame_changed)
 	ProjectStore.key_changed.connect(timeline.refresh_keys)
@@ -2317,6 +2318,42 @@ func _sculpt_drawing(pos: Vector2) -> void:
 func _on_brush_size_changed(value: float) -> void:
 	%DrawingCanvas.brush_size = value
 
+func _swatch_style(color: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = color
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(1,1,1,0.24)
+	return style
+
+func _paint_color_swatch(button: ColorPickerButton, color: Color) -> void:
+	button.custom_minimum_size = Vector2(32,32)
+	button.color = color
+	# ColorPickerButton's native preview is only a thin inset strip. Replacing
+	# the button style makes the entire 32x32 chip the color preview.
+	button.add_theme_stylebox_override("normal",_swatch_style(color))
+	button.add_theme_stylebox_override("hover",_swatch_style(color.lightened(0.08)))
+	button.add_theme_stylebox_override("pressed",_swatch_style(color.darkened(0.08)))
+	button.add_theme_icon_override("bg",ImageTexture.new())
+
+func _setup_color_swatches() -> void:
+	_paint_color_swatch(%BrushColor,%BrushColor.color)
+	_paint_color_swatch(%FillColor,%FillColor.color)
+	_paint_color_swatch(%FillColorB,%FillColorB.color)
+	_paint_color_swatch(%ActiveColor,%ActiveColor.color)
+
+func _refresh_color_swatches() -> void:
+	_paint_color_swatch(%BrushColor,%BrushColor.color)
+	_paint_color_swatch(%FillColor,%FillColor.color)
+	_paint_color_swatch(%FillColorB,%FillColorB.color)
+	_paint_color_swatch(%ActiveColor,%ActiveColor.color)
+
 func _setup_drawing_palette() -> void:
 	for child in %PaletteGrid.get_children():
 		child.queue_free()
@@ -2352,6 +2389,7 @@ func _on_active_color_changed(color: Color) -> void:
 		"fill_a": %FillColor.color = color
 		"fill_b": %FillColorB.color = color
 		_: %BrushColor.color = color
+	_refresh_color_swatches()
 
 func _reset_gradient_handles() -> void:
 	var viewport_control: Control = %ViewportContainer as Control
@@ -2393,10 +2431,14 @@ func _gradient_guide_input(event: InputEvent) -> bool:
 	return false
 
 func _on_brush_color_changed(value: Color) -> void:
+	_paint_color_swatch(%BrushColor,value)
+	%ActiveColor.color = value
+	_paint_color_swatch(%ActiveColor,value)
 	%DrawingCanvas.brush_color = value
 	_apply_selected_stroke_style()
 
 func _on_fill_color_changed(_value: Color) -> void:
+	_refresh_color_swatches()
 	_apply_selected_stroke_style()
 
 func _on_fill_mode_selected(index: int) -> void:
@@ -2410,6 +2452,7 @@ func _on_fill_mode_selected(index: int) -> void:
 	_apply_selected_stroke_style()
 
 func _on_fill_gradient_changed(_value) -> void:
+	_refresh_color_swatches()
 	_apply_selected_stroke_style()
 
 func _on_sculpt_mode_selected(index: int) -> void:
