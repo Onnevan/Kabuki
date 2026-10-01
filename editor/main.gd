@@ -149,6 +149,9 @@ func _ready() -> void:
 	%ViewY.pressed.connect(func(): _align_view_axis(Vector3.UP, "Y"))
 	%ViewZ.pressed.connect(func(): _align_view_axis(Vector3.BACK, "Z"))
 	%ViewCamera.pressed.connect(_toggle_render_camera_view)
+	%CanvasAxisX.pressed.connect(func(): _set_active_canvas_axis("X"))
+	%CanvasAxisY.pressed.connect(func(): _set_active_canvas_axis("Y"))
+	%CanvasAxisZ.pressed.connect(func(): _set_active_canvas_axis("Z"))
 	%CameraFov.value_changed.connect(_on_camera_fov_changed)
 	%CameraResX.value_changed.connect(_on_camera_resolution_changed)
 	%CameraResY.value_changed.connect(_on_camera_resolution_changed)
@@ -1331,6 +1334,41 @@ func _screen_to_view_plane(pos: Vector2, point: Vector3) -> Vector3:
 	if absf(denom) < 0.0001: return point
 	var t := (point - origin).dot(normal) / denom
 	return origin + dir * t
+
+func _canvas_basis_for_axis(axis_name: String) -> Basis:
+	match axis_name:
+		"X":
+			# local XY -> world YZ, local Z (canvas normal) -> world +X
+			return Basis(Vector3(0,1,0),Vector3(0,0,1),Vector3(1,0,0))
+		"Y":
+			# local XY -> world XZ, normal -> world +Y
+			return Basis(Vector3(1,0,0),Vector3(0,0,-1),Vector3(0,1,0))
+		_:
+			return Basis.IDENTITY
+
+func _canvas_axis_from_plane(plane: ReferenceCanvas) -> String:
+	var normal: Vector3 = plane.global_transform.basis.z.normalized()
+	var ax := absf(normal.x)
+	var ay := absf(normal.y)
+	var az := absf(normal.z)
+	if ax >= ay and ax >= az: return "X"
+	if ay >= ax and ay >= az: return "Y"
+	return "Z"
+
+func _sync_canvas_axis_buttons() -> void:
+	if active_drawing_group == null or not is_instance_valid(active_drawing_group): return
+	var axis_name := _canvas_axis_from_plane(active_drawing_group)
+	%CanvasAxisX.set_pressed_no_signal(axis_name == "X")
+	%CanvasAxisY.set_pressed_no_signal(axis_name == "Y")
+	%CanvasAxisZ.set_pressed_no_signal(axis_name == "Z")
+
+func _set_active_canvas_axis(axis_name: String) -> void:
+	if active_drawing_group == null or not is_instance_valid(active_drawing_group): return
+	var origin := active_drawing_group.global_position
+	active_drawing_group.global_transform = Transform3D(_canvas_basis_for_axis(axis_name),origin)
+	_sync_canvas_axis_buttons()
+	_lock_drawing_view_to_canvas()
+	status.text = "Canvas plane · normal " + axis_name
 
 func _lock_drawing_view_to_canvas() -> void:
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
@@ -2640,10 +2678,10 @@ func _on_add_drawing_plane() -> void:
 	# A new reference canvas belongs to the CURRENT drawing projection.
 	# Default/front view produces an XY canvas (normal Z). If the user snaps
 	# to Z/top before creating it, the canvas becomes a floor (XZ), etc.
-	var view_basis: Basis = camera.global_transform.basis.orthonormalized()
+	# New canvases use one of the three global orthographic drawing planes.
+	# Z/XY is the default; arbitrary camera perspective never becomes canvas orientation.
+	var view_basis: Basis = _canvas_basis_for_axis("Z")
 	var target_position: Vector3 = camera_rig.pivot
-	# Paper-theatre stacking follows the CURRENT view normal. Canvases with
-	# approximately the same orientation advance one spacing step toward camera.
 	var stack_index: int = 0
 	var new_normal: Vector3 = view_basis.z.normalized()
 	for existing in drawing_planes:
@@ -2666,6 +2704,9 @@ func _on_add_drawing_plane() -> void:
 	_refresh_drawing_planes()
 	_refresh_scene_object_list()
 	_select_scene_node(active_drawing_id, active_drawing_group)
+	_sync_canvas_axis_buttons()
+	if workspace == "drawing":
+		_lock_drawing_view_to_canvas()
 	%RightPanel.visible = true
 	status.text = "Reference canvas created · drawing is projected onto its coordinates"
 
@@ -2688,6 +2729,9 @@ func _on_drawing_plane_selected(index: int) -> void:
 	_select_scene_node(active_drawing_id, plane)
 	%DrawingCanvas.switch_canvas(active_drawing_id)
 	_sync_local_clip_ui()
+	_sync_canvas_axis_buttons()
+	if workspace == "drawing":
+		_lock_drawing_view_to_canvas()
 	%RightPanel.visible = true
 	_refresh_drawing_timeline()
 	status.text = "Active reference canvas · " + plane.name
