@@ -1,4 +1,4 @@
-[gd_scene load_steps=39 format=3]
+[gd_scene load_steps=42 format=3]
 
 [ext_resource path="res://editor/main.gd" type="Script" id="1"]
 [ext_resource path="res://editor/editor_camera_rig.gd" type="Script" id="2"]
@@ -38,6 +38,9 @@
 [ext_resource path="res://assets/icons/lucide/zoom-in.svg" type="Texture2D" id="36"]
 [ext_resource path="res://assets/icons/lucide/diamond.svg" type="Texture2D" id="37"]
 [ext_resource path="res://assets/icons/lucide/pause.svg" type="Texture2D" id="38"]
+[ext_resource path="res://assets/icons/lucide/slash.svg" type="Texture2D" id="39"]
+[ext_resource path="res://assets/icons/lucide/check.svg" type="Texture2D" id="40"]
+[ext_resource path="res://assets/icons/lucide/camera.svg" type="Texture2D" id="41"]
 
 [node name="Main" type="Control"]
 layout_mode=3
@@ -190,7 +193,8 @@ theme_override_colors/font_color=Color(0.48,0.58,0.67,1)
 theme_override_font_sizes/font_size=11
 [node name="CreateSkeleton" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
-text="＋  Create skeleton"
+text="Create skeleton"
+icon=ExtResource("26")
 tooltip_text="Draw a skeleton directly on the selected artwork; skinning is applied automatically when finished"
 [node name="RiggingHint" type="Label" parent="LeftPanel/RiggingPanel/RiggingBox"]
 text="Tap bones in the viewport to pose"
@@ -221,7 +225,8 @@ tooltip_text="Move pivot to the current editor orbit pivot without moving visibl
 [node name="AddBone" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
 visible=false
-text="＋ BONE"
+text="BONE"
+icon=ExtResource("26")
 [node name="AutoWeights" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
 visible=false
@@ -238,7 +243,8 @@ theme_override_font_sizes/font_size=11
 [node name="AssetsHint" type="Label" parent="LeftPanel/AssetsPanel/Assets"]
 text="Images  ·  Models  ·  Drawings"
 [node name="AssetImport" type="Button" parent="LeftPanel/AssetsPanel/Assets"]
-text="＋  Import asset"
+text="Import asset"
+icon=ExtResource("26")
 
 [node name="ViewportFrame" type="PanelContainer" parent="."]
 unique_name_in_owner=true
@@ -401,7 +407,7 @@ tooltip_text="Bitmap eraser"
 [node name="BitmapLine" type="Button" parent="DrawingToolRail"]
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
-text="╱"
+icon=ExtResource("39")
 tooltip_text="Line"
 [node name="BitmapRect" type="Button" parent="DrawingToolRail"]
 custom_minimum_size=Vector2(50,50)
@@ -424,7 +430,7 @@ text="Clear"
 tooltip_text="Clear current bitmap"
 [node name="BitmapCommit" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
-text="✓"
+icon=ExtResource("40")
 tooltip_text="Commit bitmap to active reference canvas"
 [node name="SculptMode" type="OptionButton" parent="DrawingBar"]
 unique_name_in_owner=true
@@ -497,7 +503,8 @@ unique_name_in_owner=true
 text="CELS ▾"
 [node name="NewCel" type="Button" parent="DrawingAnimBar"]
 visible=false
-text="＋ EMPTY"
+text="EMPTY"
+icon=ExtResource("26")
 [node name="DuplicateCel" type="Button" parent="DrawingAnimBar"]
 visible=false
 text="DUPLICATE"
@@ -617,7 +624,8 @@ text="Z"
 tooltip_text="Align view to Z axis"
 [node name="ViewCamera" type="Button" parent="ViewGizmo"]
 unique_name_in_owner=true
-text="▣ CAM"
+text="CAM"
+icon=ExtResource("41")
 tooltip_text="Return to the saved projection view"
 
 [node name="ToolRail" type="VBoxContainer" parent="."]
@@ -637,9 +645,11 @@ tooltip_text="Move"
 icon=ExtResource("16")
 tooltip_text="Rotate"
 [node name="ScaleTool" type="Button" parent="ToolRail"]
-text="□"
+icon=ExtResource("17")
+tooltip_text="Scale"
 [node name="FrameSelected" type="Button" parent="ToolRail"]
-text="⌖"
+icon=ExtResource("31")
+tooltip_text="Frame selected"
 
 [node name="RightPanel" type="VBoxContainer" parent="."]
 unique_name_in_owner=true
