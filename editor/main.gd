@@ -114,6 +114,7 @@ func _ready() -> void:
 	%GradientGuide.draw.connect(_draw_gradient_guide)
 	_setup_drawing_palette()
 	_setup_color_swatches()
+	_refresh_gradient_preview()
 	theme = KabukiThemeBuilder.build()
 	ProjectStore.frame_changed.connect(_on_frame_changed)
 	ProjectStore.key_changed.connect(timeline.refresh_keys)
@@ -2354,6 +2355,17 @@ func _refresh_color_swatches() -> void:
 	_paint_color_swatch(%FillColorB,%FillColorB.color)
 	_paint_color_swatch(%ActiveColor,%ActiveColor.color)
 
+func _refresh_gradient_preview() -> void:
+	var image := Image.create(96,32,false,Image.FORMAT_RGBA8)
+	var color_a: Color = %FillColor.color
+	var color_b: Color = %FillColorB.color
+	for x in range(96):
+		var t := float(x) / 95.0
+		var color := color_a.lerp(color_b,t)
+		for y in range(32):
+			image.set_pixel(x,y,color)
+	%GradientPreview.texture = ImageTexture.create_from_image(image)
+
 func _setup_drawing_palette() -> void:
 	for child in %PaletteGrid.get_children():
 		child.queue_free()
@@ -2394,7 +2406,7 @@ func _on_active_color_changed(color: Color) -> void:
 func _reset_gradient_handles() -> void:
 	var viewport_control: Control = %ViewportContainer as Control
 	var rect: Rect2 = viewport_control.get_global_rect()
-	var center: Vector2 = rect.size * 0.5
+	var center: Vector2 = rect.position - %GradientGuide.global_position + rect.size * 0.5
 	gradient_handle_a = center - Vector2(80,0)
 	gradient_handle_b = center + Vector2(80,0)
 	%GradientGuide.queue_redraw()
@@ -2411,18 +2423,19 @@ func _draw_gradient_guide() -> void:
 
 func _gradient_guide_input(event: InputEvent) -> bool:
 	if not %GradientGuide.visible: return false
+	var guide_pos := event.position + %ViewportContainer.global_position - %GradientGuide.global_position
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
-			if event.position.distance_to(gradient_handle_a) < 18.0: gradient_drag_handle = 1
-			elif event.position.distance_to(gradient_handle_b) < 18.0: gradient_drag_handle = 2
+			if guide_pos.distance_to(gradient_handle_a) < 22.0: gradient_drag_handle = 1
+			elif guide_pos.distance_to(gradient_handle_b) < 22.0: gradient_drag_handle = 2
 			else: return false
 		else:
 			if gradient_drag_handle == 0: return false
 			gradient_drag_handle = 0
 		return true
 	if event is InputEventMouseMotion and gradient_drag_handle != 0:
-		if gradient_drag_handle == 1: gradient_handle_a = event.position
-		else: gradient_handle_b = event.position
+		if gradient_drag_handle == 1: gradient_handle_a = guide_pos
+		else: gradient_handle_b = guide_pos
 		var d: Vector2 = gradient_handle_b-gradient_handle_a
 		%FillGradientAngle.value = rad_to_deg(atan2(d.y,d.x))
 		%GradientGuide.queue_redraw()
@@ -2439,11 +2452,13 @@ func _on_brush_color_changed(value: Color) -> void:
 
 func _on_fill_color_changed(_value: Color) -> void:
 	_refresh_color_swatches()
+	_refresh_gradient_preview()
 	_apply_selected_stroke_style()
 
 func _on_fill_mode_selected(index: int) -> void:
 	var gradient := index == 1
 	%FillColorB.visible = gradient
+	%GradientPreview.visible = gradient
 	%FillGradientAngle.visible = false
 	%GradientGuide.visible = gradient and workspace == "drawing"
 	if gradient and gradient_handle_a == Vector2.ZERO:
@@ -2453,6 +2468,7 @@ func _on_fill_mode_selected(index: int) -> void:
 
 func _on_fill_gradient_changed(_value) -> void:
 	_refresh_color_swatches()
+	_refresh_gradient_preview()
 	_apply_selected_stroke_style()
 
 func _on_sculpt_mode_selected(index: int) -> void:
