@@ -257,14 +257,17 @@ func _select_ref(hit:Dictionary,additive:bool)->void:
 
 func _move_selected(delta:int)->void:
 	if delta==0:return
-	var refs:=selected_keys.duplicate(true)
-	refs.sort_custom(func(a,b):return int(a.frame)>int(b.frame) if delta>0 else int(a.frame)<int(b.frame))
-	for key_ref in refs:
+	var key_refs: Array = selected_keys.duplicate(true)
+	if delta > 0:
+		key_refs.sort_custom(func(a: Dictionary,b: Dictionary) -> bool: return int(a.frame) > int(b.frame))
+	else:
+		key_refs.sort_custom(func(a: Dictionary,b: Dictionary) -> bool: return int(a.frame) < int(b.frame))
+	for key_ref in key_refs:
 		var oldf:=int(key_ref.frame);var newf:=clampi(oldf+delta,0,frame_count)
 		if String(key_ref.path)=="*":ProjectStore.move_object_keys_at_frame(object_id,oldf,newf)
 		else:ProjectStore.move_key(object_id,String(key_ref.path),oldf,newf)
 		key_ref.frame=newf
-	selected_keys=refs
+	selected_keys.assign(key_refs)
 	selected_key_frame=clampi(selected_key_frame+delta,0,frame_count)
 
 func _delete_selected()->void:
