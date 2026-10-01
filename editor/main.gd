@@ -1165,7 +1165,7 @@ func _bone_channel_path(bone_index: int, component: String) -> String:
 	return "rig.bone.%d.%s" % [bone_index,component]
 
 func _ik_target_channel_path(bone_index: int) -> String:
-	return "rig.ik.%d.target" % bone_index
+	return "rig.ik_control.%d.position" % bone_index
 
 func _key_selected_ik_target() -> void:
 	if active_rig_id.is_empty() or selected_bone_index < 0: return
@@ -1174,7 +1174,8 @@ func _key_selected_ik_target() -> void:
 	var data: Dictionary = rig.ik_constraints[selected_bone_index]
 	var target: Vector3 = data.get("target",Vector3.ZERO)
 	ProjectStore.set_key(active_rig_id,_ik_target_channel_path(selected_bone_index),ProjectStore.current_frame,target,_interp_name())
-	timeline.set_bone_object(active_rig_id,selected_bone_index,String(rig.bones[selected_bone_index].get("name","Bone")))
+	timeline.set_ik_object(active_rig_id,selected_bone_index,String(rig.bones[selected_bone_index].get("name","Bone"))+" · IK")
+	timeline.refresh_keys()
 	status.text = "IK target keyed · frame %d" % ProjectStore.current_frame
 
 func _key_bone_pose() -> void:
