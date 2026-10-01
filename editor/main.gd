@@ -48,6 +48,7 @@ var selected_object_id := ""
 var selected_bone_index: int = -1
 var direct_bone_drag := false
 var bone_edit_proxy: Node3D
+var ik_target_proxy: Node3D
 var drawing_3d_active := false
 var drawing_sculpt_active := false
 var drawing_erase_active := false
@@ -111,6 +112,10 @@ func _ready() -> void:
 	_setup_workspace_tabs()
 	_setup_drawing_menus()
 	_setup_rigging_workspace()
+	%IKSolver.pressed.connect(_on_add_ik_solver)
+	%RemoveIK.pressed.connect(_on_remove_ik_solver)
+	%IKChainLength.value_changed.connect(_on_ik_settings_changed)
+	%IKInfluence.value_changed.connect(_on_ik_settings_changed)
 	%SaveProject.pressed.connect(_on_save_project_pressed)
 	%LoadProject.pressed.connect(_on_load_project_pressed)
 	%UndoPaint.pressed.connect(%DrawingCanvas.undo_paint)
@@ -823,6 +828,7 @@ func _select_rig_bone(virtual_id: String) -> void:
 	selected_scene_node = bone_edit_proxy
 	var bone_name: String = String(rig.bones[bone_index].get("name","Bone"))
 	%SelectionLabel.text = bone_name
+	_refresh_bone_inspector()
 	timeline.set_bone_object(rig_id,bone_index,bone_name)
 	gizmo.attach(bone_edit_proxy)
 	gizmo.set_mode(TransformGizmo.Mode.ROTATE)
@@ -840,6 +846,51 @@ func _select_rig_bone(virtual_id: String) -> void:
 			active_rig_runtime.show_weight_debug(mesh_node as MeshInstance3D,weights,bone_index)
 	gizmo.visible = workspace != "rigging" and workspace != "animation"
 	status.text = "Bone selected · drag directly to pose"
+
+func _refresh_bone_inspector() -> void:
+	%BoneProperties.visible = selected_bone_index >= 0 and not active_rig_id.is_empty()
+	if not %BoneProperties.visible: return
+	var rig: RefCounted = rigging_controller.rigs.get(active_rig_id)
+	if rig == null: return
+	var has_ik: bool = rig.ik_constraints.has(selected_bone_index)
+	%IKOptions.visible = has_ik
+	%IKSolver.visible = not has_ik
+	if has_ik:
+		var data: Dictionary = rig.ik_constraints[selected_bone_index]
+		%IKChainLength.value = int(data.get("chain_length",2))
+		%IKInfluence.value = float(data.get("influence",1.0))
+
+func _on_add_ik_solver() -> void:
+	if selected_bone_index < 0 or active_rig_runtime == null: return
+	var rig: RefCounted = rigging_controller.rigs.get(active_rig_id)
+	if rig == null: return
+	var target: Vector3 = active_rig_runtime._current_bone_tip(selected_bone_index)
+	rig.ik_constraints[selected_bone_index] = {"chain_length":2,"influence":1.0,"target":target}
+	_refresh_bone_inspector()
+	_apply_selected_ik()
+	status.text = "IK Solver added · move the selected bone handle to position the target"
+
+func _on_remove_ik_solver() -> void:
+	var rig: RefCounted = rigging_controller.rigs.get(active_rig_id)
+	if rig == null: return
+	rig.ik_constraints.erase(selected_bone_index)
+	_refresh_bone_inspector()
+	status.text = "IK Solver removed"
+
+func _on_ik_settings_changed(_value: float) -> void:
+	var rig: RefCounted = rigging_controller.rigs.get(active_rig_id)
+	if rig == null or not rig.ik_constraints.has(selected_bone_index): return
+	var data: Dictionary = rig.ik_constraints[selected_bone_index]
+	data["chain_length"] = int(%IKChainLength.value)
+	data["influence"] = float(%IKInfluence.value)
+	rig.ik_constraints[selected_bone_index] = data
+	_apply_selected_ik()
+
+func _apply_selected_ik() -> void:
+	var rig: RefCounted = rigging_controller.rigs.get(active_rig_id)
+	if rig == null or active_rig_runtime == null or not rig.ik_constraints.has(selected_bone_index): return
+	var data: Dictionary = rig.ik_constraints[selected_bone_index]
+	active_rig_runtime.solve_ik(selected_bone_index,data.get("target",Vector3.ZERO),int(data.get("chain_length",2)),float(data.get("influence",1.0)))
 
 func _on_delete_pressed() -> void:
 	if selected_scene_node == null: return
