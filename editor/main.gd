@@ -1102,9 +1102,11 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 					object_list.deselect_all(); timeline.set_object(""); %SelectionLabel.text = "Nothing selected"
 			else:
 				if direct_bone_drag:
-					if workspace == "animation" and auto_key.button_pressed: _key_bone_pose()
-					if ik_drag_active and workspace == "animation" and auto_key.button_pressed:
-						_key_selected_ik_target()
+					if auto_key.button_pressed:
+						if ik_drag_active:
+							_key_selected_ik_target()
+						elif workspace == "animation":
+							_key_bone_pose()
 					direct_bone_drag = false
 					ik_drag_active = false
 				elif dragging and auto_key.button_pressed:
