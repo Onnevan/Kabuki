@@ -4,7 +4,7 @@ extends RefCounted
 const BG := "#0A0F14"
 const PANEL := "#101820"
 const PANEL_RAISED := "#151F29"
-const CONTROL := "#18232D"
+const CONTROL := "#243440"
 const CONTROL_HOVER := "#21313E"
 const STROKE := "#263541"
 const STROKE_SOFT := "#1B2832"
