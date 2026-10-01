@@ -115,7 +115,6 @@ func _ready() -> void:
 	_setup_drawing_palette()
 	_setup_color_swatches()
 	_refresh_gradient_preview()
-	%DrawingBar.move_child(%BrushColor,%LineColorLabel.get_index()+1)
 	_setup_workspace_tab_icons()
 	theme = KabukiThemeBuilder.build()
 	ProjectStore.frame_changed.connect(_on_frame_changed)
