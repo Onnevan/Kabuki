@@ -188,13 +188,14 @@ func _ready() -> void:
 	%CameraAperture.value_changed.connect(_on_camera_dof_changed)
 	%PlaneDelete.pressed.connect(_on_plane_delete)
 	%ClipMode.clear()
-	for clip_mode_name in ["Loop", "Ping-Pong", "Hold", "Reverse", "Once"]:
+	for clip_mode_name in ["Loop", "Ping-Pong", "Hold", "Loop + Hold"]:
 		%ClipMode.add_item(clip_mode_name)
 	%ClipMode.item_selected.connect(_on_clip_mode_selected)
 	%LocalDuration.value_changed.connect(_on_local_duration_changed)
 	%LocalPlaybackStart.value_changed.connect(_on_local_playback_start_changed)
 	%LocalPlaybackEnd.value_changed.connect(_on_local_playback_end_changed)
 	%SceneStart.value_changed.connect(_on_scene_start_changed)
+	%HoldFrames.value_changed.connect(_on_hold_frames_changed)
 	%TimelineDuration.value_changed.connect(_on_timeline_duration_changed)
 	%PlaybackStart.value_changed.connect(_on_playback_start_changed)
 	%PlaybackEnd.value_changed.connect(_on_playback_end_changed)
@@ -1626,8 +1627,12 @@ func _sync_local_clip_ui() -> void:
 	%LocalPlaybackStart.set_value_no_signal(data.local_playback_start)
 	%LocalPlaybackEnd.set_value_no_signal(data.local_playback_end)
 	%SceneStart.set_value_no_signal(data.scene_start)
-	var modes: Array[String] = ["loop","ping_pong","hold","reverse","once"]
+	%HoldFrames.set_value_no_signal(data.hold_frames)
+	var modes: Array[String] = ["loop","ping_pong","hold","loop_hold"]
 	%ClipMode.select(maxi(0,modes.find(String(data.playback_mode))))
+	var show_hold: bool = String(data.playback_mode) == "loop_hold"
+	%HoldFramesLabel.visible = show_hold
+	%HoldFrames.visible = show_hold
 	# The bottom Animation timeline is always the scene/global timeline.
 	# Drawing has its own LOCAL clip controls above it; never repurpose the
 	# shared global timeline for a canvas clip.
@@ -1638,8 +1643,11 @@ func _sync_local_clip_ui() -> void:
 func _on_clip_mode_selected(index: int) -> void:
 	var data: RefCounted = _active_drawing_data()
 	if data == null: return
-	var modes: Array[String] = ["loop","ping_pong","hold","reverse","once"]
+	var modes: Array[String] = ["loop","ping_pong","hold","loop_hold"]
 	data.playback_mode = modes[clampi(index,0,modes.size()-1)]
+	var show_hold: bool = data.playback_mode == "loop_hold"
+	%HoldFramesLabel.visible = show_hold
+	%HoldFrames.visible = show_hold
 
 func _on_local_duration_changed(value: float) -> void:
 	var data: RefCounted = _active_drawing_data()
@@ -1683,6 +1691,11 @@ func _on_playback_end_changed(value: float) -> void:
 func _on_scene_start_changed(value: float) -> void:
 	var data: RefCounted = _active_drawing_data()
 	if data != null: data.scene_start = maxi(0,int(value))
+
+func _on_hold_frames_changed(value: float) -> void:
+	var data: RefCounted = _active_drawing_data()
+	if data != null:
+		data.hold_frames = maxi(0,int(value))
 
 func _refresh_drawing_timeline() -> void:
 	var data: RefCounted = _active_drawing_data()
