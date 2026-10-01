@@ -316,6 +316,127 @@ func _draw_curve(row:int,top:float,step:float)->void:
 		_draw_bezier_handles(row,component,ks,lo,span,top,component_colors[component])
 	draw_string(get_theme_default_font(),Vector2(16,top+curve_height-12.0),"X   Y   Z   · F-Curve",HORIZONTAL_ALIGNMENT_LEFT,-1,11,Color("#8291a3"))
 
+func _curve_metrics(row:int,component:int) -> Dictionary:
+	var ks:Array=_keys(channel_paths[row])
+	if ks.is_empty(): return {}
+	var values:Array[float]=[]
+	for k in ks: values.append(_component(k.value,component))
+	var lo:float=float(values.min())
+	var hi:float=float(values.max())
+	var span:float=maxf(0.001,hi-lo)
+	var top:float=_row_y(row)+12.0
+	return {"keys":ks,"lo":lo,"span":span,"top":top}
+
+func _hit_bezier_handle(pos:Vector2)->Dictionary:
+	if selected_key_path.is_empty() or selected_key_path=="*": return {}
+	for row in range(3):
+		if not expanded[row] or channel_paths[row]!=selected_key_path: continue
+		for component in range(3):
+			var metrics:=_curve_metrics(row,component)
+			if metrics.is_empty(): continue
+			var ks:Array=metrics["keys"]
+			var index:=-1
+			for i in range(ks.size()):
+				if int(ks[i].frame)==selected_key_frame:
+					index=i
+					break
+			if index<0: continue
+			var key:Dictionary=ks[index]
+			var kx:=frame_to_x(float(key.frame))
+			var kv:=_component(key.value,component)
+			if index<ks.size()-1 and String(key.interpolation)=="bezier":
+				var next_key:Dictionary=ks[index+1]
+				var hr:Vector2=key.get("bezier_right",Vector2(0.333,0.333))
+				var nx:=frame_to_x(float(next_key.frame))
+				var nv:=_component(next_key.value,component)
+				var hp:=Vector2(kx+(nx-kx)*hr.x,_curve_y(kv+(nv-kv)*hr.y,float(metrics["lo"]),float(metrics["span"]),float(metrics["top"])))
+				if pos.distance_to(hp)<=8.0:
+					return {"side":"right","row":row,"component":component,"path":selected_key_path,"frame":selected_key_frame}
+			if index>0 and String(ks[index-1].interpolation)=="bezier":
+				var prev_key:Dictionary=ks[index-1]
+				var hl:Vector2=key.get("bezier_left",Vector2(-0.333,-0.333))
+				var px:=frame_to_x(float(prev_key.frame))
+				var pv:=_component(prev_key.value,component)
+				var hp_left:=Vector2(kx+(kx-px)*hl.x,_curve_y(kv+(kv-pv)*hl.y,float(metrics["lo"]),float(metrics["span"]),float(metrics["top"])))
+				if pos.distance_to(hp_left)<=8.0:
+					return {"side":"left","row":row,"component":component,"path":selected_key_path,"frame":selected_key_frame}
+	return {}
+
+func _update_bezier_handle(pos:Vector2)->void:
+	if bezier_handle_row<0 or bezier_handle_component<0:return
+	var metrics:=_curve_metrics(bezier_handle_row,bezier_handle_component)
+	if metrics.is_empty():return
+	var ks:Array=metrics["keys"]
+	var index:=-1
+	for i in range(ks.size()):
+		if int(ks[i].frame)==bezier_handle_frame:
+			index=i
+			break
+	if index<0:return
+	var key:Dictionary=ks[index]
+	var left_handle:Vector2=key.get("bezier_left",Vector2(-0.333,-0.333))
+	var right_handle:Vector2=key.get("bezier_right",Vector2(0.333,0.333))
+	var kx:=frame_to_x(float(key.frame))
+	var kv:=_component(key.value,bezier_handle_component)
+	var plot_h:float=maxf(18.0,curve_height-18.0)
+	var bottom:float=float(metrics["top"])+curve_height-8.0
+	var mouse_value:float=float(metrics["lo"])+(bottom-pos.y)/plot_h*float(metrics["span"])
+	if bezier_handle_side=="right" and index<ks.size()-1:
+		var next_key:Dictionary=ks[index+1]
+		var nx:=frame_to_x(float(next_key.frame))
+		var nv:=_component(next_key.value,bezier_handle_component)
+		right_handle.x=clampf((pos.x-kx)/maxf(1.0,nx-kx),0.02,0.98)
+		right_handle.y=(mouse_value-kv)/(nv-kv) if not is_equal_approx(nv,kv) else 0.333
+	elif bezier_handle_side=="left" and index>0:
+		var prev_key:Dictionary=ks[index-1]
+		var px:=frame_to_x(float(prev_key.frame))
+		var pv:=_component(prev_key.value,bezier_handle_component)
+		left_handle.x=clampf((pos.x-kx)/maxf(1.0,kx-px),-0.98,-0.02)
+		left_handle.y=(mouse_value-kv)/(kv-pv) if not is_equal_approx(kv,pv) else -0.333
+	ProjectStore.set_key_bezier_handles(object_id,bezier_handle_path,bezier_handle_frame,left_handle,right_handle)
+	queue_redraw()
+
+func _update_curve_minimum_height()->void:
+	if drawing_only_mode:return
+	var expanded_count:int=0
+	for state in expanded:
+		if state:expanded_count+=1
+	custom_minimum_size.y=170.0+float(expanded_count)*(curve_height+18.0)
+	minimum_size_changed()
+
+func _duplicate_selected()->void:
+	if selected_keys.is_empty():return
+	var copied:Array=ProjectStore.copy_keys(object_id,selected_keys)
+	if copied.is_empty():return
+	var max_frame:=-1
+	for ref in selected_keys:max_frame=maxi(max_frame,int(ref.frame))
+	var target:=clampi(max_frame+1,0,frame_count)
+	ProjectStore.paste_keys(object_id,copied,target)
+	queue_redraw()
+
+func _on_key_context_action(id:int)->void:
+	match id:
+		0:
+			key_clipboard=ProjectStore.copy_keys(object_id,selected_keys)
+		1:
+			ProjectStore.paste_keys(object_id,key_clipboard,context_target_frame);queue_redraw()
+		2:
+			_duplicate_selected()
+		3:
+			_delete_selected()
+
+func _show_key_context_menu(pos:Vector2)->void:
+	context_target_frame=_frame_from_x(pos.x)
+	var hit:=_hit_key(pos)
+	if not hit.is_empty() and not _is_selected(String(hit.path),int(hit.frame)):
+		_select_ref(hit,false)
+	key_context_menu.set_item_disabled(0,selected_keys.is_empty())
+	key_context_menu.set_item_disabled(1,key_clipboard.is_empty())
+	key_context_menu.set_item_disabled(2,selected_keys.is_empty())
+	key_context_menu.set_item_disabled(4,selected_keys.is_empty())
+	key_context_menu.position=DisplayServer.mouse_get_position()
+	key_context_menu.popup()
+
 func _frame_from_x(x:float)->int:
 	return clampi(roundi(x_to_frame(x)),0,frame_count)
 
