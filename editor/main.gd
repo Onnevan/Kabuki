@@ -1763,11 +1763,18 @@ func _on_create_skeleton() -> void:
 		status.text = "Select a tessellated drawing"
 		return
 	rig_target_object_id = selected_object_id
+	%AddBone.visible = true
+	%ChainStatus.visible = true
+	%CreateSkeleton.visible = false
 	_on_add_rig_bone()
 
 func _on_add_rig_bone() -> void:
 	var rig: RefCounted = _ensure_active_rig()
 	rig_chain_count += 1
+	%ChainStatus.visible = true
+	%ChainStatus.text = "Chain %d · drawing…" % rig_chain_count
+	%AddBone.visible = true
+	%AddBone.disabled = true
 	rig_bone_draw_active = true
 	rig_bone_draw_parent = -1
 	rig_bone_root_set = false
@@ -1803,6 +1810,8 @@ func _finish_rig_bone_drawing() -> void:
 	var rig: RefCounted = rigging_controller.rigs.get(active_rig_id)
 	var bone_count: int = rig.bones.size() if rig != null else 0
 	%RigFinishDialog.dialog_text = "Chain %d finished · %d bones total.\n\nAdd another independent chain, or finish the skeleton and calculate automatic weights." % [rig_chain_count,bone_count]
+	%AddBone.disabled = false
+	%ChainStatus.text = "Chain %d finished · %d bones total" % [rig_chain_count,bone_count]
 	%RigFinishDialog.popup_centered()
 	status.text = "Chain %d finished · add another chain or finish skeleton" % rig_chain_count
 
@@ -1821,6 +1830,9 @@ func _confirm_finish_skeleton() -> void:
 		_on_auto_weights()
 	rig_target_object_id = ""
 	rig_chain_count = 0
+	%AddBone.visible = false
+	%ChainStatus.visible = false
+	%CreateSkeleton.visible = true
 
 func _on_auto_weights() -> void:
 	if not selected_scene_node is MeshInstance3D:
