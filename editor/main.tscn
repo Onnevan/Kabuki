@@ -492,6 +492,27 @@ step=0.05
 value=0.78
 tooltip_text="Hardness"
 
+[node name="CanvasAxisLabel" type="Label" parent="DrawingContextSurface/DrawingBar"]
+text="PLANE"
+[node name="CanvasAxisX" type="Button" parent="DrawingContextSurface/DrawingBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(32,32)
+toggle_mode=true
+text="X"
+tooltip_text="Canvas normal X · draw on YZ plane"
+[node name="CanvasAxisY" type="Button" parent="DrawingContextSurface/DrawingBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(32,32)
+toggle_mode=true
+text="Y"
+tooltip_text="Canvas normal Y · draw on XZ plane"
+[node name="CanvasAxisZ" type="Button" parent="DrawingContextSurface/DrawingBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(32,32)
+toggle_mode=true
+button_pressed=true
+text="Z"
+tooltip_text="Canvas normal Z · draw on XY plane"
 [node name="LineColorLabel" type="Label" parent="DrawingContextSurface/DrawingBar"]
 text="LINE"
 [node name="BrushColor" type="ColorPickerButton" parent="DrawingContextSurface/DrawingBar"]
