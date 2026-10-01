@@ -5,8 +5,7 @@ var rig: RigData
 var skeleton := Skeleton3D.new()
 var bone_gizmos: Array[MeshInstance3D] = []
 var bound_meshes: Dictionary = {}
-var terminal_tip_valid := false
-var terminal_tip := Vector3.ZERO
+var terminal_tips: Dictionary = {}
 var weight_debug_overlays: Array[MeshInstance3D] = []
 
 func setup(value: RigData) -> void:
@@ -62,8 +61,8 @@ func _rest_tail_in_rig(index: int, head: Vector3) -> Vector3:
 		if int(rig.bones[child_index].get("parent",-1)) == index:
 			var child_rest: Transform3D = rig.bones[child_index].get("rest",Transform3D.IDENTITY)
 			return (global_transform.affine_inverse() * child_rest).origin
-	if terminal_tip_valid:
-		return global_transform.affine_inverse() * terminal_tip
+	if terminal_tips.has(index):
+		return global_transform.affine_inverse() * (terminal_tips[index] as Vector3)
 	return head + Vector3(0.0,0.45,0.0)
 
 func _bone_mesh(head: Vector3, tail: Vector3) -> ArrayMesh:
@@ -110,14 +109,14 @@ func _update_bone_gizmos_from_pose() -> void:
 			tail = pose_global * local_tail
 		gizmo.mesh = _bone_mesh(head,tail)
 
-func set_terminal_tip(world_tip: Vector3) -> void:
-	terminal_tip = world_tip
-	terminal_tip_valid = true
+func set_terminal_tip(bone_index: int, world_tip: Vector3) -> void:
+	if bone_index < 0: return
+	terminal_tips[bone_index] = world_tip
 	rebuild_bones()
 
-func clear_terminal_tip() -> void:
-	terminal_tip_valid = false
-	terminal_tip = Vector3.ZERO
+func clear_terminal_tip(bone_index: int = -1) -> void:
+	if bone_index >= 0:
+		terminal_tips.erase(bone_index)
 	rebuild_bones()
 
 func bind_mesh(mesh_instance: MeshInstance3D, weights_by_surface: Array) -> bool:
