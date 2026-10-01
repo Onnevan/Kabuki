@@ -2228,15 +2228,21 @@ func _on_drawing_cel_menu(id: int) -> void:
 		4: _on_drawing_morph_cel()
 
 func _setup_workspace_tab_icons() -> void:
-	var icons: Array[Texture2D] = [
-		load("res://assets/icons/lucide/grid-3x3.svg"),
-		load("res://assets/icons/lucide/play.svg"),
-		load("res://assets/icons/lucide/pencil.svg"),
-		load("res://assets/icons/lucide/move.svg"),
-		load("res://assets/icons/lucide/blend.svg")
+	var icon_paths: Array[String] = [
+		"res://assets/icons/lucide/grid-3x3.svg",
+		"res://assets/icons/lucide/play.svg",
+		"res://assets/icons/lucide/pencil.svg",
+		"res://assets/icons/lucide/move.svg",
+		"res://assets/icons/lucide/blend.svg"
 	]
-	for i in range(mini(%WorkspaceTabs.tab_count,icons.size())):
-		%WorkspaceTabs.set_tab_icon(i,icons[i])
+	for i in range(mini(%WorkspaceTabs.tab_count,icon_paths.size())):
+		var icon: Texture2D = load(icon_paths[i]) as Texture2D
+		if icon != null:
+			%WorkspaceTabs.set_tab_icon(i,icon)
+			%WorkspaceTabs.set_tab_icon_max_width(i,18)
+	# TabBar can reserve zero width for icons depending on theme/import state.
+	# A generous separation makes icon + label read as one workspace control.
+	%WorkspaceTabs.add_theme_constant_override("icon_separation",8)
 
 func _on_workspace_tab_changed(tab: int) -> void:
 	var next_workspace: String = ["scene","animation","drawing","rigging","compositor"][tab]
