@@ -17,4 +17,7 @@ func set_filters(values: Dictionary) -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), Color.WHITE)
+	# Transparent source geometry: the shader writes the final screen color.
+	# If the shader ever fails to compile, this overlay remains invisible
+	# instead of covering the viewport with a white rectangle.
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0.0,0.0,0.0,0.0))
