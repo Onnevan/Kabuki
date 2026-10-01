@@ -1103,6 +1103,8 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 			else:
 				if direct_bone_drag:
 					if workspace == "animation" and auto_key.button_pressed: _key_bone_pose()
+					if ik_drag_active and workspace == "animation" and auto_key.button_pressed:
+						_key_selected_ik_target()
 					direct_bone_drag = false
 					ik_drag_active = false
 				elif dragging and auto_key.button_pressed:
@@ -1162,6 +1164,19 @@ func _apply_direct_bone_drag(mouse_pos: Vector2) -> void:
 func _bone_channel_path(bone_index: int, component: String) -> String:
 	return "rig.bone.%d.%s" % [bone_index,component]
 
+func _ik_target_channel_path(bone_index: int) -> String:
+	return "rig.ik.%d.target" % bone_index
+
+func _key_selected_ik_target() -> void:
+	if active_rig_id.is_empty() or selected_bone_index < 0: return
+	var rig: RefCounted = rigging_controller.rigs.get(active_rig_id)
+	if rig == null or not rig.ik_constraints.has(selected_bone_index): return
+	var data: Dictionary = rig.ik_constraints[selected_bone_index]
+	var target: Vector3 = data.get("target",Vector3.ZERO)
+	ProjectStore.set_key(active_rig_id,_ik_target_channel_path(selected_bone_index),ProjectStore.current_frame,target,_interp_name())
+	timeline.set_bone_object(active_rig_id,selected_bone_index,String(rig.bones[selected_bone_index].get("name","Bone")))
+	status.text = "IK target keyed · frame %d" % ProjectStore.current_frame
+
 func _key_bone_pose() -> void:
 	if active_rig_id.is_empty() or active_rig_runtime == null or selected_bone_index < 0: return
 	var rig: RefCounted = rigging_controller.rigs.get(active_rig_id)
@@ -1196,6 +1211,15 @@ func _evaluate_rig_animation(frame: int) -> void:
 			if position_value is Vector3 and rotation_value is Quaternion and scale_value is Vector3:
 				var evaluated := Transform3D(Basis(rotation_value).scaled(scale_value),position_value)
 				runtime.set_bone_pose(bone_index,evaluated)
+		for ik_key in rig.ik_constraints.keys():
+			var ik_bone: int = int(ik_key)
+			var ik_data: Dictionary = rig.ik_constraints[ik_key]
+			var fallback_target: Vector3 = ik_data.get("target",Vector3.ZERO)
+			var target_value: Variant = ProjectStore.evaluate(rig_id,_ik_target_channel_path(ik_bone),frame,fallback_target)
+			if target_value is Vector3:
+				ik_data["target"] = target_value
+				rig.ik_constraints[ik_key] = ik_data
+				runtime.solve_ik(ik_bone,target_value,int(ik_data.get("chain_length",2)),float(ik_data.get("influence",1.0)))
 	if selected_object_id.begins_with("bone::") and bone_edit_proxy != null and is_instance_valid(bone_edit_proxy) and active_rig_runtime != null and selected_bone_index >= 0:
 		bone_edit_proxy.transform = active_rig_runtime.skeleton.get_bone_global_pose(selected_bone_index)
 
