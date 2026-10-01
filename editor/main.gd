@@ -2171,6 +2171,11 @@ func _on_workspace_tab_changed(tab: int) -> void:
 		# Drawing is a true 2D editor onto the selected ReferenceCanvas.
 		# Always look straight at that canvas after restoring workspace state.
 		_lock_drawing_view_to_canvas()
+	else:
+		# Orthographic projection belongs only to the 2D Drawing editor.
+		# Scene/Animation/Rigging must use perspective so camera dolly changes
+		# the apparent size of actual scene geometry.
+		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	%RightPanel.visible = workspace == "scene" or workspace == "drawing" or workspace == "rigging" or workspace == "compositor"
 	%DrawingAnimBar.visible = workspace == "drawing"
 	%DrawingToolSurface.visible = workspace == "drawing"
