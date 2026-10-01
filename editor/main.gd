@@ -22,6 +22,7 @@ const SceneObjectControllerClass = preload("res://editor/scene_object_controller
 @onready var frame_slider: HSlider = %FrameSlider
 @onready var frame_label: Label = %FrameLabel
 @onready var timeline: FrameTimeline = %Timeline
+@onready var local_drawing_timeline: FrameTimeline = %LocalDrawingTimeline
 @onready var status: Label = %Status
 @onready var auto_key: CheckButton = %AutoKey
 @onready var interpolation: OptionButton = %Interpolation
@@ -146,6 +147,8 @@ func _ready() -> void:
 	timeline.key_selected.connect(_on_timeline_key_selected)
 	timeline.key_deselected.connect(_on_timeline_key_deselected)
 	timeline.frame_requested.connect(_on_timeline_frame_requested)
+	local_drawing_timeline.set_drawing_only_mode(true)
+	local_drawing_timeline.frame_requested.connect(_on_local_timeline_frame_requested)
 	for label in ["Constant", "Linear", "Bezier", "Quadratic In", "Quadratic Out", "Quadratic In-Out", "Cubic In-Out", "Back", "Bounce", "Elastic"]:
 		interpolation.add_item(label)
 	interpolation.select(2)
@@ -1690,8 +1693,10 @@ func _refresh_drawing_timeline() -> void:
 			frames.append(int(frame_value))
 	if %DrawingCanvas.bitmap_mode:
 		frames = %DrawingCanvas.flipbook_frames()
-	# Local exposure/cel markers belong to the canvas clip UI, never to
-	# the scene/global FrameTimeline.
+	if data != null:
+		local_drawing_timeline.set_timeline_range(maxi(1,int(data.local_duration)-1),int(data.local_playback_start),int(data.local_playback_end))
+		local_drawing_timeline.set_frame(int(data.local_frame))
+		local_drawing_timeline.set_drawing_exposures(frames)
 	_sync_local_clip_ui()
 
 func _on_drawing_new_cel() -> void:
@@ -1754,6 +1759,15 @@ func key_active_drawing_pose(interpolation := "hold") -> void:
 func _on_timeline_frame_requested(frame: int) -> void:
 	# The bottom timeline always scrubs scene time, including while Drawing is open.
 	ProjectStore.set_frame(frame)
+
+func _on_local_timeline_frame_requested(frame: int) -> void:
+	var data: RefCounted = _active_drawing_data()
+	if data == null: return
+	data.set_local_frame(frame)
+	%DrawingCanvas.set_local_frame(data.local_frame)
+	local_drawing_timeline.set_frame(data.local_frame)
+	_apply_drawing_frame(ProjectStore.current_frame)
+	status.text = "Local frame %d · %s" % [data.local_frame,active_drawing_group.name if active_drawing_group else "Canvas"]
 
 func _on_frame_slider_value_changed(value: float) -> void:
 	# Global frame control remains global in every workspace.
@@ -2346,6 +2360,7 @@ func _on_workspace_tab_changed(tab: int) -> void:
 		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	%RightPanel.visible = workspace == "scene" or workspace == "drawing" or workspace == "rigging" or workspace == "compositor"
 	%DrawingAnimBar.visible = workspace == "drawing"
+	%LocalDrawingTimeline.visible = workspace == "drawing"
 	%DrawingToolSurface.visible = workspace == "drawing"
 	%DrawingToolRail.visible = workspace == "drawing"
 	%DrawingPlaneSurface.visible = workspace == "drawing"
@@ -3128,6 +3143,9 @@ func _responsive_layout() -> void:
 	var plane_w: float = 272.0
 	%DrawingPlaneSurface.position=%ViewportFrame.position+Vector2(%ViewportFrame.size.x-plane_w-16.0,20.0)
 	%DrawingPlaneSurface.size=Vector2(plane_w,58.0)
+	var local_timeline_h: float = 112.0
+	%LocalDrawingTimeline.position=%ViewportFrame.position+Vector2(106.0,%ViewportFrame.size.y-local_timeline_h-64.0)
+	%LocalDrawingTimeline.size=Vector2(maxf(260.0,%ViewportFrame.size.x-156.0),local_timeline_h)
 	%DrawingAnimBar.position=%ViewportFrame.position+Vector2(106.0,%ViewportFrame.size.y-58.0)
 	%DrawingAnimBar.size=Vector2(minf(720.0,%ViewportFrame.size.x-156.0),42.0)
 
