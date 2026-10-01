@@ -360,4 +360,3 @@ func set_selected_interpolation(name:String)->void:
 	selected_key_frame = int(last.frame)
 	key_selected.emit(selected_key_path,selected_key_frame,name)
 	queue_redraw()
-		queue_redraw()
