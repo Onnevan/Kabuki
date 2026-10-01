@@ -17,7 +17,8 @@ var local_duration := 24
 var local_playback_start := 0
 var local_playback_end := 23
 var scene_start := 0
-var playback_mode := "loop" # once, loop, ping_pong, hold, reverse
+var playback_mode := "loop" # loop, ping_pong, hold, loop_hold
+var hold_frames := 0
 var playback_speed := 1.0
 
 func map_scene_frame(scene_frame: int) -> int:
@@ -34,10 +35,14 @@ func map_scene_frame(scene_frame: int) -> int:
 			var period: int = (duration - 1) * 2
 			var phase: int = scaled % period
 			return clip_start + (phase if phase < duration else period - phase)
-		"reverse":
-			return clip_end - (scaled % duration)
-		"hold", "once":
+		"hold":
 			return mini(clip_start + scaled, clip_end)
+		"loop_hold":
+			var pause: int = maxi(0,hold_frames)
+			var cycle: int = duration + pause
+			var phase_hold: int = scaled % maxi(1,cycle)
+			if phase_hold >= duration: return clip_end
+			return clip_start + phase_hold
 	return clip_start + (scaled % duration)
 
 func set_local_frame(frame: int) -> void:
@@ -283,7 +288,7 @@ func to_dict() -> Dictionary:
 		"local_frame": local_frame, "local_duration": local_duration,
 		"local_playback_start": local_playback_start, "local_playback_end": local_playback_end,
 		"scene_start": scene_start, "playback_mode": playback_mode,
-		"playback_speed": playback_speed
+		"hold_frames": hold_frames, "playback_speed": playback_speed
 	}
 
 func load_dict(data: Dictionary) -> void:
@@ -310,4 +315,5 @@ func load_dict(data: Dictionary) -> void:
 	local_frame = clampi(local_frame, 0, local_duration - 1)
 	scene_start = int(data.get("scene_start", 0))
 	playback_mode = String(data.get("playback_mode", "loop"))
+	hold_frames = maxi(0,int(data.get("hold_frames",0)))
 	playback_speed = float(data.get("playback_speed", 1.0))
