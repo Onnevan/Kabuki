@@ -2354,8 +2354,9 @@ func _on_active_color_changed(color: Color) -> void:
 		_: %BrushColor.color = color
 
 func _reset_gradient_handles() -> void:
-	var rect := %ViewportContainer.get_global_rect()
-	var center := rect.size * 0.5
+	var viewport_control: Control = %ViewportContainer as Control
+	var rect: Rect2 = viewport_control.get_global_rect()
+	var center: Vector2 = rect.size * 0.5
 	gradient_handle_a = center - Vector2(80,0)
 	gradient_handle_b = center + Vector2(80,0)
 	%GradientGuide.queue_redraw()
@@ -2384,7 +2385,7 @@ func _gradient_guide_input(event: InputEvent) -> bool:
 	if event is InputEventMouseMotion and gradient_drag_handle != 0:
 		if gradient_drag_handle == 1: gradient_handle_a = event.position
 		else: gradient_handle_b = event.position
-		var d := gradient_handle_b-gradient_handle_a
+		var d: Vector2 = gradient_handle_b-gradient_handle_a
 		%FillGradientAngle.value = rad_to_deg(atan2(d.y,d.x))
 		%GradientGuide.queue_redraw()
 		_apply_selected_stroke_style()
