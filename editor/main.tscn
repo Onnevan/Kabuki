@@ -312,42 +312,50 @@ offset_right=1034.0
 offset_bottom=116.0
 theme_override_constants/separation=6
 [node name="StrokeTool" type="Button" parent="DrawingToolRail"]
+toggle_mode=true
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 icon=ExtResource("19")
 tooltip_text="Draw in 3D space"
 [node name="BitmapTool" type="Button" parent="DrawingToolRail"]
+toggle_mode=true
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 icon=ExtResource("18")
 tooltip_text="Paint on this canvas"
 [node name="EraseTool" type="Button" parent="DrawingToolRail"]
+toggle_mode=true
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 icon=ExtResource("20")
 tooltip_text="Eraser"
 [node name="SculptTool" type="Button" parent="DrawingToolRail"]
+toggle_mode=true
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 icon=ExtResource("25")
 tooltip_text="Shape spatial strokes"
 [node name="ToolSep" type="HSeparator" parent="DrawingToolRail"]
 [node name="BitmapBrush" type="Button" parent="DrawingToolRail"]
+toggle_mode=true
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 icon=ExtResource("18")
 tooltip_text="Soft brush"
 [node name="BitmapPencil" type="Button" parent="DrawingToolRail"]
+toggle_mode=true
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 icon=ExtResource("19")
 tooltip_text="Pencil"
 [node name="BitmapSmudge" type="Button" parent="DrawingToolRail"]
+toggle_mode=true
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 icon=ExtResource("25")
 tooltip_text="Smudge / blend paint"
 [node name="BitmapLassoFill" type="Button" parent="DrawingToolRail"]
+toggle_mode=true
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 icon=ExtResource("21")
@@ -400,26 +408,31 @@ suffix="°"
 tooltip_text="Gradient direction"
 
 [node name="BitmapEraser" type="Button" parent="DrawingToolRail"]
+toggle_mode=true
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 icon=ExtResource("20")
 tooltip_text="Bitmap eraser"
 [node name="BitmapLine" type="Button" parent="DrawingToolRail"]
+toggle_mode=true
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 icon=ExtResource("39")
 tooltip_text="Line"
 [node name="BitmapRect" type="Button" parent="DrawingToolRail"]
+toggle_mode=true
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 icon=ExtResource("22")
 tooltip_text="Rectangle"
 [node name="BitmapEllipse" type="Button" parent="DrawingToolRail"]
+toggle_mode=true
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 icon=ExtResource("23")
 tooltip_text="Ellipse"
 [node name="BitmapFillTool" type="Button" parent="DrawingToolRail"]
+toggle_mode=true
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 icon=ExtResource("24")
@@ -636,15 +649,19 @@ offset_right=352.0
 offset_bottom=350.0
 theme_override_constants/separation=5
 [node name="SelectTool" type="Button" parent="ToolRail"]
+toggle_mode=true
 icon=ExtResource("14")
 tooltip_text="Select"
 [node name="MoveTool" type="Button" parent="ToolRail"]
+toggle_mode=true
 icon=ExtResource("15")
 tooltip_text="Move"
 [node name="RotateTool" type="Button" parent="ToolRail"]
+toggle_mode=true
 icon=ExtResource("16")
 tooltip_text="Rotate"
 [node name="ScaleTool" type="Button" parent="ToolRail"]
+toggle_mode=true
 icon=ExtResource("17")
 tooltip_text="Scale"
 [node name="FrameSelected" type="Button" parent="ToolRail"]
