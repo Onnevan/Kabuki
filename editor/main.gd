@@ -1,6 +1,9 @@
 extends Control
 
 const KABUKI_VERSION := "0.1"
+const UI_SCALE_STEPS: Array[float] = [1.0,1.25,1.5,1.75,2.0]
+var ui_scale_mode := "auto"
+var ui_scale := 1.0
 
 const KabukiThemeBuilder = preload("res://editor/kabuki_theme.gd")
 const Stroke3DClass = preload("res://paint/stroke3d.gd")
@@ -104,6 +107,7 @@ var gradient_handle_a := Vector2.ZERO
 var gradient_handle_b := Vector2.ZERO
 
 func _ready() -> void:
+	_apply_ui_scale(_detect_ui_scale())
 	var brand: Label = get_node("TopBar/Brand") as Label
 	if brand != null:
 		brand.text = "KABUKI  " + KABUKI_VERSION
@@ -2922,6 +2926,36 @@ func _flash_key_button() -> void:
 func _refresh_transform_readout() -> void:
 	if selected_scene_node == null: return
 	_show_transform(selected_scene_node)
+
+func _detect_ui_scale() -> float:
+	var screen: int = DisplayServer.window_get_current_screen()
+	var dpi: int = DisplayServer.screen_get_dpi(screen)
+	var screen_size: Vector2i = DisplayServer.screen_get_size(screen)
+	var target := 1.0
+	# DPI is the primary signal. Resolution only helps on very dense displays
+	# where desktop platforms report a generic/low DPI value.
+	if dpi >= 260: target = 2.0
+	elif dpi >= 210: target = 1.75
+	elif dpi >= 175: target = 1.5
+	elif dpi >= 145: target = 1.25
+	elif dpi <= 0 and screen_size.x >= 3000: target = 1.5
+	return target
+
+func _apply_ui_scale(value: float) -> void:
+	ui_scale = clampf(value,1.0,2.0)
+	var window := get_window()
+	if window != null:
+		# Godot scales the complete 2D UI in one pass: controls, fonts, icons,
+		# margins and touch targets all keep their designed proportions.
+		window.content_scale_factor = ui_scale
+	call_deferred("_responsive_layout")
+
+func set_ui_scale_mode(mode: String) -> void:
+	ui_scale_mode = mode
+	if mode == "auto":
+		_apply_ui_scale(_detect_ui_scale())
+	else:
+		_apply_ui_scale(clampf(float(mode),1.0,2.0))
 
 func _responsive_layout() -> void:
 	var w: float=size.x
