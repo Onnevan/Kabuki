@@ -1141,6 +1141,15 @@ filters=PackedStringArray("*.png ; PNG Images")
 [connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions/PlaneDown" to="." method="_on_plane_down"]
 [connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions/PlaneDuplicate" to="." method="_on_plane_duplicate"]
 
+[node name="RigParentDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title="Parent for New Chain"
+ok_button_text="Start Chain"
+
+[node name="RigParentChoice" type="OptionButton" parent="RigParentDialog"]
+unique_name_in_owner = true
+custom_minimum_size=Vector2(320,36)
+
 [node name="RigFinishDialog" type="ConfirmationDialog" parent="."]
 unique_name_in_owner = true
 title="Finish Skeleton"
