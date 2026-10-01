@@ -2413,8 +2413,8 @@ func _reset_gradient_handles() -> void:
 
 func _draw_gradient_guide() -> void:
 	if not %GradientGuide.visible: return
-	var a := gradient_handle_a
-	var b := gradient_handle_b
+	var a: Vector2 = gradient_handle_a
+	var b: Vector2 = gradient_handle_b
 	%GradientGuide.draw_dashed_line(a,b,Color(1,1,1,0.9),2.0,8.0)
 	%GradientGuide.draw_circle(a,8.0,%FillColor.color)
 	%GradientGuide.draw_circle(b,8.0,%FillColorB.color)
@@ -2423,7 +2423,16 @@ func _draw_gradient_guide() -> void:
 
 func _gradient_guide_input(event: InputEvent) -> bool:
 	if not %GradientGuide.visible: return false
-	var guide_pos := event.position + %ViewportContainer.global_position - %GradientGuide.global_position
+	var viewport_control: Control = %ViewportContainer as Control
+	var guide_control: Control = %GradientGuide as Control
+	var event_pos: Vector2
+	if event is InputEventMouseButton:
+		event_pos = (event as InputEventMouseButton).position
+	elif event is InputEventMouseMotion:
+		event_pos = (event as InputEventMouseMotion).position
+	else:
+		return false
+	var guide_pos: Vector2 = event_pos + viewport_control.global_position - guide_control.global_position
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			if guide_pos.distance_to(gradient_handle_a) < 22.0: gradient_drag_handle = 1
