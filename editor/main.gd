@@ -2934,9 +2934,9 @@ func _detect_ui_scale() -> float:
 	var target := 1.0
 	# DPI is the primary signal. Resolution only helps on very dense displays
 	# where desktop platforms report a generic/low DPI value.
-	if dpi >= 260: target = 2.0
-	elif dpi >= 210: target = 1.75
-	elif dpi >= 175: target = 1.5
+	# Desktop Auto is deliberately capped at 150%. Higher scales remain
+	# available explicitly and can be selected by platform-specific logic.
+	if dpi >= 175: target = 1.5
 	elif dpi >= 145: target = 1.25
 	elif dpi <= 0 and screen_size.x >= 3000: target = 1.5
 	return target
