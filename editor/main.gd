@@ -1797,7 +1797,6 @@ func _on_add_rig_bone() -> void:
 	rig_bone_draw_parent = pending_chain_parent
 	pending_chain_parent = -1
 	rig_bone_root_set = false
-	if active_rig_runtime != null: active_rig_runtime.clear_terminal_tip()
 	rig_bone_draw_depth_point = selected_scene_node.global_position if selected_scene_node != null else camera_rig.pivot
 	status.text = "Chain %d · click the root point first" % rig_chain_count
 
@@ -1819,7 +1818,7 @@ func _add_rig_bone_point(screen_pos: Vector2) -> void:
 	rig_bone_draw_depth_point = world_point
 	if active_rig_runtime != null:
 		active_rig_runtime.rebuild_bones()
-		active_rig_runtime.set_terminal_tip(world_point)
+		active_rig_runtime.set_terminal_tip(index,world_point)
 	status.text = "Bone %02d · click next joint · Enter to finish" % (index + 1)
 
 func _finish_rig_bone_drawing() -> void:
