@@ -1,5 +1,7 @@
 extends Control
 
+const KABUKI_VERSION := "0.1"
+
 const KabukiThemeBuilder = preload("res://editor/kabuki_theme.gd")
 const Stroke3DClass = preload("res://paint/stroke3d.gd")
 const DrawingDataClass = preload("res://paint/drawing_data.gd")
@@ -102,6 +104,9 @@ var gradient_handle_a := Vector2.ZERO
 var gradient_handle_b := Vector2.ZERO
 
 func _ready() -> void:
+	var brand: Label = get_node("TopBar/Brand") as Label
+	if brand != null:
+		brand.text = "KABUKI  " + KABUKI_VERSION
 	%FillMode.add_item("Solid")
 	%FillMode.add_item("Gradient")
 	%FillMode.item_selected.connect(_on_fill_mode_selected)
