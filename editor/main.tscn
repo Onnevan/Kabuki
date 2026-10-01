@@ -557,6 +557,17 @@ max_value=180.0
 step=1.0
 suffix="°"
 tooltip_text="Gradient angle"
+[node name="CapSeparator" type="VSeparator" parent="DrawingContextSurface/DrawingBar"]
+custom_minimum_size=Vector2(8,0)
+[node name="StartCap" type="OptionButton" parent="DrawingContextSurface/DrawingBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(76,32)
+tooltip_text="Stroke start: Flat, Round or Point"
+[node name="EndCap" type="OptionButton" parent="DrawingContextSurface/DrawingBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(76,32)
+tooltip_text="Stroke end: Flat, Round or Point"
+
 [node name="ColorSeparator" type="VSeparator" parent="DrawingContextSurface/DrawingBar"]
 custom_minimum_size=Vector2(8,0)
 
@@ -576,7 +587,7 @@ offset_top=126.0
 offset_right=566.0
 offset_bottom=180.0
 
-[node name="StrokePresetBar" type="HBoxContainer" parent="StrokePresetSurface"]
+[node name="StrokePresetBar" type="VBoxContainer" parent="StrokePresetSurface"]
 unique_name_in_owner=true
 layout_mode=2
 theme_override_constants/separation=4
@@ -610,15 +621,6 @@ toggle_mode=true
 text="≋"
 tooltip_text="Rough · strong handmade variation"
 
-[node name="CapSep" type="VSeparator" parent="StrokePresetSurface/StrokePresetBar"]
-[node name="StartCap" type="OptionButton" parent="StrokePresetSurface/StrokePresetBar"]
-unique_name_in_owner=true
-custom_minimum_size=Vector2(76,44)
-tooltip_text="Stroke start: Flat, Round or Point"
-[node name="EndCap" type="OptionButton" parent="StrokePresetSurface/StrokePresetBar"]
-unique_name_in_owner=true
-custom_minimum_size=Vector2(76,44)
-tooltip_text="Stroke end: Flat, Round or Point"
 
 [node name="DrawingPlaneSurface" type="PanelContainer" parent="."]
 unique_name_in_owner=true
