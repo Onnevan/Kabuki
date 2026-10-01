@@ -1982,7 +1982,7 @@ func _apply_global_filters() -> void:
 		"saturation": %Saturation.value,
 		"contrast": %Contrast.value,
 		"temperature": %Temperature.value,
-		"tint": %Tint.value,
+		"color_tint": %Tint.value,
 		"vignette": %Vignette.value,
 		"chromatic_aberration": %ChromaticAberration.value,
 		"monochrome": 1.0 if %Monochrome.button_pressed else 0.0
