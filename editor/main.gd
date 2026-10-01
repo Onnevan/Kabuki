@@ -1201,7 +1201,6 @@ func _restore_projection_view() -> void:
 	status.text = "Drawing projection view restored"
 
 func _sync_transform_tool_buttons() -> void:
-	%SelectTool.button_pressed = false
 	%MoveTool.button_pressed = active_tool == TransformGizmo.Mode.MOVE
 	%RotateTool.button_pressed = active_tool == TransformGizmo.Mode.ROTATE
 	%ScaleTool.button_pressed = active_tool == TransformGizmo.Mode.SCALE
