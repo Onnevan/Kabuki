@@ -3059,6 +3059,18 @@ func set_ui_scale_mode(mode: String) -> void:
 	else:
 		_apply_ui_scale(clampf(float(mode),1.0,2.0))
 
+func _position_stroke_preset_flyout() -> void:
+	if not %StrokePresetSurface.visible: return
+	# Containers resolve their children at the end of the layout pass, so this
+	# must run deferred. Convert the pencil's final global rect back to root-local.
+	var tool_rect: Rect2 = %StrokeTool.get_global_rect()
+	var flyout_size: Vector2 = %StrokePresetSurface.size
+	var target_global := Vector2(
+		tool_rect.end.x + 10.0,
+		tool_rect.position.y + (tool_rect.size.y - flyout_size.y) * 0.5
+	)
+	%StrokePresetSurface.global_position = target_global
+
 func _responsive_layout() -> void:
 	var w: float=size.x
 	var h: float=size.y
@@ -3113,11 +3125,7 @@ func _responsive_layout() -> void:
 	%DrawingContextSurface.position=%ViewportFrame.position+Vector2(104.0,20.0)
 	%DrawingContextSurface.size=Vector2(hud_w,58.0)
 	if %StrokePresetSurface.visible:
-		# Anchor the flyout to the actual vector-pencil button, not to the rail.
-		# This keeps it beside the tool instead of overlapping the top context bar.
-		var tool_rect: Rect2 = %StrokeTool.get_global_rect()
-		var root_origin: Vector2 = global_position
-		%StrokePresetSurface.position=Vector2(tool_rect.end.x+8.0,tool_rect.position.y)-root_origin
+		call_deferred("_position_stroke_preset_flyout")
 	%DrawingBar.position=Vector2(14.0,9.0)
 	%DrawingBar.size=Vector2(hud_w-28.0,40.0)
 	# Plane controls share the Drawing HUD row but anchor independently to the
