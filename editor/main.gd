@@ -49,6 +49,7 @@ var selected_bone_index: int = -1
 var direct_bone_drag := false
 var bone_edit_proxy: Node3D
 var ik_target_proxy: Node3D
+var ik_drag_active := false
 var drawing_3d_active := false
 var drawing_sculpt_active := false
 var drawing_erase_active := false
@@ -116,6 +117,7 @@ func _ready() -> void:
 	%RemoveIK.pressed.connect(_on_remove_ik_solver)
 	%IKChainLength.value_changed.connect(_on_ik_settings_changed)
 	%IKInfluence.value_changed.connect(_on_ik_settings_changed)
+	%IKGuide.draw.connect(_draw_ik_guide)
 	%SaveProject.pressed.connect(_on_save_project_pressed)
 	%LoadProject.pressed.connect(_on_load_project_pressed)
 	%UndoPaint.pressed.connect(%DrawingCanvas.undo_paint)
@@ -847,6 +849,29 @@ func _select_rig_bone(virtual_id: String) -> void:
 	gizmo.visible = workspace != "rigging" and workspace != "animation"
 	status.text = "Bone selected · drag directly to pose"
 
+func _draw_ik_guide() -> void:
+	if workspace != "rigging" or active_rig_runtime == null or selected_bone_index < 0: return
+	var rig: RefCounted = rigging_controller.rigs.get(active_rig_id)
+	if rig == null or not rig.ik_constraints.has(selected_bone_index): return
+	var data: Dictionary = rig.ik_constraints[selected_bone_index]
+	var target_local: Vector3 = data.get("target",Vector3.ZERO)
+	var target_world: Vector3 = active_rig_runtime.global_transform * target_local
+	var bone_world: Vector3 = active_rig_runtime.global_transform * active_rig_runtime._current_bone_tip(selected_bone_index)
+	var a: Vector2 = camera.unproject_position(bone_world)
+	var b: Vector2 = camera.unproject_position(target_world)
+	var delta: Vector2 = b-a
+	var length: float = delta.length()
+	if length > 1.0:
+		var dir := delta/length
+		var d: float = 0.0
+		while d < length:
+			%IKGuide.draw_line(a+dir*d,a+dir*minf(d+5.0,length),Color(0.55,0.78,0.95,0.8),1.5)
+			d += 10.0
+	var s := 8.0
+	%IKGuide.draw_line(b-Vector2(s,0),b+Vector2(s,0),Color(0.65,0.86,1.0),2.0)
+	%IKGuide.draw_line(b-Vector2(0,s),b+Vector2(0,s),Color(0.65,0.86,1.0),2.0)
+	%IKGuide.draw_circle(b,4.0,Color(0.65,0.86,1.0),false,2.0)
+
 func _refresh_bone_inspector() -> void:
 	%BoneProperties.visible = selected_bone_index >= 0 and not active_rig_id.is_empty()
 	if not %BoneProperties.visible: return
@@ -866,6 +891,8 @@ func _on_add_ik_solver() -> void:
 	if rig == null: return
 	var target: Vector3 = active_rig_runtime._current_bone_tip(selected_bone_index)
 	rig.ik_constraints[selected_bone_index] = {"chain_length":2,"influence":1.0,"target":target}
+	%IKGuide.visible = true
+	%IKGuide.queue_redraw()
 	_refresh_bone_inspector()
 	_apply_selected_ik()
 	status.text = "IK Solver added · move the selected bone handle to position the target"
@@ -874,6 +901,8 @@ func _on_remove_ik_solver() -> void:
 	var rig: RefCounted = rigging_controller.rigs.get(active_rig_id)
 	if rig == null: return
 	rig.ik_constraints.erase(selected_bone_index)
+	%IKGuide.visible = false
+	%IKGuide.queue_redraw()
 	_refresh_bone_inspector()
 	status.text = "IK Solver removed"
 
@@ -891,6 +920,7 @@ func _apply_selected_ik() -> void:
 	if rig == null or active_rig_runtime == null or not rig.ik_constraints.has(selected_bone_index): return
 	var data: Dictionary = rig.ik_constraints[selected_bone_index]
 	active_rig_runtime.solve_ik(selected_bone_index,data.get("target",Vector3.ZERO),int(data.get("chain_length",2)),float(data.get("influence",1.0)))
+	%IKGuide.queue_redraw()
 
 func _on_delete_pressed() -> void:
 	if selected_scene_node == null: return
@@ -1074,6 +1104,7 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 				if direct_bone_drag:
 					if workspace == "animation" and auto_key.button_pressed: _key_bone_pose()
 					direct_bone_drag = false
+					ik_drag_active = false
 				elif dragging and auto_key.button_pressed:
 					_key_transform()
 				dragging = false; gizmo_axis = TransformGizmo.Axis.NONE
@@ -1088,6 +1119,13 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 
 func _begin_direct_bone_drag(mouse_pos: Vector2) -> void:
 	if bone_edit_proxy == null or not is_instance_valid(bone_edit_proxy): return
+	var rig: RefCounted = rigging_controller.rigs.get(active_rig_id)
+	if rig != null and rig.ik_constraints.has(selected_bone_index):
+		ik_drag_active = true
+		direct_bone_drag = true
+		dragging = false
+		drag_start_mouse = mouse_pos
+		return
 	direct_bone_drag = true
 	dragging = false
 	gizmo_axis = TransformGizmo.Axis.NONE
@@ -1099,6 +1137,18 @@ func _begin_direct_bone_drag(mouse_pos: Vector2) -> void:
 
 func _apply_direct_bone_drag(mouse_pos: Vector2) -> void:
 	if bone_edit_proxy == null or active_rig_runtime == null or selected_bone_index < 0: return
+	if ik_drag_active:
+		var rig: RefCounted = rigging_controller.rigs.get(active_rig_id)
+		if rig != null and rig.ik_constraints.has(selected_bone_index):
+			var data: Dictionary = rig.ik_constraints[selected_bone_index]
+			var current_target: Vector3 = data.get("target",active_rig_runtime._current_bone_tip(selected_bone_index))
+			var world_target: Vector3 = active_rig_runtime.global_transform * current_target
+			var new_world: Vector3 = _screen_to_view_plane(mouse_pos,world_target)
+			data["target"] = active_rig_runtime.global_transform.affine_inverse() * new_world
+			rig.ik_constraints[selected_bone_index] = data
+			_apply_selected_ik()
+			%IKGuide.queue_redraw()
+			return
 	var pivot_world: Vector3 = active_rig_runtime.global_transform * transform_start.origin
 	var pivot_screen: Vector2 = camera.unproject_position(pivot_world)
 	var start_vec: Vector2 = drag_start_mouse - pivot_screen
