@@ -7,6 +7,9 @@ var radius := 0.012
 var sides := 10
 var fill_enabled := false
 var fill_color := Color(0.8, 0.25, 0.18, 0.55)
+var fill_mode := "solid"
+var fill_color_b := Color(0.95, 0.75, 0.2, 0.55)
+var fill_gradient_angle := 0.0
 var closed := false
 var stroke_id := ""
 var _sculpt_last_mouse := Vector2.ZERO
@@ -27,7 +30,7 @@ func _points_equal(a: PackedVector3Array, b: PackedVector3Array) -> bool:
 	return true
 
 func style_dict() -> Dictionary:
-	return {"radius": radius, "color": stroke_color, "fill_enabled": fill_enabled, "fill_color": fill_color}
+	return {"radius": radius, "color": stroke_color, "fill_enabled": fill_enabled, "fill_color": fill_color, "fill_mode": fill_mode, "fill_color_b": fill_color_b, "fill_gradient_angle": fill_gradient_angle}
 
 func add_point(p: Vector3) -> void:
 	if not points.is_empty() and points[-1].distance_to(p) < 0.006:
@@ -83,11 +86,14 @@ func sculpt_screen(brush_pos: Vector2, camera: Camera3D, brush_radius_px: float,
 	if changed: rebuild()
 	return changed
 
-func set_style(line_color: Color, use_fill: bool, new_fill_color: Color) -> void:
-	if stroke_color == line_color and fill_enabled == use_fill and fill_color == new_fill_color: return
+func set_style(line_color: Color, use_fill: bool, new_fill_color: Color, new_fill_mode := "solid", new_fill_color_b := Color(0.95,0.75,0.2,0.55), new_gradient_angle := 0.0) -> void:
+	if stroke_color == line_color and fill_enabled == use_fill and fill_color == new_fill_color and fill_mode == new_fill_mode and fill_color_b == new_fill_color_b and is_equal_approx(fill_gradient_angle,new_gradient_angle): return
 	stroke_color = line_color
 	fill_enabled = use_fill
 	fill_color = new_fill_color
+	fill_mode = new_fill_mode
+	fill_color_b = new_fill_color_b
+	fill_gradient_angle = new_gradient_angle
 	rebuild()
 
 func rebuild() -> void:
@@ -197,13 +203,30 @@ func _build_fill_surface(result: ArrayMesh) -> void:
 	if fill_indices.size() < 3: return
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var min_proj := INF
+	var max_proj := -INF
+	var angle := deg_to_rad(fill_gradient_angle)
+	var gradient_dir := Vector2(cos(angle), sin(angle))
+	for p in points:
+		var projection := Vector2(p.x,p.y).dot(gradient_dir)
+		min_proj = minf(min_proj,projection)
+		max_proj = maxf(max_proj,projection)
+	var span := maxf(max_proj-min_proj,0.00001)
 	for i in range(0, fill_indices.size(), 3):
-		var a := points[fill_indices[i]]
-		var b := points[fill_indices[i + 1]]
-		var c := points[fill_indices[i + 2]]
-		_tri(st, a, b, c)
+		for index_offset in range(3):
+			var p: Vector3 = points[fill_indices[i+index_offset]]
+			if fill_mode == "gradient":
+				var t := clampf((Vector2(p.x,p.y).dot(gradient_dir)-min_proj)/span,0.0,1.0)
+				st.set_color(fill_color.lerp(fill_color_b,t))
+			else:
+				st.set_color(Color.WHITE)
+			st.add_vertex(p)
 	st.commit(result)
-	result.surface_set_material(result.get_surface_count() - 1, _base_material(fill_color))
+	var material := _base_material(Color.WHITE if fill_mode == "gradient" else fill_color)
+	if fill_mode == "gradient":
+		material.vertex_color_use_as_albedo = true
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	result.surface_set_material(result.get_surface_count() - 1, material)
 
 func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
 	var n := (b - a).cross(c - a).normalized()
