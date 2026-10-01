@@ -84,6 +84,7 @@ var pending_chain_parent := -1
 var drawing_content_layers: Dictionary = {}
 var drawing_data_by_object: Dictionary:
 	get: return drawing_controller.data_by_object
+var vector_onion_roots: Dictionary = {}
 var sculpt_mode := "push"
 var drawing_planes: Array[ReferenceCanvas]:
 	get: return drawing_controller.reference_canvases
@@ -670,6 +671,7 @@ func _clear_runtime_project() -> void:
 	runtime_objects.clear()
 	scene_nodes.clear()
 	drawing_controller.clear()
+	vector_onion_roots.clear()
 	active_drawing_group = null
 	active_drawing_id = ""
 	selected = null
@@ -1614,7 +1616,8 @@ func _apply_drawing_frame(frame: int) -> void:
 		# HOLD/flipbook playback often maps several scene frames to the same local
 		# cel. Its stroke geometry and visibility are already correct, so avoid
 		# walking every Stroke3D child until the evaluated local frame changes.
-		if same_drawing_frame: continue
+		var editing_active_vector: bool = workspace == "drawing" and object_id == active_drawing_id and not %DrawingCanvas.bitmap_mode
+		if same_drawing_frame and not editing_active_vector: continue
 		for child in group.get_children():
 			if not child is Stroke3D: continue
 			var stroke := child as Stroke3D
@@ -1630,6 +1633,8 @@ func _apply_drawing_frame(frame: int) -> void:
 				stroke.fill_enabled = bool(record.get("fill_enabled", stroke.fill_enabled))
 				stroke.fill_color = record.get("fill_color", stroke.fill_color)
 			stroke.set_points(state.get("points", stroke.points))
+		if editing_active_vector:
+			_refresh_vector_onion_skin(group,data,evaluation_frame)
 
 func _active_drawing_data() -> RefCounted:
 	if active_drawing_id.is_empty(): return null
@@ -1782,7 +1787,61 @@ func _on_drawing_morph_cel() -> void:
 func _on_onion_skin_toggled(enabled: bool) -> void:
 	%DrawingCanvas.set_onion_skin_enabled(enabled)
 	_apply_drawing_frame(ProjectStore.current_frame)
+	if not enabled:
+		for object_id in vector_onion_roots.keys():
+			var root = vector_onion_roots[object_id]
+			if is_instance_valid(root): root.visible = false
 	status.text = "Onion skin on" if enabled else "Onion skin off"
+
+func _vector_onion_root(group: Node3D,object_id: String) -> Node3D:
+	if vector_onion_roots.has(object_id):
+		var existing = vector_onion_roots[object_id]
+		if is_instance_valid(existing): return existing
+	var root := Node3D.new()
+	root.name = "__VectorOnionSkin"
+	group.add_child(root)
+	vector_onion_roots[object_id] = root
+	return root
+
+func _clear_vector_onion_root(root: Node3D) -> void:
+	for child in root.get_children():
+		child.free()
+
+func _add_vector_onion_pose(root: Node3D,data: RefCounted,pose: Dictionary,tint: Color) -> void:
+	for stroke_id in pose:
+		if not data.strokes.has(stroke_id): continue
+		var state: Dictionary = pose[stroke_id]
+		if not bool(state.get("visible",false)): continue
+		var record: Dictionary = data.strokes[stroke_id]
+		var ghost: Stroke3D = Stroke3DClass.new()
+		ghost.points = state.get("points",PackedVector3Array())
+		ghost.radius = float(record.get("radius",0.012))
+		ghost.brush_preset = String(record.get("brush_preset","clean"))
+		ghost.width_variation = float(record.get("width_variation",0.0))
+		ghost.width_frequency = float(record.get("width_frequency",1.0))
+		ghost.brush_seed = int(record.get("brush_seed",1))
+		ghost.start_cap = String(record.get("start_cap","flat"))
+		ghost.end_cap = String(record.get("end_cap","flat"))
+		ghost.stroke_color = tint
+		ghost.fill_enabled = bool(record.get("fill_enabled",false))
+		var fill_tint := tint
+		fill_tint.a = minf(fill_tint.a,0.12)
+		ghost.fill_color = fill_tint
+		ghost.fill_mode = "solid"
+		root.add_child(ghost)
+		ghost.rebuild()
+
+func _refresh_vector_onion_skin(group: Node3D,data: RefCounted,frame: int) -> void:
+	var root := _vector_onion_root(group,active_drawing_id)
+	root.visible = %OnionSkin.button_pressed and workspace == "drawing"
+	if not root.visible: return
+	_clear_vector_onion_root(root)
+	var previous_frame: int = data.previous_exposure_frame(frame)
+	var next_frame: int = data.next_exposure_frame(frame)
+	if previous_frame >= 0:
+		_add_vector_onion_pose(root,data,data.current_cel_pose(previous_frame),Color(1.0,0.24,0.24,0.28))
+	if next_frame >= 0:
+		_add_vector_onion_pose(root,data,data.current_cel_pose(next_frame),Color(0.25,0.55,1.0,0.24))
 
 func key_active_drawing_pose(interpolation := "hold") -> void:
 	if active_drawing_id.is_empty() or not drawing_data_by_object.has(active_drawing_id): return
