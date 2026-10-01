@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource path="res://editor/main.gd" type="Script" id="1"]
 [ext_resource path="res://editor/editor_camera_rig.gd" type="Script" id="2"]
@@ -7,6 +7,16 @@
 [ext_resource path="res://editor/frame_timeline.gd" type="Script" id="5"]
 [ext_resource path="res://render/effects_engine.gd" type="Script" id="6"]
 [ext_resource path="res://paint/drawing_canvas.gd" type="Script" id="7"]
+[ext_resource path="res://assets/icons/lucide/undo-2.svg" type="Texture2D" id="8"]
+[ext_resource path="res://assets/icons/lucide/redo-2.svg" type="Texture2D" id="9"]
+[ext_resource path="res://assets/icons/lucide/save.svg" type="Texture2D" id="10"]
+[ext_resource path="res://assets/icons/lucide/folder-open.svg" type="Texture2D" id="11"]
+[ext_resource path="res://assets/icons/lucide/import.svg" type="Texture2D" id="12"]
+[ext_resource path="res://assets/icons/lucide/grid-3x3.svg" type="Texture2D" id="13"]
+[ext_resource path="res://assets/icons/lucide/mouse-pointer-2.svg" type="Texture2D" id="14"]
+[ext_resource path="res://assets/icons/lucide/move.svg" type="Texture2D" id="15"]
+[ext_resource path="res://assets/icons/lucide/rotate-cw.svg" type="Texture2D" id="16"]
+[ext_resource path="res://assets/icons/lucide/scaling.svg" type="Texture2D" id="17"]
 
 [node name="Main" type="Control"]
 layout_mode=3
@@ -62,12 +72,12 @@ text="Untitled"
 vertical_alignment=1
 [node name="SaveProject" type="Button" parent="TopBar"]
 unique_name_in_owner=true
-text="Save"
+icon=ExtResource("10")\ntooltip_text="Save project"
 [node name="LoadProject" type="Button" parent="TopBar"]
 unique_name_in_owner=true
-text="Open"
+icon=ExtResource("11")\ntooltip_text="Open project"
 [node name="Import" type="Button" parent="TopBar"]
-text="＋  Import"
+text="Import"\nicon=ExtResource("12")
 [node name="PreviewMode" type="CheckButton" parent="TopBar"]
 unique_name_in_owner=true
 text="Preview"
@@ -368,7 +378,7 @@ tooltip_text="Line"
 [node name="BitmapRect" type="Button" parent="DrawingToolRail"]
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
-text="□"
+icon=ExtResource("17")\ntooltip_text="Scale"
 tooltip_text="Rectangle"
 [node name="BitmapEllipse" type="Button" parent="DrawingToolRail"]
 custom_minimum_size=Vector2(50,50)
@@ -590,11 +600,11 @@ offset_right=352.0
 offset_bottom=350.0
 theme_override_constants/separation=5
 [node name="SelectTool" type="Button" parent="ToolRail"]
-text="➤"
+icon=ExtResource("14")\ntooltip_text="Select"
 [node name="MoveTool" type="Button" parent="ToolRail"]
-text="✣"
+icon=ExtResource("15")\ntooltip_text="Move"
 [node name="RotateTool" type="Button" parent="ToolRail"]
-text="◯"
+icon=ExtResource("16")\ntooltip_text="Rotate"
 [node name="ScaleTool" type="Button" parent="ToolRail"]
 text="□"
 [node name="FrameSelected" type="Button" parent="ToolRail"]
