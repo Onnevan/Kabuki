@@ -766,6 +766,12 @@ tooltip_text="Scene frame where this local clip starts"
 unique_name_in_owner=true
 text="ONION SKIN"
 
+[node name="LocalDrawingTimeline" type="Control" parent="."]
+unique_name_in_owner=true
+visible=false
+script=ExtResource("5")
+custom_minimum_size=Vector2(0,112)
+
 [node name="EffectsEngine" type="Control" parent="."]
 unique_name_in_owner=true
 offset_left=294.0
