@@ -2937,7 +2937,7 @@ func _detect_ui_scale() -> float:
 		if dpi >= 210: return 1.75
 		if dpi >= 175: return 1.5
 		if dpi >= 145: return 1.25
-	return 1.0
+	return 1.5
 
 func _apply_ui_scale(value: float) -> void:
 	ui_scale = clampf(value,1.0,2.0)
