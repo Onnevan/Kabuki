@@ -47,6 +47,7 @@ func _ready()->void:
 	# Stop wheel/MMB here instead of letting the parent editor consume them.
 	mouse_filter=Control.MOUSE_FILTER_STOP
 	focus_mode=Control.FOCUS_ALL
+	tooltip_text="Wheel: timeline zoom · Middle drag: pan · Ctrl+Wheel: F-curve height · Right click: key actions · Ctrl+C/V/D: copy/paste/duplicate"
 	key_context_menu = PopupMenu.new()
 	add_child(key_context_menu)
 	key_context_menu.add_item("Copy",0)
@@ -509,6 +510,7 @@ func _gui_input(e:InputEvent)->void:
 			curve_height=clampf(curve_height*(1.14 if e.button_index==MOUSE_BUTTON_WHEEL_UP else 0.88),36.0,240.0)
 			_update_curve_minimum_height()
 			queue_redraw()
+			accept_event();return
 		else:
 			# Plain wheel keeps the existing horizontal timeline zoom.
 			var pivot:float=x_to_frame(e.position.x)
