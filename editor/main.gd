@@ -236,19 +236,11 @@ func _process(delta: float) -> void:
 		accumulator += delta
 		if accumulator >= 1.0 / ProjectStore.fps:
 			accumulator = 0.0
-			if workspace == "drawing":
-				var data: RefCounted = _active_drawing_data()
-				if data != null:
-					var next_local: int = int(data.local_frame) + 1
-					if next_local > int(data.local_playback_end): next_local = int(data.local_playback_start)
-					data.set_local_frame(next_local)
-					%DrawingCanvas.set_local_frame(data.local_frame)
-					timeline.set_frame(data.local_frame)
-					_apply_drawing_frame(ProjectStore.current_frame)
-			else:
-				var next_frame: int = ProjectStore.current_frame + 1
-				if next_frame > ProjectStore.playback_end: next_frame = ProjectStore.playback_start
-				ProjectStore.set_frame(next_frame)
+			# Transport is always scene/global. Drawing clips evaluate their
+			# local frame from scene time; they do not own the main transport.
+			var next_frame: int = ProjectStore.current_frame + 1
+			if next_frame > ProjectStore.playback_end: next_frame = ProjectStore.playback_start
+			ProjectStore.set_frame(next_frame)
 
 func _setup_viewport_controls() -> void:
 	%ProjectionMode.clear()
@@ -1698,7 +1690,8 @@ func _refresh_drawing_timeline() -> void:
 			frames.append(int(frame_value))
 	if %DrawingCanvas.bitmap_mode:
 		frames = %DrawingCanvas.flipbook_frames()
-	timeline.set_drawing_exposures(frames)
+	# Local exposure/cel markers belong to the canvas clip UI, never to
+	# the scene/global FrameTimeline.
 	_sync_local_clip_ui()
 
 func _on_drawing_new_cel() -> void:
@@ -1766,16 +1759,8 @@ func _on_frame_slider_value_changed(value: float) -> void:
 	# Global frame control remains global in every workspace.
 	ProjectStore.set_frame(int(value))
 func _on_prev_pressed() -> void:
-	if workspace == "drawing":
-		var data: RefCounted = _active_drawing_data()
-		if data != null:
-			data.set_local_frame(data.local_frame-1); %DrawingCanvas.set_local_frame(data.local_frame); _sync_local_clip_ui(); _apply_drawing_frame(ProjectStore.current_frame); return
 	ProjectStore.set_frame(ProjectStore.current_frame - 1)
 func _on_next_pressed() -> void:
-	if workspace == "drawing":
-		var data: RefCounted = _active_drawing_data()
-		if data != null:
-			data.set_local_frame(data.local_frame+1); %DrawingCanvas.set_local_frame(data.local_frame); _sync_local_clip_ui(); _apply_drawing_frame(ProjectStore.current_frame); return
 	ProjectStore.set_frame(ProjectStore.current_frame + 1)
 func _on_play_pressed() -> void:
 	playing = not playing
