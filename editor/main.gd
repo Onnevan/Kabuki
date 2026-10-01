@@ -126,6 +126,7 @@ func _ready() -> void:
 	%StrokeInk.pressed.connect(func(): _set_stroke_brush_preset("ink"))
 	%StrokeDry.pressed.connect(func(): _set_stroke_brush_preset("dry"))
 	%StrokeRough.pressed.connect(func(): _set_stroke_brush_preset("rough"))
+	%BrushMenuButton.pressed.connect(_toggle_brush_preset_popup)
 	for label in ["Flat","Round","Point"]:
 		%StartCap.add_item(label)
 		%EndCap.add_item(label)
@@ -2276,7 +2277,7 @@ func _update_drawing_tool_ui() -> void:
 	for control in [%BitmapBrush,%BitmapPencil,%BitmapSmudge,%BitmapLassoFill,%BitmapEraser,%BitmapLine,%BitmapRect,%BitmapEllipse,%BitmapFillTool]:
 		control.visible = bitmap
 	%StrokeTool.button_pressed = drawing_3d_active
-	%StrokePresetSurface.visible = workspace == "drawing" and drawing_3d_active
+	%BrushMenuSurface.visible = workspace == "drawing" and drawing_3d_active
 	%BitmapTool.button_pressed = bitmap
 	%EraseTool.button_pressed = drawing_erase_active
 	%SculptTool.button_pressed = drawing_sculpt_active
@@ -3062,15 +3063,18 @@ func set_ui_scale_mode(mode: String) -> void:
 	else:
 		_apply_ui_scale(clampf(float(mode),1.0,2.0))
 
-func _position_stroke_preset_flyout() -> void:
-	if not %StrokePresetSurface.visible: return
-	# Presets form a vertical child palette beside the primary vector tool.
-	# Use the rail's deterministic local layout rather than chasing container globals.
-	var x: float = %DrawingToolSurface.position.x + %DrawingToolSurface.size.x + 8.0
-	var y: float = %DrawingToolSurface.position.y + 10.0
-	%StrokePresetSurface.position = Vector2(x,y)
-	var wanted: Vector2 = %StrokePresetBar.get_combined_minimum_size()
-	%StrokePresetSurface.size = wanted + Vector2(16.0,16.0)
+func _toggle_brush_preset_popup() -> void:
+	var button_rect: Rect2 = %BrushMenuButton.get_global_rect()
+	%BrushPresetPopup.position = Vector2i(int(button_rect.position.x),int(button_rect.end.y+6.0))
+	var wanted: Vector2 = %BrushPresetBar.get_combined_minimum_size()
+	%BrushPresetPopup.size = Vector2i(int(wanted.x+16.0),int(wanted.y+16.0))
+	%BrushPresetPopup.popup()
+
+func _position_brush_menu() -> void:
+	if not %BrushMenuSurface.visible: return
+	# Separate floating property card, immediately after the drawing context card.
+	%BrushMenuSurface.position = %DrawingContextSurface.position + Vector2(%DrawingContextSurface.size.x+10.0,0.0)
+	%BrushMenuSurface.size = Vector2(126.0,%DrawingContextSurface.size.y)
 
 func _responsive_layout() -> void:
 	var w: float=size.x
@@ -3125,8 +3129,8 @@ func _responsive_layout() -> void:
 	var hud_w: float=minf(760.0,maxf(340.0,%ViewportFrame.size.x-156.0))
 	%DrawingContextSurface.position=%ViewportFrame.position+Vector2(104.0,20.0)
 	%DrawingContextSurface.size=Vector2(hud_w,58.0)
-	if %StrokePresetSurface.visible:
-		call_deferred("_position_stroke_preset_flyout")
+	if %BrushMenuSurface.visible:
+		call_deferred("_position_brush_menu")
 	%DrawingBar.position=Vector2(14.0,9.0)
 	%DrawingBar.size=Vector2(hud_w-28.0,40.0)
 	# Plane controls share the Drawing HUD row but anchor independently to the
