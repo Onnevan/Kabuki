@@ -170,6 +170,7 @@ func _ready() -> void:
 	%IKInfluence.value_changed.connect(_on_ik_settings_changed)
 	%IKGuide.draw.connect(_draw_ik_guide)
 	%SaveProject.pressed.connect(_on_save_project_pressed)
+	%SaveProjectAs.pressed.connect(_on_save_project_as_pressed)
 	%LoadProject.pressed.connect(_on_load_project_pressed)
 	%UndoPaint.pressed.connect(%DrawingCanvas.undo_paint)
 	%RedoPaint.pressed.connect(%DrawingCanvas.redo_paint)
@@ -608,8 +609,24 @@ func _create_drawing() -> void:
 	status.text = "Drawing object created · stroke engine comes in Drawing workspace"
 
 func _on_save_project_pressed() -> void:
-	var path := current_project_path
-	if path.is_empty(): path = "user://kabuki_project.kabuki"
+	if current_project_path.is_empty():
+		_on_save_project_as_pressed()
+		return
+	_save_project_to(current_project_path)
+
+func _on_save_project_as_pressed() -> void:
+	if not current_project_path.is_empty():
+		%SaveProjectDialog.current_path = current_project_path
+		%SaveProjectDialog.current_file = current_project_path.get_file()
+	%SaveProjectDialog.popup_centered_ratio(0.72)
+
+func _on_save_project_file_selected(path: String) -> void:
+	var save_path := path
+	if save_path.get_extension().to_lower() != "kabuki":
+		save_path += ".kabuki"
+	_save_project_to(save_path)
+
+func _save_project_to(path: String) -> void:
 	var drawing_payload: Dictionary = {}
 	for object_id in drawing_data_by_object:
 		var data: RefCounted = drawing_data_by_object[object_id]
