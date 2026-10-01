@@ -835,17 +835,17 @@ func _select_rig_bone(virtual_id: String) -> void:
 	gizmo.attach(bone_edit_proxy)
 	gizmo.set_mode(TransformGizmo.Mode.ROTATE)
 	active_tool = TransformGizmo.Mode.ROTATE
-	# Match Blender/Spine-style inspection: selecting a bone immediately shows
-	# that bone's influence on the bound artwork.
+	# Vertex-weight inspection belongs exclusively to the Rigging workspace.
 	if active_rig_runtime != null:
 		active_rig_runtime.clear_weight_debug()
-		for object_id in rig.bindings:
-			if not scene_nodes.has(object_id): continue
-			var mesh_node: Node3D = scene_nodes[object_id]
-			if not mesh_node is MeshInstance3D: continue
-			var binding: Dictionary = rig.bindings[object_id]
-			var weights: Array = binding.get("bone_weights",[])
-			active_rig_runtime.show_weight_debug(mesh_node as MeshInstance3D,weights,bone_index)
+		if workspace == "rigging":
+			for object_id in rig.bindings:
+				if not scene_nodes.has(object_id): continue
+				var mesh_node: Node3D = scene_nodes[object_id]
+				if not mesh_node is MeshInstance3D: continue
+				var binding: Dictionary = rig.bindings[object_id]
+				var weights: Array = binding.get("bone_weights",[])
+				active_rig_runtime.show_weight_debug(mesh_node as MeshInstance3D,weights,bone_index)
 	gizmo.visible = workspace != "rigging" and workspace != "animation"
 	status.text = "Bone selected · drag directly to pose"
 
@@ -2158,6 +2158,9 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	if leaving_drawing:
 		_finalize_static_bitmap_if_needed()
 	workspace = next_workspace
+	# Never carry the vertex-weight overlay out of Rigging.
+	if workspace != "rigging" and active_rig_runtime != null:
+		active_rig_runtime.clear_weight_debug()
 	if workspace == "drawing" and drawing_planes.is_empty():
 		_on_add_drawing_plane()
 	if workspace_camera_states.has(workspace):
