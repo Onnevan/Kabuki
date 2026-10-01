@@ -2199,7 +2199,7 @@ func _update_drawing_tool_ui() -> void:
 	%BrushPreset.visible = brush_active and current_tool != 2
 	%BrushOpacity.visible = brush_active
 	%BrushHardness.visible = brush_active and current_tool == 0
-	%BrushColor.visible = bitmap and (current_tool == 0 or current_tool == 1 or current_tool == 3 or current_tool == 4 or current_tool == 5 or current_tool == 6)
+	%BrushColor.visible = drawing_3d_active or (bitmap and (current_tool == 0 or current_tool == 1 or current_tool == 3 or current_tool == 4 or current_tool == 5 or current_tool == 6))
 	%LassoFillMode.visible = lasso_active
 	%LassoColorALabel.visible = lasso_active
 	%LassoColorA.visible = lasso_active
