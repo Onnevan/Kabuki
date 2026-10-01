@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=39 format=3]
 
 [ext_resource path="res://editor/main.gd" type="Script" id="1"]
 [ext_resource path="res://editor/editor_camera_rig.gd" type="Script" id="2"]
@@ -17,6 +17,27 @@
 [ext_resource path="res://assets/icons/lucide/move.svg" type="Texture2D" id="15"]
 [ext_resource path="res://assets/icons/lucide/rotate-cw.svg" type="Texture2D" id="16"]
 [ext_resource path="res://assets/icons/lucide/scaling.svg" type="Texture2D" id="17"]
+[ext_resource path="res://assets/icons/lucide/brush.svg" type="Texture2D" id="18"]
+[ext_resource path="res://assets/icons/lucide/pencil.svg" type="Texture2D" id="19"]
+[ext_resource path="res://assets/icons/lucide/eraser.svg" type="Texture2D" id="20"]
+[ext_resource path="res://assets/icons/lucide/lasso.svg" type="Texture2D" id="21"]
+[ext_resource path="res://assets/icons/lucide/square.svg" type="Texture2D" id="22"]
+[ext_resource path="res://assets/icons/lucide/circle.svg" type="Texture2D" id="23"]
+[ext_resource path="res://assets/icons/lucide/paint-bucket.svg" type="Texture2D" id="24"]
+[ext_resource path="res://assets/icons/lucide/blend.svg" type="Texture2D" id="25"]
+[ext_resource path="res://assets/icons/lucide/plus.svg" type="Texture2D" id="26"]
+[ext_resource path="res://assets/icons/lucide/arrow-up.svg" type="Texture2D" id="27"]
+[ext_resource path="res://assets/icons/lucide/arrow-down.svg" type="Texture2D" id="28"]
+[ext_resource path="res://assets/icons/lucide/copy.svg" type="Texture2D" id="29"]
+[ext_resource path="res://assets/icons/lucide/trash.svg" type="Texture2D" id="30"]
+[ext_resource path="res://assets/icons/lucide/focus.svg" type="Texture2D" id="31"]
+[ext_resource path="res://assets/icons/lucide/play.svg" type="Texture2D" id="32"]
+[ext_resource path="res://assets/icons/lucide/skip-back.svg" type="Texture2D" id="33"]
+[ext_resource path="res://assets/icons/lucide/skip-forward.svg" type="Texture2D" id="34"]
+[ext_resource path="res://assets/icons/lucide/zoom-out.svg" type="Texture2D" id="35"]
+[ext_resource path="res://assets/icons/lucide/zoom-in.svg" type="Texture2D" id="36"]
+[ext_resource path="res://assets/icons/lucide/diamond.svg" type="Texture2D" id="37"]
+[ext_resource path="res://assets/icons/lucide/pause.svg" type="Texture2D" id="38"]
 
 [node name="Main" type="Control"]
 layout_mode=3
@@ -72,12 +93,15 @@ text="Untitled"
 vertical_alignment=1
 [node name="SaveProject" type="Button" parent="TopBar"]
 unique_name_in_owner=true
-icon=ExtResource("10")\ntooltip_text="Save project"
+icon=ExtResource("10")
+tooltip_text="Save project"
 [node name="LoadProject" type="Button" parent="TopBar"]
 unique_name_in_owner=true
-icon=ExtResource("11")\ntooltip_text="Open project"
+icon=ExtResource("11")
+tooltip_text="Open project"
 [node name="Import" type="Button" parent="TopBar"]
-text="Import"\nicon=ExtResource("12")
+text="Import"
+icon=ExtResource("12")
 [node name="PreviewMode" type="CheckButton" parent="TopBar"]
 unique_name_in_owner=true
 text="Preview"
@@ -108,7 +132,8 @@ theme_override_font_sizes/font_size=11
 size_flags_horizontal=3
 [node name="AddObj" type="MenuButton" parent="LeftPanel/ScenePanel/SceneBox/SceneHead"]
 unique_name_in_owner=true
-text="＋"
+icon=ExtResource("26")
+tooltip_text="Add object"
 [node name="ObjectList" type="ItemList" parent="LeftPanel/ScenePanel/SceneBox"]
 unique_name_in_owner=true
 size_flags_vertical=3
@@ -124,7 +149,7 @@ theme_override_font_sizes/font_size=11
 size_flags_horizontal=3
 [node name="AddDrawingPlane" type="Button" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlanesHead"]
 unique_name_in_owner=true
-text="＋"
+icon=ExtResource("26")
 tooltip_text="Add spatial reference canvas"
 [node name="DrawingPlaneList" type="ItemList" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes"]
 unique_name_in_owner=true
@@ -133,10 +158,12 @@ select_mode=0
 [node name="PlaneActions" type="HBoxContainer" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes"]
 [node name="PlaneUp" type="Button" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions"]
 unique_name_in_owner=true
-text="↑"
+icon=ExtResource("27")
+tooltip_text="Move canvas up"
 [node name="PlaneDown" type="Button" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions"]
 unique_name_in_owner=true
-text="↓"
+icon=ExtResource("28")
+tooltip_text="Move canvas down"
 [node name="PlaneDuplicate" type="Button" parent="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions"]
 unique_name_in_owner=true
 text="Duplicate"
@@ -281,43 +308,43 @@ theme_override_constants/separation=6
 [node name="StrokeTool" type="Button" parent="DrawingToolRail"]
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
-text="✎"
+icon=ExtResource("19")
 tooltip_text="Draw in 3D space"
 [node name="BitmapTool" type="Button" parent="DrawingToolRail"]
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
-text="▧"
+icon=ExtResource("18")
 tooltip_text="Paint on this canvas"
 [node name="EraseTool" type="Button" parent="DrawingToolRail"]
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
-text="⌫"
+icon=ExtResource("20")
 tooltip_text="Eraser"
 [node name="SculptTool" type="Button" parent="DrawingToolRail"]
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
-text="≈"
+icon=ExtResource("25")
 tooltip_text="Shape spatial strokes"
 [node name="ToolSep" type="HSeparator" parent="DrawingToolRail"]
 [node name="BitmapBrush" type="Button" parent="DrawingToolRail"]
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
-text="●"
+icon=ExtResource("18")
 tooltip_text="Soft brush"
 [node name="BitmapPencil" type="Button" parent="DrawingToolRail"]
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
-text="✎"
+icon=ExtResource("19")
 tooltip_text="Pencil"
 [node name="BitmapSmudge" type="Button" parent="DrawingToolRail"]
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
-text="≈"
+icon=ExtResource("25")
 tooltip_text="Smudge / blend paint"
 [node name="BitmapLassoFill" type="Button" parent="DrawingToolRail"]
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
-text="⬡"
+icon=ExtResource("21")
 tooltip_text="Lasso fill"
 
 [node name="LassoFillMode" type="OptionButton" parent="DrawingBar"]
@@ -369,7 +396,7 @@ tooltip_text="Gradient direction"
 [node name="BitmapEraser" type="Button" parent="DrawingToolRail"]
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
-text="◌"
+icon=ExtResource("20")
 tooltip_text="Bitmap eraser"
 [node name="BitmapLine" type="Button" parent="DrawingToolRail"]
 custom_minimum_size=Vector2(50,50)
@@ -379,17 +406,17 @@ tooltip_text="Line"
 [node name="BitmapRect" type="Button" parent="DrawingToolRail"]
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
-icon=ExtResource("17")\ntooltip_text="Scale"
+icon=ExtResource("22")
 tooltip_text="Rectangle"
 [node name="BitmapEllipse" type="Button" parent="DrawingToolRail"]
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
-text="○"
+icon=ExtResource("23")
 tooltip_text="Ellipse"
 [node name="BitmapFillTool" type="Button" parent="DrawingToolRail"]
 custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
-text="▣"
+icon=ExtResource("24")
 tooltip_text="Flood fill"
 [node name="BitmapClear" type="Button" parent="DrawingBar"]
 unique_name_in_owner=true
@@ -601,11 +628,14 @@ offset_right=352.0
 offset_bottom=350.0
 theme_override_constants/separation=5
 [node name="SelectTool" type="Button" parent="ToolRail"]
-icon=ExtResource("14")\ntooltip_text="Select"
+icon=ExtResource("14")
+tooltip_text="Select"
 [node name="MoveTool" type="Button" parent="ToolRail"]
-icon=ExtResource("15")\ntooltip_text="Move"
+icon=ExtResource("15")
+tooltip_text="Move"
 [node name="RotateTool" type="Button" parent="ToolRail"]
-icon=ExtResource("16")\ntooltip_text="Rotate"
+icon=ExtResource("16")
+tooltip_text="Rotate"
 [node name="ScaleTool" type="Button" parent="ToolRail"]
 text="□"
 [node name="FrameSelected" type="Button" parent="ToolRail"]
@@ -913,12 +943,15 @@ custom_minimum_size=Vector2(125,0)
 unique_name_in_owner=true
 text="●"
 [node name="Prev" type="Button" parent="Bottom/TransportPanel/Transport"]
-text="◀◀"
+icon=ExtResource("33")
+tooltip_text="Previous frame"
 [node name="PlayButton" type="Button" parent="Bottom/TransportPanel/Transport"]
 unique_name_in_owner=true
-text="▶"
+icon=ExtResource("32")
+tooltip_text="Play / Pause"
 [node name="Next" type="Button" parent="Bottom/TransportPanel/Transport"]
-text="▶▶"
+icon=ExtResource("34")
+tooltip_text="Next frame"
 [node name="FPS" type="Button" parent="Bottom/TransportPanel/Transport"]
 text="24 fps"
 [node name="RangeLabel" type="Label" parent="Bottom/TransportPanel/Transport"]
@@ -947,11 +980,11 @@ step=1.0
 value=120.0
 [node name="ZoomOut" type="Button" parent="Bottom/TransportPanel/Transport"]
 unique_name_in_owner=true
-text="−"
+icon=ExtResource("35")
 tooltip_text="Zoom timeline out"
 [node name="ZoomIn" type="Button" parent="Bottom/TransportPanel/Transport"]
 unique_name_in_owner=true
-text="+"
+icon=ExtResource("36")
 tooltip_text="Zoom timeline in"
 [node name="TransportGrow" type="Control" parent="Bottom/TransportPanel/Transport"]
 size_flags_horizontal=3
@@ -962,7 +995,8 @@ unique_name_in_owner=true
 text="000"
 [node name="Key" type="Button" parent="Bottom/TransportPanel/Transport"]
 unique_name_in_owner=true
-text="◆"
+icon=ExtResource("37")
+tooltip_text="Insert keyframe"
 [node name="Interpolation" type="OptionButton" parent="Bottom/TransportPanel/Transport"]
 unique_name_in_owner=true
 [node name="Timeline" type="Control" parent="Bottom"]
