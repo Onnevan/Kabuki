@@ -67,6 +67,7 @@ var rig_bone_root_set := false
 var rig_bone_last_point := Vector3.ZERO
 var rig_target_object_id := ""
 var rig_chain_count := 0
+var pending_chain_parent := -1
 var drawing_content_layers: Dictionary = {}
 var drawing_data_by_object: Dictionary:
 	get: return drawing_controller.data_by_object
@@ -1660,10 +1661,11 @@ func _setup_rigging_workspace() -> void:
 	%ClearRigParent.pressed.connect(_on_clear_rig_parent)
 	%PivotHere.pressed.connect(_on_pivot_here)
 	%CreateSkeleton.pressed.connect(_on_create_skeleton)
-	%AddBone.pressed.connect(_on_add_rig_bone)
+	%AddBone.pressed.connect(_request_new_rig_chain)
 	%AutoWeights.pressed.connect(_on_auto_weights)
 	%RigFinishDialog.confirmed.connect(_confirm_finish_skeleton)
-	%RigFinishDialog.canceled.connect(_on_add_rig_bone)
+	%RigFinishDialog.canceled.connect(_request_new_rig_chain)
+	%RigParentDialog.confirmed.connect(_confirm_new_rig_chain)
 	_refresh_rig_parent_choices()
 
 func _refresh_rig_parent_choices() -> void:
@@ -1768,6 +1770,22 @@ func _on_create_skeleton() -> void:
 	%CreateSkeleton.visible = false
 	_on_add_rig_bone()
 
+func _request_new_rig_chain() -> void:
+	var rig: RefCounted = _ensure_active_rig()
+	%RigParentChoice.clear()
+	%RigParentChoice.add_item("Independent / Root")
+	%RigParentChoice.set_item_metadata(0,-1)
+	for bone_index in range(rig.bones.size()):
+		var bone: Dictionary = rig.bones[bone_index]
+		%RigParentChoice.add_item(String(bone.get("name","Bone %02d" % (bone_index+1))))
+		%RigParentChoice.set_item_metadata(%RigParentChoice.item_count-1,bone_index)
+	%RigParentDialog.dialog_text = "Choose the bone that will parent the first bone of the new chain."
+	%RigParentDialog.popup_centered()
+
+func _confirm_new_rig_chain() -> void:
+	pending_chain_parent = int(%RigParentChoice.get_item_metadata(%RigParentChoice.selected))
+	_on_add_rig_bone()
+
 func _on_add_rig_bone() -> void:
 	var rig: RefCounted = _ensure_active_rig()
 	rig_chain_count += 1
@@ -1776,8 +1794,10 @@ func _on_add_rig_bone() -> void:
 	%AddBone.visible = true
 	%AddBone.disabled = true
 	rig_bone_draw_active = true
-	rig_bone_draw_parent = -1
+	rig_bone_draw_parent = pending_chain_parent
+	pending_chain_parent = -1
 	rig_bone_root_set = false
+	if active_rig_runtime != null: active_rig_runtime.clear_terminal_tip()
 	rig_bone_draw_depth_point = selected_scene_node.global_position if selected_scene_node != null else camera_rig.pivot
 	status.text = "Chain %d · click the root point first" % rig_chain_count
 
