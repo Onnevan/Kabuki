@@ -1853,8 +1853,18 @@ func _on_reset_filters_pressed() -> void:
 	%Blur.value=0.0; %Glow.value=0.0; %GlowThreshold.value=0.7; %GlowRadius.value=3.0; %Exposure.value=0.0; %Saturation.value=1.0
 	_on_filter_changed(0.0)
 
+func _workspace_buttons() -> Array[Button]:
+	var container: HBoxContainer = get_node("TopBar/WorkspaceTabs") as HBoxContainer
+	var buttons: Array[Button] = []
+	if container == null: return buttons
+	for node_name in ["SceneWorkspace","AnimationWorkspace","DrawingWorkspace","RiggingWorkspace","CompositorWorkspace"]:
+		var button: Button = container.get_node_or_null(node_name) as Button
+		if button != null:
+			buttons.append(button)
+	return buttons
+
 func _setup_workspace_tabs() -> void:
-	var buttons: Array[Button] = [%SceneWorkspace,%AnimationWorkspace,%DrawingWorkspace,%RiggingWorkspace,%CompositorWorkspace]
+	var buttons: Array[Button] = _workspace_buttons()
 	for i in range(buttons.size()):
 		var button: Button = buttons[i]
 		button.toggle_mode = true
@@ -2237,7 +2247,7 @@ func _on_drawing_cel_menu(id: int) -> void:
 		4: _on_drawing_morph_cel()
 
 func _on_workspace_tab_changed(tab: int) -> void:
-	var workspace_buttons: Array[Button] = [%SceneWorkspace,%AnimationWorkspace,%DrawingWorkspace,%RiggingWorkspace,%CompositorWorkspace]
+	var workspace_buttons: Array[Button] = _workspace_buttons()
 	for i in range(workspace_buttons.size()):
 		workspace_buttons[i].set_pressed_no_signal(i == tab)
 	var next_workspace: String = ["scene","animation","drawing","rigging","compositor"][tab]
