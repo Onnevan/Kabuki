@@ -57,6 +57,10 @@ var ik_target_proxy: Node3D
 var ik_drag_active := false
 var drawing_3d_active := false
 var stroke_brush_preset := "clean"
+var stroke_start_cap := "flat"
+var stroke_end_cap := "flat"
+var world_mode := "solid"
+var world_image_mode := "camera"
 var drawing_sculpt_active := false
 var drawing_erase_active := false
 var active_stroke_3d: Stroke3D
@@ -122,6 +126,12 @@ func _ready() -> void:
 	%StrokeInk.pressed.connect(func(): _set_stroke_brush_preset("ink"))
 	%StrokeDry.pressed.connect(func(): _set_stroke_brush_preset("dry"))
 	%StrokeRough.pressed.connect(func(): _set_stroke_brush_preset("rough"))
+	for label in ["Flat","Round","Point"]:
+		%StartCap.add_item(label)
+		%EndCap.add_item(label)
+	%StartCap.item_selected.connect(func(i): stroke_start_cap = ["flat","round","point"][i])
+	%EndCap.item_selected.connect(func(i): stroke_end_cap = ["flat","round","point"][i])
+	_setup_world_controls()
 	%FillColor.pressed.connect(func(): _set_active_color_target("fill_a"))
 	%FillColorB.pressed.connect(func(): _set_active_color_target("fill_b"))
 	%ActiveColor.color_changed.connect(_on_active_color_changed)
@@ -681,6 +691,8 @@ func _load_project_payload(payload: Dictionary, path: String) -> void:
 				stroke.width_variation = float(rec.get("width_variation", 0.0))
 				stroke.width_frequency = float(rec.get("width_frequency", 1.0))
 				stroke.brush_seed = int(rec.get("brush_seed", 1))
+				stroke.start_cap = String(rec.get("start_cap", "flat"))
+				stroke.end_cap = String(rec.get("end_cap", "flat"))
 				stroke.fill_enabled = bool(rec.get("fill_enabled", false))
 				stroke.fill_color = rec.get("fill_color", Color.TRANSPARENT)
 				plane.add_child(stroke)
@@ -2181,6 +2193,49 @@ func _set_bitmap_tool(tool: int) -> void:
 	status.text = ["Brush", "Pencil", "Bitmap Eraser", "Line", "Rectangle", "Ellipse", "Fill", "Smudge", "Lasso Fill"][tool]
 	_update_drawing_tool_ui()
 
+func _setup_world_controls() -> void:
+	for label in ["Solid","Gradient","Image"]: %WorldMode.add_item(label)
+	for label in ["Vertical","Horizontal","Radial"]: %WorldGradientMapping.add_item(label)
+	for label in ["Camera","Equirectangular 360"]: %WorldImageMode.add_item(label)
+	%WorldMode.item_selected.connect(_on_world_mode_selected)
+	%WorldColor.color_changed.connect(func(_color): _refresh_world())
+	%GradientA.color_changed.connect(func(_color): _refresh_world())
+	%GradientB.color_changed.connect(func(_color): _refresh_world())
+	%WorldGradientMapping.item_selected.connect(func(_i): _refresh_world())
+	%WorldImageMode.item_selected.connect(func(i): world_image_mode = "camera" if i == 0 else "equirect"; _refresh_world())
+	%WorldImageLoad.pressed.connect(_on_world_image_load)
+	_refresh_world()
+
+func _on_world_mode_selected(index: int) -> void:
+	world_mode = ["solid","gradient","image"][index]
+	%WorldColor.visible = world_mode == "solid"
+	%WorldGradientBox.visible = world_mode == "gradient"
+	%WorldImageBox.visible = world_mode == "image"
+	_refresh_world()
+
+func _refresh_world() -> void:
+	var env := Environment.new()
+	if world_mode == "solid":
+		env.background_mode = Environment.BG_COLOR
+		env.background_color = %WorldColor.color
+	elif world_mode == "gradient":
+		# Procedural sky gives a true 3D world gradient and remains camera independent.
+		var sky_mat := ProceduralSkyMaterial.new()
+		sky_mat.sky_top_color = %GradientA.color
+		sky_mat.sky_horizon_color = %GradientB.color
+		sky_mat.ground_horizon_color = %GradientB.color
+		sky_mat.ground_bottom_color = %GradientA.color
+		var sky := Sky.new()
+		sky.sky_material = sky_mat
+		env.background_mode = Environment.BG_SKY
+		env.sky = sky
+	%WorldEnvironment.environment = env
+	%WorldBackdrop.visible = world_mode == "image" and world_image_mode == "camera"
+
+func _on_world_image_load() -> void:
+	%FileDialog.set_meta("world_image_request", true)
+	%FileDialog.popup_centered_ratio(0.7)
+
 func _set_stroke_brush_preset(preset: String) -> void:
 	stroke_brush_preset = preset
 	var buttons: Dictionary = {
@@ -2195,6 +2250,8 @@ func _set_stroke_brush_preset(preset: String) -> void:
 
 func _apply_stroke_brush(stroke: Stroke3D) -> void:
 	stroke.brush_preset = stroke_brush_preset
+	stroke.start_cap = stroke_start_cap
+	stroke.end_cap = stroke_end_cap
 	match stroke_brush_preset:
 		"ink":
 			stroke.width_variation = 0.22
@@ -2869,6 +2926,8 @@ func _on_plane_duplicate() -> void:
 			copy.width_variation = src.width_variation
 			copy.width_frequency = src.width_frequency
 			copy.brush_seed = src.brush_seed
+			copy.start_cap = src.start_cap
+			copy.end_cap = src.end_cap
 			copy.fill_enabled = src.fill_enabled
 			copy.fill_color = src.fill_color
 			active_drawing_group.add_child(copy)
@@ -3054,7 +3113,9 @@ func _responsive_layout() -> void:
 	%DrawingContextSurface.position=%ViewportFrame.position+Vector2(104.0,20.0)
 	%DrawingContextSurface.size=Vector2(hud_w,58.0)
 	if %StrokePresetSurface.visible:
-		%StrokePresetSurface.position=%ViewportFrame.position+Vector2(72.0,68.0)
+		# Flyout belongs spatially to the vector pencil: immediately to its right.
+		var rail_size := %DrawingToolSurface.size
+		%StrokePresetSurface.position=%DrawingToolSurface.position+Vector2(rail_size.x+8.0,0.0)
 	%DrawingBar.position=Vector2(14.0,9.0)
 	%DrawingBar.size=Vector2(hud_w-28.0,40.0)
 	# Plane controls share the Drawing HUD row but anchor independently to the
