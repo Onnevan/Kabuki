@@ -514,6 +514,14 @@ visible=false
 custom_minimum_size=Vector2(32,32)
 color=Color(0.95,0.75,0.2,0.55)
 tooltip_text="Gradient color B"
+[node name="GradientPreview" type="TextureRect" parent="DrawingBar"]
+unique_name_in_owner=true
+visible=false
+custom_minimum_size=Vector2(96,32)
+expand_mode=1
+stretch_mode=5
+mouse_filter=2
+tooltip_text="Gradient preview"
 [node name="FillGradientAngle" type="SpinBox" parent="DrawingBar"]
 unique_name_in_owner=true
 visible=false
@@ -554,6 +562,7 @@ anchor_bottom=1.0
 grow_horizontal=2
 grow_vertical=2
 mouse_filter=2
+clip_contents=true
 visible=false
 
 [node name="NewDrawing" type="Button" parent="DrawingBar"]
