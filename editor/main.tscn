@@ -261,6 +261,19 @@ offset_left=290.0
 offset_top=70.0
 offset_right=1046.0
 offset_bottom=650.0
+[node name="WorldBackdrop" type="TextureRect" parent="ViewportFrame"]
+unique_name_in_owner=true
+visible=false
+layout_mode=1
+anchors_preset=15
+anchor_right=1.0
+anchor_bottom=1.0
+grow_horizontal=2
+grow_vertical=2
+expand_mode=1
+stretch_mode=6
+mouse_filter=2
+
 [node name="ViewportContainer" type="SubViewportContainer" parent="ViewportFrame"]
 unique_name_in_owner=true
 layout_mode=2
@@ -271,6 +284,8 @@ unique_name_in_owner=true
 handle_input_locally=false
 size=Vector2i(752,584)
 render_target_update_mode=4
+[node name="WorldEnvironment" type="WorldEnvironment" parent="ViewportFrame/ViewportContainer/SceneViewport"]
+unique_name_in_owner=true
 [node name="WorldRoot" type="Node3D" parent="ViewportFrame/ViewportContainer/SceneViewport"]
 unique_name_in_owner=true
 [node name="WorldGrid" type="MeshInstance3D" parent="ViewportFrame/ViewportContainer/SceneViewport"]
@@ -595,6 +610,16 @@ toggle_mode=true
 text="≋"
 tooltip_text="Rough · strong handmade variation"
 
+[node name="CapSep" type="VSeparator" parent="StrokePresetSurface/StrokePresetBar"]
+[node name="StartCap" type="OptionButton" parent="StrokePresetSurface/StrokePresetBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(76,44)
+tooltip_text="Stroke start: Flat, Round or Point"
+[node name="EndCap" type="OptionButton" parent="StrokePresetSurface/StrokePresetBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(76,44)
+tooltip_text="Stroke end: Flat, Round or Point"
+
 [node name="DrawingPlaneSurface" type="PanelContainer" parent="."]
 unique_name_in_owner=true
 visible=false
@@ -866,6 +891,38 @@ text="Properties"
 theme_override_font_sizes/font_size=18
 [node name="MaterialTab" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/InspectorTabs"]
 text="Material"
+[node name="WorldProperties" type="VBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+[node name="WorldTitle" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/WorldProperties"]
+text="WORLD"
+theme_override_font_sizes/font_size=18
+[node name="WorldMode" type="OptionButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/WorldProperties"]
+unique_name_in_owner=true
+tooltip_text="World background type"
+[node name="WorldColor" type="ColorPickerButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/WorldProperties"]
+unique_name_in_owner=true
+color=Color(0.32,0.32,0.32,1)
+[node name="WorldGradientBox" type="VBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/WorldProperties"]
+unique_name_in_owner=true
+visible=false
+[node name="GradientA" type="ColorPickerButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/WorldProperties/WorldGradientBox"]
+unique_name_in_owner=true
+color=Color(0.12,0.16,0.24,1)
+[node name="GradientB" type="ColorPickerButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/WorldProperties/WorldGradientBox"]
+unique_name_in_owner=true
+color=Color(0.55,0.7,0.9,1)
+[node name="WorldGradientMapping" type="OptionButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/WorldProperties/WorldGradientBox"]
+unique_name_in_owner=true
+tooltip_text="Gradient mapping"
+[node name="WorldImageBox" type="HBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/WorldProperties"]
+unique_name_in_owner=true
+visible=false
+[node name="WorldImageMode" type="OptionButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/WorldProperties/WorldImageBox"]
+unique_name_in_owner=true
+[node name="WorldImageLoad" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/WorldProperties/WorldImageBox"]
+unique_name_in_owner=true
+text="LOAD IMAGE"
+
 [node name="ObjectSection" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 text="Transform"
 [node name="PositionRow" type="HBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
