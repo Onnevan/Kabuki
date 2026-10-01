@@ -1351,14 +1351,14 @@ text="24 fps   ·   Frame 0 / 60"
 unique_name_in_owner=true
 file_mode=0
 access=2
-filters=PackedStringArray("*.kabuki ; KABUKI Projects")
+filters=PackedStringArray("*.kab ; KABUKI Projects, *.kabuki ; Legacy KABUKI Projects")
 
 [node name="SaveProjectDialog" type="FileDialog" parent="."]
 unique_name_in_owner=true
 file_mode=4
 access=2
-filters=PackedStringArray("*.kabuki ; KABUKI Projects")
-current_file="untitled.kabuki"
+filters=PackedStringArray("*.kab ; KABUKI Projects, *.kabuki ; Legacy KABUKI Projects")
+current_file="untitled.kab"
 
 [node name="FileDialog" type="FileDialog" parent="."]
 unique_name_in_owner=true
