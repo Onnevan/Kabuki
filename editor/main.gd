@@ -92,6 +92,11 @@ var editor_view_before_camera: Dictionary = {}
 var transform_space: int = 0 # 0 global, 1 local
 
 func _ready() -> void:
+	%FillMode.add_item("Solid")
+	%FillMode.add_item("Gradient")
+	%FillMode.item_selected.connect(_on_fill_mode_selected)
+	%FillColorB.color_changed.connect(_on_fill_gradient_changed)
+	%FillGradientAngle.value_changed.connect(_on_fill_gradient_changed)
 	theme = KabukiThemeBuilder.build()
 	ProjectStore.frame_changed.connect(_on_frame_changed)
 	ProjectStore.key_changed.connect(timeline.refresh_keys)
@@ -2302,6 +2307,15 @@ func _on_brush_color_changed(value: Color) -> void:
 func _on_fill_color_changed(_value: Color) -> void:
 	_apply_selected_stroke_style()
 
+func _on_fill_mode_selected(index: int) -> void:
+	var gradient := index == 1
+	%FillColorB.visible = gradient
+	%FillGradientAngle.visible = gradient
+	_apply_selected_stroke_style()
+
+func _on_fill_gradient_changed(_value) -> void:
+	_apply_selected_stroke_style()
+
 func _on_sculpt_mode_selected(index: int) -> void:
 	var modes: Array[String] = ["push", "move", "pinch", "smooth", "inflate"]
 	sculpt_mode = modes[clampi(index, 0, modes.size() - 1)]
@@ -2311,13 +2325,16 @@ func _apply_selected_stroke_style() -> void:
 	# Color controls edit only the selected/last stroke. With no stroke selected
 	# they are simply the style for the next stroke.
 	if selected_stroke == null or not is_instance_valid(selected_stroke): return
-	selected_stroke.set_style(%BrushColor.color, %Fill.button_pressed, %FillColor.color)
+	selected_stroke.set_style(%BrushColor.color, %Fill.button_pressed, %FillColor.color, "gradient" if %FillMode.selected == 1 else "solid", %FillColorB.color, float(%FillGradientAngle.value))
 	var data: RefCounted = drawing_data_by_object.get(active_drawing_id)
 	if data and not selected_stroke.stroke_id.is_empty():
 		var record: Dictionary = data.strokes.get(selected_stroke.stroke_id, {})
 		record["color"] = %BrushColor.color
 		record["fill_enabled"] = %Fill.button_pressed
 		record["fill_color"] = %FillColor.color
+		record["fill_mode"] = "gradient" if %FillMode.selected == 1 else "solid"
+		record["fill_color_b"] = %FillColorB.color
+		record["fill_gradient_angle"] = float(%FillGradientAngle.value)
 
 func _apply_active_drawing_style() -> void:
 	_apply_selected_stroke_style()
@@ -2606,6 +2623,9 @@ func _begin_3d_stroke(pos: Vector2) -> void:
 	active_stroke_3d.radius = %BrushSize.value * 0.0012
 	active_stroke_3d.fill_enabled = %Fill.button_pressed
 	active_stroke_3d.fill_color = %FillColor.color
+	active_stroke_3d.fill_mode = "gradient" if %FillMode.selected == 1 else "solid"
+	active_stroke_3d.fill_color_b = %FillColorB.color
+	active_stroke_3d.fill_gradient_angle = float(%FillGradientAngle.value)
 	active_drawing_group.add_child(active_stroke_3d)
 	var world_point := _ray_to_drawing_plane(pos, active_drawing_group)
 	active_stroke_3d.add_point(active_drawing_group.to_local(world_point))
