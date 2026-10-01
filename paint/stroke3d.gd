@@ -9,6 +9,8 @@ var brush_preset := "clean"
 var width_variation := 0.0
 var width_frequency := 1.0
 var brush_seed := 1
+var start_cap := "flat"
+var end_cap := "flat"
 var fill_enabled := false
 var fill_color := Color(0.8, 0.25, 0.18, 0.55)
 var fill_mode := "solid"
@@ -34,7 +36,7 @@ func _points_equal(a: PackedVector3Array, b: PackedVector3Array) -> bool:
 	return true
 
 func style_dict() -> Dictionary:
-	return {"radius": radius, "color": stroke_color, "fill_enabled": fill_enabled, "fill_color": fill_color, "fill_mode": fill_mode, "fill_color_b": fill_color_b, "fill_gradient_angle": fill_gradient_angle, "brush_preset": brush_preset, "width_variation": width_variation, "width_frequency": width_frequency, "brush_seed": brush_seed}
+	return {"radius": radius, "color": stroke_color, "fill_enabled": fill_enabled, "fill_color": fill_color, "fill_mode": fill_mode, "fill_color_b": fill_color_b, "fill_gradient_angle": fill_gradient_angle, "brush_preset": brush_preset, "width_variation": width_variation, "width_frequency": width_frequency, "brush_seed": brush_seed, "start_cap": start_cap, "end_cap": end_cap}
 
 func add_point(p: Vector3) -> void:
 	if not points.is_empty() and points[-1].distance_to(p) < 0.006:
@@ -196,20 +198,29 @@ func _build_line_surface(result: ArrayMesh) -> void:
 			var r11: Vector3 = ring_side[i + 1] * cos(a1) * radius_b + ring_up[i + 1] * sin(a1) * radius_b
 			_tri(st, curve_points[i] + r00, curve_points[i + 1] + r10, curve_points[i + 1] + r11)
 			_tri(st, curve_points[i] + r00, curve_points[i + 1] + r11, curve_points[i] + r01)
-	# Flat caps prevent open ends without adding disconnected end geometry.
 	var start_center := curve_points[0]
 	var end_center := curve_points[-1]
+	var start_radius := _radius_at(0, curve_points.size())
+	var end_radius := _radius_at(curve_points.size() - 1, curve_points.size())
+	var start_tip := start_center - tangents[0] * start_radius * (1.8 if start_cap == "point" else 0.65)
+	var end_tip := end_center + tangents[-1] * end_radius * (1.8 if end_cap == "point" else 0.65)
 	for j in range(sides):
 		var a0 := TAU * float(j) / float(sides)
 		var a1 := TAU * float(j + 1) / float(sides)
-		var start_radius := _radius_at(0, curve_points.size())
-		var end_radius := _radius_at(curve_points.size() - 1, curve_points.size())
 		var s0: Vector3 = ring_side[0] * cos(a0) * start_radius + ring_up[0] * sin(a0) * start_radius
 		var s1: Vector3 = ring_side[0] * cos(a1) * start_radius + ring_up[0] * sin(a1) * start_radius
 		var e0: Vector3 = ring_side[-1] * cos(a0) * end_radius + ring_up[-1] * sin(a0) * end_radius
 		var e1: Vector3 = ring_side[-1] * cos(a1) * end_radius + ring_up[-1] * sin(a1) * end_radius
-		_tri(st, start_center, start_center + s1, start_center + s0)
-		_tri(st, end_center, end_center + e0, end_center + e1)
+		var sc := start_tip if start_cap == "point" else start_center
+		var ec := end_tip if end_cap == "point" else end_center
+		_tri(st, sc, start_center + s1, start_center + s0)
+		_tri(st, ec, end_center + e0, end_center + e1)
+		if start_cap == "round":
+			var half := start_center - tangents[0] * start_radius * 0.55
+			_tri(st, half, start_center + s1, start_center + s0)
+		if end_cap == "round":
+			var half_end := end_center + tangents[-1] * end_radius * 0.55
+			_tri(st, half_end, end_center + e0, end_center + e1)
 	st.commit(result)
 	result.surface_set_material(result.get_surface_count() - 1, _base_material(stroke_color))
 
