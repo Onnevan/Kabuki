@@ -1309,6 +1309,10 @@ func _lock_drawing_view_to_canvas() -> void:
 		var normal: Vector3 = view_basis.z.normalized()
 		camera.global_transform = Transform3D(view_basis,active_drawing_group.global_position+normal*distance)
 		camera.look_at(active_drawing_group.global_position,view_basis.y.normalized())
+		# In orthographic mode camera distance does not define framing. Match the
+		# ReferenceCanvas height explicitly so screen-space drawing coordinates map
+		# 1:1 onto its local XY plane instead of inheriting an arbitrary ortho size.
+		camera.size = active_drawing_group.guide_size.y
 		# Let the rig adopt this exact camera transform so pan/zoom continue from it.
 		camera_rig.align_transform(camera.global_transform)
 	_capture_projection_view()
