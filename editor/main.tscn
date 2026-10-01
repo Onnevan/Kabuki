@@ -370,42 +370,42 @@ unique_name_in_owner=true
 icon=ExtResource("21")
 tooltip_text="Lasso fill"
 
-[node name="LassoFillMode" type="OptionButton" parent="DrawingBar"]
+[node name="LassoFillMode" type="OptionButton" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 visible=false
 custom_minimum_size=Vector2(92,0)
 tooltip_text="Lasso fill: solid or vertical gradient"
 
-[node name="LassoColorALabel" type="Label" parent="DrawingBar"]
+[node name="LassoColorALabel" type="Label" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 visible=false
 text="A"
 
-[node name="LassoColorA" type="ColorPickerButton" parent="DrawingBar"]
+[node name="LassoColorA" type="ColorPickerButton" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 visible=false
 custom_minimum_size=Vector2(34,0)
 color=Color(0.08,0.08,0.08,1)
 tooltip_text="Lasso fill color A"
 
-[node name="LassoColorBLabel" type="Label" parent="DrawingBar"]
+[node name="LassoColorBLabel" type="Label" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 visible=false
 text="B"
 
-[node name="LassoColorB" type="ColorPickerButton" parent="DrawingBar"]
+[node name="LassoColorB" type="ColorPickerButton" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 visible=false
 custom_minimum_size=Vector2(34,0)
 color=Color(0.92,0.92,0.92,1)
 tooltip_text="Gradient color B"
 
-[node name="LassoAngleLabel" type="Label" parent="DrawingBar"]
+[node name="LassoAngleLabel" type="Label" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 visible=false
 text="ANGLE"
 
-[node name="LassoGradientAngle" type="SpinBox" parent="DrawingBar"]
+[node name="LassoGradientAngle" type="SpinBox" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 visible=false
 custom_minimum_size=Vector2(72,0)
@@ -446,18 +446,18 @@ custom_minimum_size=Vector2(50,50)
 unique_name_in_owner=true
 icon=ExtResource("24")
 tooltip_text="Flood fill"
-[node name="BitmapClear" type="Button" parent="DrawingBar"]
+[node name="BitmapClear" type="Button" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 text="Clear"
 tooltip_text="Clear current bitmap"
-[node name="BitmapCommit" type="Button" parent="DrawingBar"]
+[node name="BitmapCommit" type="Button" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 icon=ExtResource("40")
 tooltip_text="Commit bitmap to active reference canvas"
-[node name="SculptMode" type="OptionButton" parent="DrawingBar"]
+[node name="SculptMode" type="OptionButton" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 tooltip_text="Sculpt subtool: Push, Move, Pinch, Smooth or Inflate"
-[node name="SculptStrength" type="HSlider" parent="DrawingBar"]
+[node name="SculptStrength" type="HSlider" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 custom_minimum_size=Vector2(90,0)
 min_value=-0.08
@@ -465,17 +465,17 @@ max_value=0.08
 step=0.002
 value=0.025
 tooltip_text="Depth sculpt strength. Negative values pull toward the camera."
-[node name="BrushSize" type="HSlider" parent="DrawingBar"]
+[node name="BrushSize" type="HSlider" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 custom_minimum_size=Vector2(150,0)
 min_value=1.0
 max_value=50.0
 value=10.0
-[node name="BrushPreset" type="OptionButton" parent="DrawingBar"]
+[node name="BrushPreset" type="OptionButton" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 custom_minimum_size=Vector2(95,0)
 tooltip_text="Brush preset"
-[node name="BrushOpacity" type="HSlider" parent="DrawingBar"]
+[node name="BrushOpacity" type="HSlider" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 custom_minimum_size=Vector2(70,0)
 min_value=0.05
@@ -483,7 +483,7 @@ max_value=1.0
 step=0.05
 value=1.0
 tooltip_text="Opacity"
-[node name="BrushHardness" type="HSlider" parent="DrawingBar"]
+[node name="BrushHardness" type="HSlider" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 custom_minimum_size=Vector2(70,0)
 min_value=0.0
@@ -492,32 +492,32 @@ step=0.05
 value=0.78
 tooltip_text="Hardness"
 
-[node name="LineColorLabel" type="Label" parent="DrawingBar"]
+[node name="LineColorLabel" type="Label" parent="DrawingContextSurface/DrawingBar"]
 text="LINE"
-[node name="BrushColor" type="ColorPickerButton" parent="DrawingBar"]
+[node name="BrushColor" type="ColorPickerButton" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 custom_minimum_size=Vector2(32,32)
 color=Color(0.08,0.08,0.08,1)
 tooltip_text="Line color"
-[node name="Fill" type="CheckButton" parent="DrawingBar"]
+[node name="Fill" type="CheckButton" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 text="FILL"
-[node name="FillMode" type="OptionButton" parent="DrawingBar"]
+[node name="FillMode" type="OptionButton" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 custom_minimum_size=Vector2(86,0)
 tooltip_text="Fill type"
-[node name="FillColor" type="ColorPickerButton" parent="DrawingBar"]
+[node name="FillColor" type="ColorPickerButton" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 custom_minimum_size=Vector2(32,32)
 color=Color(0.8,0.25,0.18,0.55)
 tooltip_text="Fill color A"
-[node name="FillColorB" type="ColorPickerButton" parent="DrawingBar"]
+[node name="FillColorB" type="ColorPickerButton" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 visible=false
 custom_minimum_size=Vector2(32,32)
 color=Color(0.95,0.75,0.2,0.55)
 tooltip_text="Gradient color B"
-[node name="GradientPreview" type="TextureRect" parent="DrawingBar"]
+[node name="GradientPreview" type="TextureRect" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 visible=false
 custom_minimum_size=Vector2(96,32)
@@ -525,7 +525,7 @@ expand_mode=1
 stretch_mode=5
 mouse_filter=2
 tooltip_text="Gradient preview"
-[node name="FillGradientAngle" type="SpinBox" parent="DrawingBar"]
+[node name="FillGradientAngle" type="SpinBox" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 visible=false
 custom_minimum_size=Vector2(72,0)
@@ -534,9 +534,9 @@ max_value=180.0
 step=1.0
 suffix="°"
 tooltip_text="Gradient angle"
-[node name="ActiveColorLabel" type="Label" parent="DrawingBar"]
+[node name="ActiveColorLabel" type="Label" parent="DrawingContextSurface/DrawingBar"]
 text="COLOR"
-[node name="ActiveColor" type="ColorPickerButton" parent="DrawingBar"]
+[node name="ActiveColor" type="ColorPickerButton" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 custom_minimum_size=Vector2(32,32)
 color=Color(0.08,0.08,0.08,1)
@@ -568,13 +568,13 @@ mouse_filter=2
 clip_contents=true
 visible=false
 
-[node name="NewDrawing" type="Button" parent="DrawingBar"]
+[node name="NewDrawing" type="Button" parent="DrawingContextSurface/DrawingBar"]
 visible=false
 text="NEW DRAWING"
-[node name="ClearDrawing" type="Button" parent="DrawingBar"]
+[node name="ClearDrawing" type="Button" parent="DrawingContextSurface/DrawingBar"]
 visible=false
 text="CLEAR"
-[node name="FinishBitmap" type="Button" parent="DrawingBar"]
+[node name="FinishBitmap" type="Button" parent="DrawingContextSurface/DrawingBar"]
 visible=false
 text="FINISH BITMAP"
 
