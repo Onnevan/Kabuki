@@ -72,7 +72,7 @@ theme_override_font_sizes/font_size=16
 vertical_alignment=1
 [node name="WorkspaceTabs" type="TabBar" parent="TopBar"]
 unique_name_in_owner=true
-custom_minimum_size=Vector2(480,40)
+custom_minimum_size=Vector2(610,40)
 [node name="EditorTitle" type="Label" parent="TopBar"]
 unique_name_in_owner=true
 text="SCENE EDITOR"
