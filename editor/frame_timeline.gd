@@ -402,7 +402,6 @@ func _update_curve_minimum_height()->void:
 	for state in expanded:
 		if state:expanded_count+=1
 	custom_minimum_size.y=170.0+float(expanded_count)*(curve_height+18.0)
-	minimum_size_changed()
 
 func _duplicate_selected()->void:
 	if selected_keys.is_empty():return
