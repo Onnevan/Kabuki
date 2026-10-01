@@ -233,9 +233,60 @@ func _curve_bounce_out(t: float) -> float:
 	t-=2.625/d1
 	return n1*t*t+0.984375
 
+func _bezier_segment_t(t: float,a: Dictionary,b: Dictionary) -> float:
+	var hr: Vector2 = a.get("bezier_right",Vector2(0.333,0.333))
+	var hl: Vector2 = b.get("bezier_left",Vector2(-0.333,-0.333))
+	var p1 := Vector2(clampf(hr.x,0.001,0.999),hr.y)
+	var p2 := Vector2(clampf(1.0+hl.x,0.001,0.999),1.0+hl.y)
+	var lo_u := 0.0
+	var hi_u := 1.0
+	var u := t
+	for _i in range(12):
+		u=(lo_u+hi_u)*0.5
+		var omt:=1.0-u
+		var x:=3.0*omt*omt*u*p1.x+3.0*omt*u*u*p2.x+u*u*u
+		if x<t: lo_u=u
+		else: hi_u=u
+	var omt_y:=1.0-u
+	return 3.0*omt_y*omt_y*u*p1.y+3.0*omt_y*u*u*p2.y+u*u*u
+
+func _curve_y(value: float,lo: float,span: float,top: float) -> float:
+	var plot_h: float = maxf(18.0,curve_height-18.0)
+	var bottom: float = top+curve_height-8.0
+	return bottom-(value-lo)/span*plot_h
+
+func _draw_bezier_handles(row: int,component: int,ks: Array,lo: float,span: float,top: float,color: Color) -> void:
+	if selected_key_path != channel_paths[row] or selected_key_frame < 0: return
+	var index := -1
+	for i in range(ks.size()):
+		if int(ks[i].frame)==selected_key_frame:
+			index=i
+			break
+	if index<0: return
+	var key: Dictionary = ks[index]
+	var kx:=frame_to_x(float(key.frame))
+	var kv:=_component(key.value,component)
+	var ky:=_curve_y(kv,lo,span,top)
+	if index<ks.size()-1 and String(key.interpolation)=="bezier":
+		var next: Dictionary=ks[index+1]
+		var hr: Vector2=key.get("bezier_right",Vector2(0.333,0.333))
+		var nx:=frame_to_x(float(next.frame))
+		var nv:=_component(next.value,component)
+		var hp:=Vector2(kx+(nx-kx)*hr.x,_curve_y(kv+(nv-kv)*hr.y,lo,span,top))
+		draw_line(Vector2(kx,ky),hp,color,1.0)
+		draw_circle(hp,4.0,color)
+	if index>0 and String(ks[index-1].interpolation)=="bezier":
+		var prev: Dictionary=ks[index-1]
+		var hl: Vector2=key.get("bezier_left",Vector2(-0.333,-0.333))
+		var px:=frame_to_x(float(prev.frame))
+		var pv:=_component(prev.value,component)
+		var hp_left:=Vector2(kx+(kx-px)*hl.x,_curve_y(kv+(kv-pv)*hl.y,lo,span,top))
+		draw_line(Vector2(kx,ky),hp_left,color,1.0)
+		draw_circle(hp_left,4.0,color)
+
 func _draw_curve(row:int,top:float,step:float)->void:
 	var ks:=_keys(channel_paths[row])
-	draw_rect(Rect2(LANE_X,top,size.x-LANE_X,54),Color("#080E14"))
+	draw_rect(Rect2(LANE_X,top,size.x-LANE_X,curve_height),Color("#080E14"))
 	if ks.is_empty(): return
 	var component_colors: Array[Color] = [Color("#ff6257"),Color("#63d17a"),Color("#4a9cff")]
 	for component in range(3):
@@ -246,29 +297,24 @@ func _draw_curve(row:int,top:float,step:float)->void:
 		var span:float=maxf(0.001,hi-lo)
 		var pts:=PackedVector2Array()
 		if ks.size()==1:
-			var sx:float=frame_to_x(float(ks[0].frame))
-			var sy:float=top+44.0-(values[0]-lo)/span*36.0
-			pts.append(Vector2(sx,sy))
+			pts.append(Vector2(frame_to_x(float(ks[0].frame)),_curve_y(values[0],lo,span,top)))
 		else:
 			for seg in range(ks.size()-1):
-				var a=ks[seg]
-				var b=ks[seg+1]
-				var samples:int=maxi(2,int(b.frame)-int(a.frame))
+				var a: Dictionary=ks[seg]
+				var b: Dictionary=ks[seg+1]
+				var samples:int=maxi(8,(int(b.frame)-int(a.frame))*3)
 				for sample in range(samples+1):
 					if seg>0 and sample==0: continue
 					var t:float=float(sample)/float(samples)
-					var eased:float=_curve_t(t,String(a.interpolation))
+					var eased:float=_bezier_segment_t(t,a,b) if String(a.interpolation)=="bezier" else _curve_t(t,String(a.interpolation))
 					var frame_f:float=lerpf(float(a.frame),float(b.frame),t)
 					var value_f:float=lerpf(_component(a.value,component),_component(b.value,component),eased)
-					var x:float=frame_to_x(frame_f)
-					var yy:float=top+44.0-(value_f-lo)/span*36.0
-					pts.append(Vector2(x,yy))
+					pts.append(Vector2(frame_to_x(frame_f),_curve_y(value_f,lo,span,top)))
 		if pts.size()>1: draw_polyline(pts,component_colors[component],1.5,true)
 		for k in ks:
-			var kx:float=frame_to_x(float(k.frame))
-			var ky:float=top+44.0-(_component(k.value,component)-lo)/span*36.0
-			draw_circle(Vector2(kx,ky),2.5,component_colors[component])
-	draw_string(get_theme_default_font(),Vector2(16,top+34),"X   Y   Z   · F-Curve",HORIZONTAL_ALIGNMENT_LEFT,-1,11,Color("#8291a3"))
+			draw_circle(Vector2(frame_to_x(float(k.frame)),_curve_y(_component(k.value,component),lo,span,top)),2.5,component_colors[component])
+		_draw_bezier_handles(row,component,ks,lo,span,top,component_colors[component])
+	draw_string(get_theme_default_font(),Vector2(16,top+curve_height-12.0),"X   Y   Z   · F-Curve",HORIZONTAL_ALIGNMENT_LEFT,-1,11,Color("#8291a3"))
 
 func _frame_from_x(x:float)->int:
 	return clampi(roundi(x_to_frame(x)),0,frame_count)
