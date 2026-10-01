@@ -100,7 +100,7 @@ func _ready() -> void:
 	timeline.frame_requested.connect(_on_timeline_frame_requested)
 	for label in ["Constant", "Linear", "Bezier", "Quadratic In", "Quadratic Out", "Quadratic In-Out", "Cubic In-Out", "Back", "Bounce", "Elastic"]:
 		interpolation.add_item(label)
-	interpolation.select(1)
+	interpolation.select(2)
 	_setup_shading_menu()
 	_setup_viewport_controls()
 	_setup_add_object_menu()
