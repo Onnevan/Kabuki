@@ -1853,32 +1853,13 @@ func _on_reset_filters_pressed() -> void:
 	%Blur.value=0.0; %Glow.value=0.0; %GlowThreshold.value=0.7; %GlowRadius.value=3.0; %Exposure.value=0.0; %Saturation.value=1.0
 	_on_filter_changed(0.0)
 
-func _workspace_buttons() -> Array[Button]:
-	var container: HBoxContainer = get_node("TopBar/WorkspaceTabs") as HBoxContainer
-	var buttons: Array[Button] = []
-	if container == null: return buttons
-	for node_name in ["SceneWorkspace","AnimationWorkspace","DrawingWorkspace","RiggingWorkspace","CompositorWorkspace"]:
-		var button: Button = container.get_node_or_null(node_name) as Button
-		if button != null:
-			buttons.append(button)
-	return buttons
-
 func _setup_workspace_tabs() -> void:
-	var buttons: Array[Button] = _workspace_buttons()
-	for i in range(buttons.size()):
-		var button: Button = buttons[i]
-		button.toggle_mode = true
-		button.icon = load([
-			"res://assets/icons/lucide/grid-3x3-nav.svg",
-			"res://assets/icons/lucide/play-nav.svg",
-			"res://assets/icons/lucide/pencil-nav.svg",
-			"res://assets/icons/lucide/move-nav.svg",
-			"res://assets/icons/lucide/blend-nav.svg"
-		][i]) as Texture2D
-		button.icon_max_width = 18
-		button.expand_icon = false
-		button.pressed.connect(func(): _on_workspace_tab_changed(i))
-		button.set_pressed_no_signal(i == 0)
+	while %WorkspaceTabs.tab_count > 0:
+		%WorkspaceTabs.remove_tab(0)
+	for label in ["SCENE", "ANIMATION", "DRAWING", "RIGGING", "COMPOSITOR"]:
+		%WorkspaceTabs.add_tab(label)
+	%WorkspaceTabs.current_tab = 0
+	%WorkspaceTabs.tab_changed.connect(_on_workspace_tab_changed)
 
 func _setup_rigging_workspace() -> void:
 	%PickRigParent.pressed.connect(_on_pick_rig_parent)
@@ -2247,9 +2228,6 @@ func _on_drawing_cel_menu(id: int) -> void:
 		4: _on_drawing_morph_cel()
 
 func _on_workspace_tab_changed(tab: int) -> void:
-	var workspace_buttons: Array[Button] = _workspace_buttons()
-	for i in range(workspace_buttons.size()):
-		workspace_buttons[i].set_pressed_no_signal(i == tab)
 	var next_workspace: String = ["scene","animation","drawing","rigging","compositor"][tab]
 	# Workspaces may have different overlays/panel geometry, but changing editor
 	# must never silently change the user's 3D view.
