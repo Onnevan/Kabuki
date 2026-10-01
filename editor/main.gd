@@ -2404,19 +2404,15 @@ func _commit_bitmap_to_canvas(target_canvas: ReferenceCanvas, canvas_id: String,
 	var runtime := RuntimeObject.new()
 	target_canvas.add_child(runtime)
 	_register_scene_object(obj,runtime)
-	var local_corners := PackedVector3Array()
-	var viewport_rect: Rect2 = %ViewportContainer.get_global_rect()
-	var canvas_rect: Rect2 = %DrawingCanvas.get_global_rect()
-	var global_corners: Array[Vector2] = [
-		canvas_rect.position,
-		Vector2(canvas_rect.end.x, canvas_rect.position.y),
-		canvas_rect.end,
-		Vector2(canvas_rect.position.x, canvas_rect.end.y)
-	]
-	for global_corner in global_corners:
-		var viewport_corner: Vector2 = global_corner - viewport_rect.position
-		var world_corner: Vector3 = _ray_to_drawing_plane(viewport_corner, target_canvas)
-		local_corners.append(target_canvas.to_local(world_corner))
+	# Bitmap painting fills the ReferenceCanvas itself. Do not derive its corners
+	# from Control/global screen coordinates: UI chrome and viewport offsets make
+	# that projection differ from the vector stroke camera coordinates.
+	var hx: float = target_canvas.guide_size.x * 0.5
+	var hy: float = target_canvas.guide_size.y * 0.5
+	var local_corners := PackedVector3Array([
+		Vector3(-hx,-hy,0), Vector3(hx,-hy,0),
+		Vector3(hx,hy,0), Vector3(-hx,hy,0)
+	])
 	runtime.setup_bitmap(obj, image, local_corners, int(%TessellationSamples.value))
 	runtime_objects.append(runtime)
 
@@ -2517,11 +2513,25 @@ func _on_plane_delete() -> void:
 
 func _delete_reference_canvas(plane: ReferenceCanvas) -> void:
 	var id := _reference_canvas_id(plane)
-	# Remove runtime children from global pick/render registries before freeing.
+	# Remove runtime children and their logical MotionObjects before freeing the
+	# canvas. Otherwise the Outliner keeps orphan Bitmap/VectorDrawing entries
+	# whose scene_nodes point to nodes that have already been freed.
+	var child_object_ids: Array[String] = []
+	if not id.is_empty():
+		for object_id_value in ProjectStore.objects.keys():
+			var object_id: String = String(object_id_value)
+			var child_model: MotionObject = ProjectStore.objects[object_id]
+			if child_model != null and child_model.parent_id == id:
+				child_object_ids.append(object_id)
 	for child in plane.get_children():
 		if child is RuntimeObject:
 			runtime_objects.erase(child as RuntimeObject)
+	for child_id in child_object_ids:
+		scene_nodes.erase(child_id)
+		ProjectStore.objects.erase(child_id)
 	if not id.is_empty():
+		static_bitmap_runtime.erase(id)
+		drawing_content_layers.erase(id)
 		ProjectStore.objects.erase(id)
 		scene_nodes.erase(id)
 		drawing_controller.unregister_canvas(id, plane)
