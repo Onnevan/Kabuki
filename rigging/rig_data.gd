@@ -4,6 +4,7 @@ extends RefCounted
 var id: String = ""
 var bones: Array[Dictionary] = []
 var bindings: Dictionary = {} # object id -> {bone_weights:Array, auto_bound:bool}
+var ik_constraints: Dictionary = {} # end bone index -> {chain_length:int, influence:float, target:Vector3}
 
 func _init(rig_id: String = "") -> void:
 	id = rig_id
@@ -13,4 +14,4 @@ func add_bone(name: String, parent_index: int = -1, rest: Transform3D = Transfor
 	return bones.size() - 1
 
 func to_dict() -> Dictionary:
-	return {"id": id, "bones": bones.duplicate(true), "bindings": bindings.duplicate(true)}
+	return {"id": id, "bones": bones.duplicate(true), "bindings": bindings.duplicate(true), "ik_constraints": ik_constraints.duplicate(true)}
