@@ -73,6 +73,9 @@ vertical_alignment=1
 [node name="WorkspaceTabs" type="TabBar" parent="TopBar"]
 unique_name_in_owner=true
 custom_minimum_size=Vector2(610,40)
+size_flags_vertical=4
+clip_tabs=false
+
 [node name="EditorTitle" type="Label" parent="TopBar"]
 unique_name_in_owner=true
 text="SCENE EDITOR"
