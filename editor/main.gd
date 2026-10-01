@@ -3114,7 +3114,7 @@ func _responsive_layout() -> void:
 	%DrawingContextSurface.size=Vector2(hud_w,58.0)
 	if %StrokePresetSurface.visible:
 		# Flyout belongs spatially to the vector pencil: immediately to its right.
-		var rail_size := %DrawingToolSurface.size
+		var rail_size: Vector2 = %DrawingToolSurface.size
 		%StrokePresetSurface.position=%DrawingToolSurface.position+Vector2(rail_size.x+8.0,0.0)
 	%DrawingBar.position=Vector2(14.0,9.0)
 	%DrawingBar.size=Vector2(hud_w-28.0,40.0)
