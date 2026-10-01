@@ -3113,9 +3113,11 @@ func _responsive_layout() -> void:
 	%DrawingContextSurface.position=%ViewportFrame.position+Vector2(104.0,20.0)
 	%DrawingContextSurface.size=Vector2(hud_w,58.0)
 	if %StrokePresetSurface.visible:
-		# Flyout belongs spatially to the vector pencil: immediately to its right.
-		var rail_size: Vector2 = %DrawingToolSurface.size
-		%StrokePresetSurface.position=%DrawingToolSurface.position+Vector2(rail_size.x+8.0,0.0)
+		# Anchor the flyout to the actual vector-pencil button, not to the rail.
+		# This keeps it beside the tool instead of overlapping the top context bar.
+		var tool_rect: Rect2 = %StrokeTool.get_global_rect()
+		var root_origin: Vector2 = global_position
+		%StrokePresetSurface.position=Vector2(tool_rect.end.x+8.0,tool_rect.position.y)-root_origin
 	%DrawingBar.position=Vector2(14.0,9.0)
 	%DrawingBar.size=Vector2(hud_w-28.0,40.0)
 	# Plane controls share the Drawing HUD row but anchor independently to the
