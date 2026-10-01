@@ -1023,6 +1023,17 @@ func _navigate_pan(delta: Vector2) -> void:
 	_commit_camera_view_navigation()
 
 func _navigate_zoom(amount: float) -> void:
+	if workspace == "drawing" and camera.projection == Camera3D.PROJECTION_ORTHOGONAL:
+		# Orthographic cameras do not zoom by changing distance. Adjust the
+		# orthographic view height so artwork, bitmap and canvas scale together.
+		var factor: float = 0.88 if amount < 0.0 else 1.0 / 0.88
+		var min_size: float = 0.05
+		var max_size: float = 200.0
+		if active_drawing_group != null and is_instance_valid(active_drawing_group):
+			min_size = maxf(0.05,active_drawing_group.guide_size.y * 0.02)
+			max_size = maxf(active_drawing_group.guide_size.y * 20.0,2.0)
+		camera.size = clampf(camera.size * factor,min_size,max_size)
+		return
 	camera_rig.zoom(amount)
 	_commit_camera_view_navigation()
 
