@@ -1766,7 +1766,7 @@ func _on_next_pressed() -> void:
 func _on_play_pressed() -> void:
 	playing = not playing
 	%PlayButton.text = ""
-	%PlayButton.icon = load("res://assets/icons/lucide/pause.svg") if playing else load("res://assets/icons/lucide/play.svg")
+	%PlayButton.icon = load("res://assets/icons/lucide/pause.svg") if playing else load("res://assets/icons/lucide/play-nav.svg")
 func _on_key_pressed() -> void:
 	if workspace == "drawing":
 		_key_active_flipbook_cel()
@@ -2229,11 +2229,11 @@ func _on_drawing_cel_menu(id: int) -> void:
 
 func _setup_workspace_tab_icons() -> void:
 	var icon_paths: Array[String] = [
-		"res://assets/icons/lucide/grid-3x3.svg",
+		"res://assets/icons/lucide/grid-3x3-nav.svg",
 		"res://assets/icons/lucide/play.svg",
-		"res://assets/icons/lucide/pencil.svg",
-		"res://assets/icons/lucide/move.svg",
-		"res://assets/icons/lucide/blend.svg"
+		"res://assets/icons/lucide/pencil-nav.svg",
+		"res://assets/icons/lucide/move-nav.svg",
+		"res://assets/icons/lucide/blend-nav.svg"
 	]
 	for i in range(mini(%WorkspaceTabs.tab_count,icon_paths.size())):
 		var icon: Texture2D = load(icon_paths[i]) as Texture2D
