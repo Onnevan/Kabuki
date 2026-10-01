@@ -1546,7 +1546,9 @@ func _on_next_pressed() -> void:
 			data.set_local_frame(data.local_frame+1); %DrawingCanvas.set_local_frame(data.local_frame); _sync_local_clip_ui(); _apply_drawing_frame(ProjectStore.current_frame); return
 	ProjectStore.set_frame(ProjectStore.current_frame + 1)
 func _on_play_pressed() -> void:
-	playing = not playing; %PlayButton.text = "❚❚" if playing else "▶"
+	playing = not playing
+	%PlayButton.text = ""
+	%PlayButton.icon = load("res://assets/icons/lucide/pause.svg") if playing else load("res://assets/icons/lucide/play.svg")
 func _on_key_pressed() -> void:
 	if workspace == "drawing":
 		_key_active_flipbook_cel()
