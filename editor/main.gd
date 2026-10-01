@@ -2408,6 +2408,11 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	if workspace == "drawing":
 		_sync_local_clip_ui()
 	else:
+		# Restore both the global timeline model AND its controls. Local clip
+		# widgets must never leak their duration/range into Scene.
+		%TimelineDuration.set_value_no_signal(ProjectStore.duration_frames)
+		%PlaybackStart.set_value_no_signal(ProjectStore.playback_start)
+		%PlaybackEnd.set_value_no_signal(ProjectStore.playback_end)
 		timeline.set_timeline_range(ProjectStore.duration_frames,ProjectStore.playback_start,ProjectStore.playback_end)
 		timeline.set_frame(ProjectStore.current_frame)
 		timeline.set_drawing_exposures([])
