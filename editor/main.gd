@@ -115,6 +115,8 @@ func _ready() -> void:
 	_setup_drawing_palette()
 	_setup_color_swatches()
 	_refresh_gradient_preview()
+	%DrawingBar.move_child(%BrushColor,%LineColorLabel.get_index()+1)
+	_setup_workspace_tab_icons()
 	theme = KabukiThemeBuilder.build()
 	ProjectStore.frame_changed.connect(_on_frame_changed)
 	ProjectStore.key_changed.connect(timeline.refresh_keys)
@@ -2226,6 +2228,17 @@ func _on_drawing_cel_menu(id: int) -> void:
 		3: _on_drawing_hold_cel()
 		4: _on_drawing_morph_cel()
 
+func _setup_workspace_tab_icons() -> void:
+	var icons: Array[Texture2D] = [
+		load("res://assets/icons/lucide/grid-3x3.svg"),
+		load("res://assets/icons/lucide/play.svg"),
+		load("res://assets/icons/lucide/pencil.svg"),
+		load("res://assets/icons/lucide/move.svg"),
+		load("res://assets/icons/lucide/blend.svg")
+	]
+	for i in range(mini(%WorkspaceTabs.tab_count,icons.size())):
+		%WorkspaceTabs.set_tab_icon(i,icons[i])
+
 func _on_workspace_tab_changed(tab: int) -> void:
 	var next_workspace: String = ["scene","animation","drawing","rigging","compositor"][tab]
 	# Workspaces may have different overlays/panel geometry, but changing editor
@@ -2924,6 +2937,9 @@ func _responsive_layout() -> void:
 	var right_w: float=clampf(w*0.19,290.0,380.0)
 	var center_left: float=outer+left_w+gap
 	var center_right: float=w-outer-right_w-gap
+
+	%TopBar.position=Vector2(outer,10.0)
+	%TopBar.size=Vector2(w-outer*2.0,46.0)
 
 	%LeftPanel.position=Vector2(outer,content_top)
 	%LeftPanel.size=Vector2(left_w,content_h)
