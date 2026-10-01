@@ -352,7 +352,12 @@ func get_selected_interpolation() -> String:
 	return ""
 
 func set_selected_interpolation(name:String)->void:
-	if selected_key_frame>=0 and not selected_key_path.is_empty():
-		ProjectStore.set_key_interpolation(object_id,selected_key_path,selected_key_frame,name)
-		key_selected.emit(selected_key_path, selected_key_frame, name)
+	if selected_keys.is_empty(): return
+	for ref in selected_keys:
+		ProjectStore.set_key_interpolation(object_id,String(ref.path),int(ref.frame),name)
+	var last: Dictionary = selected_keys[selected_keys.size()-1]
+	selected_key_path = String(last.path)
+	selected_key_frame = int(last.frame)
+	key_selected.emit(selected_key_path,selected_key_frame,name)
+	queue_redraw()
 		queue_redraw()
