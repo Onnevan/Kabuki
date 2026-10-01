@@ -629,13 +629,16 @@ func _on_save_project_pressed() -> void:
 	status.text = "Project saved · " + path.get_file()
 
 func _on_load_project_pressed() -> void:
-	var path := current_project_path
-	if path.is_empty(): path = "user://kabuki_project.kabuki"
+	%ProjectFileDialog.popup_centered_ratio(0.72)
+
+func _on_project_file_selected(path: String) -> void:
 	if not FileAccess.file_exists(path):
-		status.text = "No saved project yet"
+		status.text = "Project file not found"
 		return
 	var file := FileAccess.open(path, FileAccess.READ)
-	if file == null: return
+	if file == null:
+		status.text = "Could not open project"
+		return
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	if not parsed is Dictionary:
 		status.text = "Invalid KABUKI project"
