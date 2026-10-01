@@ -33,7 +33,7 @@ func set_key(object_id: String, property_path: String, frame: int, value: Varian
 	for k in arr:
 		if k.frame == frame:
 			k.value = value; k.interpolation = interpolation; key_changed.emit(object_id, property_path, frame); project_changed.emit(); return
-	arr.append({"frame": frame, "value": value, "interpolation": interpolation})
+	arr.append({"frame": frame, "value": value, "interpolation": interpolation, "bezier_left": Vector2(-0.333,-0.333), "bezier_right": Vector2(0.333,0.333)})
 	arr.sort_custom(func(a, b): return a.frame < b.frame)
 	key_changed.emit(object_id, property_path, frame)
 	project_changed.emit()
@@ -60,8 +60,40 @@ func evaluate(object_id: String, property_path: String, frame: int, fallback: Va
 	elif int(left.frame) >= frame: right = left
 	if left.frame == right.frame or left.interpolation == "hold": return left.value
 	var t: float = float(frame - left.frame) / float(right.frame - left.frame)
-	t = _apply_interpolation(t, String(left.interpolation))
+	if String(left.interpolation) == "bezier":
+		t = _apply_bezier_handles(t,left,right)
+	else:
+		t = _apply_interpolation(t, String(left.interpolation))
 	return _lerp_variant(left.value, right.value, t)
+
+func _apply_bezier_handles(t: float, left: Dictionary, right: Dictionary) -> float:
+	var hr: Vector2 = left.get("bezier_right",Vector2(0.333,0.333))
+	var hl: Vector2 = right.get("bezier_left",Vector2(-0.333,-0.333))
+	var p1 := Vector2(clampf(hr.x,0.001,0.999),hr.y)
+	var p2 := Vector2(clampf(1.0+hl.x,0.001,0.999),1.0+hl.y)
+	var lo := 0.0
+	var hi := 1.0
+	var u := t
+	for _i in range(12):
+		u = (lo+hi)*0.5
+		var x := _cubic_bezier_scalar(0.0,p1.x,p2.x,1.0,u)
+		if x < t: lo=u
+		else: hi=u
+	return _cubic_bezier_scalar(0.0,p1.y,p2.y,1.0,u)
+
+func _cubic_bezier_scalar(a: float,b: float,c: float,d: float,t: float) -> float:
+	var omt := 1.0-t
+	return omt*omt*omt*a + 3.0*omt*omt*t*b + 3.0*omt*t*t*c + t*t*t*d
+
+func set_key_bezier_handles(object_id: String, property_path: String, frame: int, left_handle: Vector2, right_handle: Vector2) -> void:
+	var arr: Array = channels.get(channel_key(object_id,property_path),[])
+	for k in arr:
+		if int(k.frame) == frame:
+			k["bezier_left"] = left_handle
+			k["bezier_right"] = right_handle
+			key_changed.emit(object_id,property_path,frame)
+			project_changed.emit()
+			return
 
 func _apply_interpolation(t: float, mode: String) -> float:
 	t = clampf(t, 0.0, 1.0)
@@ -189,11 +221,11 @@ func copy_keys(object_id: String, refs: Array) -> Array:
 				var property_path := String(key).trim_prefix(prefix)
 				for k in channels[key]:
 					if int(k.frame) == frame:
-						result.append({"path":property_path,"frame":frame,"value":k.value,"interpolation":k.interpolation})
+						result.append({"path":property_path,"frame":frame,"value":k.value,"interpolation":k.interpolation,"bezier_left":k.get("bezier_left",Vector2(-0.333,-0.333)),"bezier_right":k.get("bezier_right",Vector2(0.333,0.333))})
 		else:
 			for k in get_keys(object_id,path):
 				if int(k.frame) == frame:
-					result.append({"path":path,"frame":frame,"value":k.value,"interpolation":k.interpolation})
+					result.append({"path":path,"frame":frame,"value":k.value,"interpolation":k.interpolation,"bezier_left":k.get("bezier_left",Vector2(-0.333,-0.333)),"bezier_right":k.get("bezier_right",Vector2(0.333,0.333))})
 	return result
 
 func paste_keys(object_id: String, copied: Array, target_frame: int) -> void:
@@ -202,7 +234,10 @@ func paste_keys(object_id: String, copied: Array, target_frame: int) -> void:
 	for item in copied: min_frame = mini(min_frame,int(item.frame))
 	for item in copied:
 		var frame := target_frame + int(item.frame) - min_frame
-		set_key(object_id,String(item.path),clampi(frame,0,duration_frames),item.value,String(item.interpolation))
+		var target := clampi(frame,0,duration_frames)
+		set_key(object_id,String(item.path),target,item.value,String(item.interpolation))
+		if String(item.interpolation) == "bezier":
+			set_key_bezier_handles(object_id,String(item.path),target,item.get("bezier_left",Vector2(-0.333,-0.333)),item.get("bezier_right",Vector2(0.333,0.333)))
 
 func set_key_interpolation(object_id: String, property_path: String, frame: int, interpolation: String) -> void:
 	var arr: Array = channels.get(channel_key(object_id, property_path), [])
