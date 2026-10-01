@@ -1972,16 +1972,42 @@ func _on_light_type_selected(index: int) -> void:
 	_show_transform(replacement)
 	status.text = "Light type: " + ["Directional", "Point", "Spot"][index]
 
+func _apply_global_filters() -> void:
+	effects_engine.set_filters({
+		"blur": %Blur.value,
+		"glow_strength": %Glow.value,
+		"glow_threshold": %GlowThreshold.value,
+		"glow_radius": %GlowRadius.value,
+		"exposure": %Exposure.value,
+		"saturation": %Saturation.value,
+		"contrast": %Contrast.value,
+		"temperature": %Temperature.value,
+		"tint": %Tint.value,
+		"vignette": %Vignette.value,
+		"chromatic_aberration": %ChromaticAberration.value,
+		"monochrome": 1.0 if %Monochrome.button_pressed else 0.0
+	})
+
 func _on_filter_changed(_value: float) -> void:
-	effects_engine.set_glow(%Glow.value, %GlowThreshold.value, %GlowRadius.value)
-	if selected == null: return
-	selected.material.set_shader_parameter("blur", %Blur.value)
-	selected.material.set_shader_parameter("exposure", %Exposure.value)
-	selected.material.set_shader_parameter("saturation", %Saturation.value)
+	_apply_global_filters()
+
+func _on_monochrome_toggled(_enabled: bool) -> void:
+	_apply_global_filters()
 
 func _on_reset_filters_pressed() -> void:
-	%Blur.value=0.0; %Glow.value=0.0; %GlowThreshold.value=0.7; %GlowRadius.value=3.0; %Exposure.value=0.0; %Saturation.value=1.0
-	_on_filter_changed(0.0)
+	%Blur.value=0.0
+	%Glow.value=0.0
+	%GlowThreshold.value=0.7
+	%GlowRadius.value=3.0
+	%Exposure.value=0.0
+	%Saturation.value=1.0
+	%Contrast.value=1.0
+	%Temperature.value=0.0
+	%Tint.value=0.0
+	%Vignette.value=0.0
+	%ChromaticAberration.value=0.0
+	%Monochrome.set_pressed_no_signal(false)
+	_apply_global_filters()
 
 func _setup_workspace_tabs() -> void:
 	while %WorkspaceTabs.tab_count > 0:
@@ -3134,6 +3160,31 @@ func _update_preview_mode() -> void:
 	for r in runtime_objects:
 		if r.material:
 			r.material.set_shader_parameter("render_quality", 1.0 if render_preview else 0.0)
+
+	# Render preview is a clean image-only view. Editor aids never belong in it.
+	if render_preview:
+		world_grid.visible = false
+		gizmo.visible = false
+		%ViewGizmo.visible = false
+		%CameraFrame.visible = false
+		%IKGuide.visible = false
+		%GradientGuide.visible = false
+		for reference_canvas in drawing_planes:
+			if is_instance_valid(reference_canvas):
+				reference_canvas.set_guide_visible(false)
+		_set_render_camera_gizmo_visible(false)
+	else:
+		world_grid.visible = %GridToggle.button_pressed
+		gizmo.visible = workspace != "rigging" and workspace != "animation" and selected_scene_node != null
+		%ViewGizmo.visible = workspace != "drawing" and workspace != "animation"
+		for reference_canvas in drawing_planes:
+			if is_instance_valid(reference_canvas):
+				reference_canvas.set_guide_visible(workspace == "scene")
+		if camera_view_active:
+			_update_camera_frame_overlay()
+			_set_render_camera_gizmo_visible(false)
+		else:
+			%CameraFrame.visible = false
 
 func _on_auto_key_toggled(enabled: bool) -> void:
 	%AutoKey.text = "● AUTO" if enabled else "○ AUTO"
