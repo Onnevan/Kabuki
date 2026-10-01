@@ -104,6 +104,7 @@ func _ready() -> void:
 	camera_rig.setup(camera)
 	workspace_camera_states["scene"] = camera_rig.get_state()
 	gizmo.set_mode(active_tool)
+	_sync_transform_tool_buttons()
 	_setup_workspace_tabs()
 	_setup_drawing_menus()
 	_setup_rigging_workspace()
@@ -1199,12 +1200,18 @@ func _restore_projection_view() -> void:
 	camera_rig.align_transform(projection_view_transform)
 	status.text = "Drawing projection view restored"
 
+func _sync_transform_tool_buttons() -> void:
+	%SelectTool.button_pressed = false
+	%MoveTool.button_pressed = active_tool == TransformGizmo.Mode.MOVE
+	%RotateTool.button_pressed = active_tool == TransformGizmo.Mode.ROTATE
+	%ScaleTool.button_pressed = active_tool == TransformGizmo.Mode.SCALE
+
 func _on_tool_move_pressed() -> void:
-	active_tool = TransformGizmo.Mode.MOVE; gizmo.set_mode(active_tool); status.text = "Move tool"
+	active_tool = TransformGizmo.Mode.MOVE; gizmo.set_mode(active_tool); _sync_transform_tool_buttons(); status.text = "Move tool"
 func _on_tool_rotate_pressed() -> void:
-	active_tool = TransformGizmo.Mode.ROTATE; gizmo.set_mode(active_tool); status.text = "Rotate tool"
+	active_tool = TransformGizmo.Mode.ROTATE; gizmo.set_mode(active_tool); _sync_transform_tool_buttons(); status.text = "Rotate tool"
 func _on_tool_scale_pressed() -> void:
-	active_tool = TransformGizmo.Mode.SCALE; gizmo.set_mode(active_tool); status.text = "Scale tool"
+	active_tool = TransformGizmo.Mode.SCALE; gizmo.set_mode(active_tool); _sync_transform_tool_buttons(); status.text = "Scale tool"
 func _on_frame_selected_pressed() -> void:
 	if selected_scene_node: camera_rig.frame_target(selected_scene_node.global_position)
 
@@ -1899,6 +1906,14 @@ func _update_drawing_tool_ui() -> void:
 	# forming one long undifferentiated strip.
 	for control in [%BitmapBrush,%BitmapPencil,%BitmapSmudge,%BitmapLassoFill,%BitmapEraser,%BitmapLine,%BitmapRect,%BitmapEllipse,%BitmapFillTool]:
 		control.visible = bitmap
+	%StrokeTool.button_pressed = drawing_3d_active
+	%BitmapTool.button_pressed = bitmap
+	%EraseTool.button_pressed = drawing_erase_active
+	%SculptTool.button_pressed = drawing_sculpt_active
+	var bitmap_buttons: Array[Button] = [%BitmapBrush,%BitmapPencil,%BitmapEraser,%BitmapLine,%BitmapRect,%BitmapEllipse,%BitmapFillTool,%BitmapSmudge,%BitmapLassoFill]
+	for i in range(bitmap_buttons.size()):
+		bitmap_buttons[i].button_pressed = bitmap and current_tool == i
+
 	# Destructive/action controls belong to context, not the primary tool rail.
 	# Clear is an action, not a drawing tool. Show it only when bitmap editing
 	# has context; keep the rail itself visually consistent.
