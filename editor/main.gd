@@ -2219,6 +2219,13 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	%DrawingAnimBar.visible = workspace == "drawing"
 	%DrawingToolSurface.visible = workspace == "drawing"
 	%DrawingToolRail.visible = workspace == "drawing"
+	# Drawing manipulators are editor overlays, never scene content. Scene and
+	# every other workspace expose only their own gizmos/overlays.
+	var drawing_overlay_visible: bool = workspace == "drawing"
+	%GradientGuide.visible = drawing_overlay_visible and %FillMode.selected == 1
+	if not drawing_overlay_visible:
+		gradient_drag_handle = 0
+	%GradientGuide.queue_redraw()
 	_update_drawing_tool_ui()
 	%DrawingPlanes.visible = workspace == "drawing"
 	%ObjectList.visible = workspace != "drawing"
