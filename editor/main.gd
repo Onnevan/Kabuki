@@ -90,6 +90,16 @@ var render_camera_id := ""
 var camera_view_active := false
 var editor_view_before_camera: Dictionary = {}
 var transform_space: int = 0 # 0 global, 1 local
+var active_color_target := "line"
+var drawing_palette: Array[Color] = [
+	Color("#111318"), Color("#FFFFFF"), Color("#E94B4B"), Color("#F39C3D"),
+	Color("#F1D04B"), Color("#58B368"), Color("#35A7A0"), Color("#3F8FE5"),
+	Color("#6757D9"), Color("#B65BD6"), Color("#E65C9C"), Color("#8A5A44"),
+	Color("#59636E"), Color("#A9B2BC"), Color("#DCE2E8"), Color("#F2B8A2")
+]
+var gradient_drag_handle := 0
+var gradient_handle_a := Vector2.ZERO
+var gradient_handle_b := Vector2.ZERO
 
 func _ready() -> void:
 	%FillMode.add_item("Solid")
@@ -97,6 +107,12 @@ func _ready() -> void:
 	%FillMode.item_selected.connect(_on_fill_mode_selected)
 	%FillColorB.color_changed.connect(_on_fill_gradient_changed)
 	%FillGradientAngle.value_changed.connect(_on_fill_gradient_changed)
+	%BrushColor.pressed.connect(func(): _set_active_color_target("line"))
+	%FillColor.pressed.connect(func(): _set_active_color_target("fill_a"))
+	%FillColorB.pressed.connect(func(): _set_active_color_target("fill_b"))
+	%ActiveColor.color_changed.connect(_on_active_color_changed)
+	%GradientGuide.draw.connect(_draw_gradient_guide)
+	_setup_drawing_palette()
 	theme = KabukiThemeBuilder.build()
 	ProjectStore.frame_changed.connect(_on_frame_changed)
 	ProjectStore.key_changed.connect(timeline.refresh_keys)
@@ -1010,6 +1026,7 @@ func _navigate_zoom(amount: float) -> void:
 
 func _on_canvas_gui_input(event: InputEvent) -> void:
 	if workspace == "drawing":
+		if _gradient_guide_input(event): return
 		# DRAWING is deliberately a 2D editing view onto a 3D reference plane.
 		# Keep the camera orthographic and axis-locked: MMB pans, wheel zooms.
 		# Orbiting here changes the projection used by drawing tools and causes
@@ -2300,6 +2317,80 @@ func _sculpt_drawing(pos: Vector2) -> void:
 func _on_brush_size_changed(value: float) -> void:
 	%DrawingCanvas.brush_size = value
 
+func _setup_drawing_palette() -> void:
+	for child in %PaletteGrid.get_children():
+		child.queue_free()
+	for palette_color in drawing_palette:
+		var swatch := Button.new()
+		swatch.custom_minimum_size = Vector2(32,32)
+		var style := StyleBoxFlat.new()
+		style.bg_color = palette_color
+		style.corner_radius_top_left = 3
+		style.corner_radius_top_right = 3
+		style.corner_radius_bottom_left = 3
+		style.corner_radius_bottom_right = 3
+		swatch.add_theme_stylebox_override("normal",style)
+		swatch.tooltip_text = palette_color.to_html()
+		swatch.pressed.connect(func(): _apply_palette_color(palette_color))
+		%PaletteGrid.add_child(swatch)
+
+func _set_active_color_target(target: String) -> void:
+	active_color_target = target
+	match target:
+		"fill_a": %ActiveColor.color = %FillColor.color
+		"fill_b": %ActiveColor.color = %FillColorB.color
+		_: %ActiveColor.color = %BrushColor.color
+	%PalettePopup.popup(Rect2i(Vector2i(%ActiveColor.global_position)+Vector2i(0,36),Vector2i(300,118)))
+
+func _apply_palette_color(color: Color) -> void:
+	%ActiveColor.color = color
+	_on_active_color_changed(color)
+	%PalettePopup.hide()
+
+func _on_active_color_changed(color: Color) -> void:
+	match active_color_target:
+		"fill_a": %FillColor.color = color
+		"fill_b": %FillColorB.color = color
+		_: %BrushColor.color = color
+
+func _reset_gradient_handles() -> void:
+	var rect := %ViewportContainer.get_global_rect()
+	var center := rect.size * 0.5
+	gradient_handle_a = center - Vector2(80,0)
+	gradient_handle_b = center + Vector2(80,0)
+	%GradientGuide.queue_redraw()
+
+func _draw_gradient_guide() -> void:
+	if not %GradientGuide.visible: return
+	var a := gradient_handle_a
+	var b := gradient_handle_b
+	%GradientGuide.draw_dashed_line(a,b,Color(1,1,1,0.9),2.0,8.0)
+	%GradientGuide.draw_circle(a,8.0,%FillColor.color)
+	%GradientGuide.draw_circle(b,8.0,%FillColorB.color)
+	%GradientGuide.draw_arc(a,10.0,0,TAU,24,Color(0.1,0.1,0.1,1),2.0)
+	%GradientGuide.draw_arc(b,10.0,0,TAU,24,Color(0.1,0.1,0.1,1),2.0)
+
+func _gradient_guide_input(event: InputEvent) -> bool:
+	if not %GradientGuide.visible: return false
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			if event.position.distance_to(gradient_handle_a) < 18.0: gradient_drag_handle = 1
+			elif event.position.distance_to(gradient_handle_b) < 18.0: gradient_drag_handle = 2
+			else: return false
+		else:
+			if gradient_drag_handle == 0: return false
+			gradient_drag_handle = 0
+		return true
+	if event is InputEventMouseMotion and gradient_drag_handle != 0:
+		if gradient_drag_handle == 1: gradient_handle_a = event.position
+		else: gradient_handle_b = event.position
+		var d := gradient_handle_b-gradient_handle_a
+		%FillGradientAngle.value = rad_to_deg(atan2(d.y,d.x))
+		%GradientGuide.queue_redraw()
+		_apply_selected_stroke_style()
+		return true
+	return false
+
 func _on_brush_color_changed(value: Color) -> void:
 	%DrawingCanvas.brush_color = value
 	_apply_selected_stroke_style()
@@ -2310,7 +2401,11 @@ func _on_fill_color_changed(_value: Color) -> void:
 func _on_fill_mode_selected(index: int) -> void:
 	var gradient := index == 1
 	%FillColorB.visible = gradient
-	%FillGradientAngle.visible = gradient
+	%FillGradientAngle.visible = false
+	%GradientGuide.visible = gradient and workspace == "drawing"
+	if gradient and gradient_handle_a == Vector2.ZERO:
+		_reset_gradient_handles()
+	%GradientGuide.queue_redraw()
 	_apply_selected_stroke_style()
 
 func _on_fill_gradient_changed(_value) -> void:
