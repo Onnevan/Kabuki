@@ -59,11 +59,11 @@ vertical_alignment=1
 size_flags_horizontal=3
 [node name="UndoPaint" type="Button" parent="TopBar"]
 unique_name_in_owner=true
-text="↶"
+icon=ExtResource("8")
 tooltip_text="Undo paint (Ctrl+Z)"
 [node name="RedoPaint" type="Button" parent="TopBar"]
 unique_name_in_owner=true
-text="↷"
+icon=ExtResource("9")
 tooltip_text="Redo paint (Ctrl+Shift+Z)"
 
 [node name="ProjectName" type="Label" parent="TopBar"]
@@ -83,7 +83,8 @@ unique_name_in_owner=true
 text="Preview"
 [node name="GridToggle" type="CheckButton" parent="TopBar"]
 unique_name_in_owner=true
-text="▦"
+icon=ExtResource("13")
+tooltip_text="Toggle grid"
 button_pressed=true
 
 [node name="LeftPanel" type="VBoxContainer" parent="."]
