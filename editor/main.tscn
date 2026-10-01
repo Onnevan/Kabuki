@@ -558,6 +558,7 @@ step=1.0
 suffix="°"
 tooltip_text="Gradient angle"
 [node name="CapSeparator" type="VSeparator" parent="DrawingContextSurface/DrawingBar"]
+unique_name_in_owner=true
 custom_minimum_size=Vector2(8,0)
 [node name="StartCap" type="OptionButton" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
