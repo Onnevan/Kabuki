@@ -2937,8 +2937,10 @@ func _responsive_layout() -> void:
 	var center_left: float=outer+left_w+gap
 	var center_right: float=w-outer-right_w-gap
 
-	%TopBar.position=Vector2(outer,10.0)
-	%TopBar.size=Vector2(w-outer*2.0,46.0)
+	var top_bar: HBoxContainer = get_node("TopBar") as HBoxContainer
+	if top_bar != null:
+		top_bar.position=Vector2(outer,10.0)
+		top_bar.size=Vector2(w-outer*2.0,46.0)
 
 	%LeftPanel.position=Vector2(outer,content_top)
 	%LeftPanel.size=Vector2(left_w,content_h)
