@@ -86,6 +86,21 @@ func set_bone_object(rig_id:String,bone_index:int,bone_name:String)->void:
 	channel_labels=[bone_name+" · Position",bone_name+" · Rotation",bone_name+" · Scale"]
 	expanded=[false,false,false]
 	queue_redraw()
+func set_ik_object(rig_id:String,bone_index:int,control_name:String)->void:
+	object_id=rig_id
+	selected_key_frame=-1
+	selected_key_path=""
+	selected_keys.clear()
+	key_deselected.emit()
+	channel_paths=[
+		"rig.ik_control.%d.position" % bone_index,
+		"rig.ik_control.%d.position" % bone_index,
+		"rig.ik_control.%d.position" % bone_index
+	]
+	channel_labels=[control_name+" · Position","",""]
+	expanded=[false,false,false]
+	queue_redraw()
+
 func refresh_keys(_a:String="",_b:String="",_c:int=0)->void: queue_redraw()
 func set_drawing_exposures(frames: Array[int]) -> void:
 	drawing_exposure_frames = frames.duplicate()
