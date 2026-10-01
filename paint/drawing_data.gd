@@ -67,6 +67,13 @@ func add_stroke(points: PackedVector3Array, style: Dictionary = {}) -> String:
 		"color": style.get("color", Color(0.08,0.08,0.08,1.0)),
 		"fill_enabled": bool(style.get("fill_enabled", false)),
 		"fill_color": style.get("fill_color", Color(0.8,0.25,0.18,0.55)),
+		"fill_mode": style.get("fill_mode", "solid"),
+		"fill_color_b": style.get("fill_color_b", Color(0.95,0.75,0.2,0.55)),
+		"fill_gradient_angle": float(style.get("fill_gradient_angle", 0.0)),
+		"brush_preset": String(style.get("brush_preset", "clean")),
+		"width_variation": float(style.get("width_variation", 0.0)),
+		"width_frequency": float(style.get("width_frequency", 1.0)),
+		"brush_seed": int(style.get("brush_seed", 1)),
 		"visible": true
 	}
 	stroke_order.append(stroke_id)
