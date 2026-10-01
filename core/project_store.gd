@@ -249,6 +249,73 @@ func set_key_interpolation(object_id: String, property_path: String, frame: int,
 			return
 
 
+func _encode_variant(value: Variant) -> Variant:
+	if value is Vector2:
+		return {"__kab_type":"Vector2","v":[value.x,value.y]}
+	if value is Vector3:
+		return {"__kab_type":"Vector3","v":[value.x,value.y,value.z]}
+	if value is Quaternion:
+		return {"__kab_type":"Quaternion","v":[value.x,value.y,value.z,value.w]}
+	if value is Color:
+		return {"__kab_type":"Color","v":[value.r,value.g,value.b,value.a]}
+	if value is Transform3D:
+		var t: Transform3D = value
+		return {"__kab_type":"Transform3D","origin":[t.origin.x,t.origin.y,t.origin.z],"basis":[[t.basis.x.x,t.basis.x.y,t.basis.x.z],[t.basis.y.x,t.basis.y.y,t.basis.y.z],[t.basis.z.x,t.basis.z.y,t.basis.z.z]]}
+	return value
+
+func _numbers_from_legacy_string(raw: String) -> Array[float]:
+	var cleaned := raw
+	for token in ["Vector2","Vector3","Quaternion","Color","(",")","[","]"]:
+		cleaned = cleaned.replace(token,"")
+	var result: Array[float] = []
+	for piece in cleaned.split(",",false):
+		var part := piece.strip_edges()
+		if part.is_valid_float():
+			result.append(part.to_float())
+	return result
+
+func _decode_channel_value(property_path: String,raw: Variant) -> Variant:
+	if raw is Dictionary and raw.has("__kab_type"):
+		var kind := String(raw.get("__kab_type",""))
+		var v: Array = raw.get("v",[])
+		match kind:
+			"Vector2":
+				if v.size()>=2:return Vector2(float(v[0]),float(v[1]))
+			"Vector3":
+				if v.size()>=3:return Vector3(float(v[0]),float(v[1]),float(v[2]))
+			"Quaternion":
+				if v.size()>=4:return Quaternion(float(v[0]),float(v[1]),float(v[2]),float(v[3]))
+			"Color":
+				if v.size()>=4:return Color(float(v[0]),float(v[1]),float(v[2]),float(v[3]))
+			"Transform3D":
+				var origin: Array = raw.get("origin",[0.0,0.0,0.0])
+				var rows: Array = raw.get("basis",[])
+				var basis := Basis.IDENTITY
+				if rows.size()==3:
+					basis=Basis(Vector3(float(rows[0][0]),float(rows[0][1]),float(rows[0][2])),Vector3(float(rows[1][0]),float(rows[1][1]),float(rows[1][2])),Vector3(float(rows[2][0]),float(rows[2][1]),float(rows[2][2])))
+				return Transform3D(basis,Vector3(float(origin[0]),float(origin[1]),float(origin[2])))
+	if raw is String:
+		var nums := _numbers_from_legacy_string(String(raw))
+		if property_path.begins_with("rig.bone.") and property_path.ends_with(".rotation") and nums.size()>=4:
+			return Quaternion(nums[0],nums[1],nums[2],nums[3])
+		if (property_path.ends_with(".position") or property_path.ends_with(".rotation") or property_path.ends_with(".scale")) and nums.size()>=3:
+			return Vector3(nums[0],nums[1],nums[2])
+	return raw
+
+func _serialized_channels() -> Dictionary:
+	var result: Dictionary = {}
+	for channel_name in channels:
+		var property_path := String(channel_name).get_slice("::",1)
+		var serialized_keys: Array = []
+		for key_data in channels[channel_name]:
+			var rec: Dictionary = key_data.duplicate(true)
+			rec["value"] = _encode_variant(key_data.get("value"))
+			rec["bezier_left"] = _encode_variant(key_data.get("bezier_left",Vector2(-0.333,-0.333)))
+			rec["bezier_right"] = _encode_variant(key_data.get("bezier_right",Vector2(0.333,0.333)))
+			serialized_keys.append(rec)
+		result[channel_name] = serialized_keys
+	return result
+
 func clear_project() -> void:
 	objects.clear()
 	channels.clear()
@@ -272,7 +339,7 @@ func to_dict() -> Dictionary:
 		"playback_end": playback_end,
 		"current_frame": current_frame,
 		"objects": serialized_objects,
-		"channels": channels.duplicate(true)
+		"channels": _serialized_channels()
 	}
 
 func load_dict(data: Dictionary) -> bool:
@@ -280,7 +347,29 @@ func load_dict(data: Dictionary) -> bool:
 	var version: int = int(data.get("version", 0))
 	if version < 1 or version > FORMAT_VERSION: return false
 	objects.clear()
-	channels = data.get("channels", {}).duplicate(true)
+	channels.clear()
+	var raw_channels: Dictionary = data.get("channels",{})
+	for channel_name in raw_channels:
+		var property_path := String(channel_name).get_slice("::",1)
+		var rebuilt: Array = []
+		for raw_key in raw_channels[channel_name]:
+			if not raw_key is Dictionary: continue
+			var rec: Dictionary = (raw_key as Dictionary).duplicate(true)
+			rec["value"] = _decode_channel_value(property_path,rec.get("value"))
+			var left_raw: Variant = rec.get("bezier_left",Vector2(-0.333,-0.333))
+			var right_raw: Variant = rec.get("bezier_right",Vector2(0.333,0.333))
+			if left_raw is Dictionary:
+				rec["bezier_left"] = _decode_channel_value("bezier_left",left_raw)
+			elif left_raw is String:
+				var left_nums := _numbers_from_legacy_string(String(left_raw))
+				rec["bezier_left"] = Vector2(left_nums[0],left_nums[1]) if left_nums.size()>=2 else Vector2(-0.333,-0.333)
+			if right_raw is Dictionary:
+				rec["bezier_right"] = _decode_channel_value("bezier_right",right_raw)
+			elif right_raw is String:
+				var right_nums := _numbers_from_legacy_string(String(right_raw))
+				rec["bezier_right"] = Vector2(right_nums[0],right_nums[1]) if right_nums.size()>=2 else Vector2(0.333,0.333)
+			rebuilt.append(rec)
+		channels[String(channel_name)] = rebuilt
 	fps = int(data.get("fps", 24))
 	duration_frames = maxi(1, int(data.get("duration_frames", 120)))
 	playback_start = clampi(int(data.get("playback_start", 0)), 0, duration_frames)
