@@ -3130,7 +3130,13 @@ func _responsive_layout() -> void:
 	%DrawingContextSurface.position=%ViewportFrame.position+Vector2(104.0,20.0)
 	%DrawingContextSurface.size=Vector2(hud_w,58.0)
 	if %BrushMenuSurface.visible:
-		call_deferred("_position_brush_menu")
+		# Independent floating card on the same HUD row, immediately after
+		# the main LINE/FILL/COLOR property card.
+		%BrushMenuSurface.position=Vector2(
+			%DrawingContextSurface.position.x+%DrawingContextSurface.size.x+10.0,
+			%DrawingContextSurface.position.y
+		)
+		%BrushMenuSurface.size=Vector2(126.0,58.0)
 	%DrawingBar.position=Vector2(14.0,9.0)
 	%DrawingBar.size=Vector2(hud_w-28.0,40.0)
 	# Plane controls share the Drawing HUD row but anchor independently to the
