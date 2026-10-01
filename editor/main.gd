@@ -1889,8 +1889,8 @@ func _on_auto_weights() -> void:
 				tail = active_rig_runtime.global_transform.affine_inverse() * child_rest.origin
 				child_found = true
 				break
-		if not child_found and active_rig_runtime.terminal_tip_valid:
-			tail = active_rig_runtime.global_transform.affine_inverse() * active_rig_runtime.terminal_tip
+		if not child_found and active_rig_runtime.terminal_tips.has(bone_index):
+			tail = active_rig_runtime.global_transform.affine_inverse() * (active_rig_runtime.terminal_tips[bone_index] as Vector3)
 		segments.append({"a":head,"b":tail})
 	var weights: Array = rigging_controller.auto_weight_vertices(weight_proxy,segments)
 	rig.bindings[selected_object_id] = {"bone_weights": weights, "auto_bound": true}
