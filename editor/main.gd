@@ -1856,8 +1856,19 @@ func _on_reset_filters_pressed() -> void:
 func _setup_workspace_tabs() -> void:
 	while %WorkspaceTabs.tab_count > 0:
 		%WorkspaceTabs.remove_tab(0)
-	for label in ["SCENE", "ANIMATION", "DRAWING", "RIGGING", "COMPOSITOR"]:
-		%WorkspaceTabs.add_tab(label)
+	var labels: Array[String] = ["SCENE", "ANIMATION", "DRAWING", "RIGGING", "COMPOSITOR"]
+	var icon_paths: Array[String] = [
+		"res://assets/icons/lucide/grid-3x3-nav.svg",
+		"res://assets/icons/lucide/play-nav.svg",
+		"res://assets/icons/lucide/pencil-nav.svg",
+		"res://assets/icons/lucide/move-nav.svg",
+		"res://assets/icons/lucide/blend-nav.svg"
+	]
+	for i in range(labels.size()):
+		var icon: Texture2D = load(icon_paths[i]) as Texture2D
+		# add_tab(title, icon) is more reliable here than assigning the icon
+		# after the tab has already been laid out.
+		%WorkspaceTabs.add_tab(labels[i],icon)
 	%WorkspaceTabs.current_tab = 0
 	%WorkspaceTabs.tab_changed.connect(_on_workspace_tab_changed)
 
