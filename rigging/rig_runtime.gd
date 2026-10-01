@@ -115,6 +115,11 @@ func set_terminal_tip(world_tip: Vector3) -> void:
 	terminal_tip_valid = true
 	rebuild_bones()
 
+func clear_terminal_tip() -> void:
+	terminal_tip_valid = false
+	terminal_tip = Vector3.ZERO
+	rebuild_bones()
+
 func bind_mesh(mesh_instance: MeshInstance3D, weights_by_surface: Array) -> bool:
 	if mesh_instance == null or mesh_instance.mesh == null or rig == null: return false
 	clear_weight_debug()
