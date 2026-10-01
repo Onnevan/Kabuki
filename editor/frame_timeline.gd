@@ -373,7 +373,15 @@ func get_selected_interpolation() -> String:
 func set_selected_interpolation(name:String)->void:
 	if selected_keys.is_empty(): return
 	for key_ref in selected_keys:
-		ProjectStore.set_key_interpolation(object_id,String(key_ref["path"]),int(key_ref["frame"]),name)
+		var key_path: String = String(key_ref["path"])
+		var key_frame: int = int(key_ref["frame"])
+		if key_path == "*":
+			for real_path in channel_paths:
+				for key_data in ProjectStore.get_keys(object_id,real_path):
+					if int(key_data.frame) == key_frame:
+						ProjectStore.set_key_interpolation(object_id,real_path,key_frame,name)
+		else:
+			ProjectStore.set_key_interpolation(object_id,key_path,key_frame,name)
 	var last = selected_keys[selected_keys.size()-1]
 	selected_key_path = String(last["path"])
 	selected_key_frame = int(last["frame"])
