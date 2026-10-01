@@ -284,6 +284,44 @@ func flipbook_pose(frame: int) -> Dictionary:
 	return current_cel_pose(source_frame)
 
 
+func _decode_points(raw: Variant) -> PackedVector3Array:
+	if raw is PackedVector3Array:
+		return (raw as PackedVector3Array).duplicate()
+	var source: Variant = raw
+	if raw is String:
+		var parsed: Variant = str_to_var(String(raw))
+		if parsed != null:
+			source = parsed
+	var result := PackedVector3Array()
+	if source is Array:
+		for p in source:
+			if p is Vector3:
+				result.append(p)
+			elif p is Array and p.size() >= 3:
+				result.append(Vector3(float(p[0]),float(p[1]),float(p[2])))
+			elif p is Dictionary:
+				result.append(Vector3(float(p.get("x",0.0)),float(p.get("y",0.0)),float(p.get("z",0.0))))
+	return result
+
+func _serialize_pose(pose: Dictionary) -> Dictionary:
+	var result: Dictionary = {}
+	for stroke_id in pose:
+		var state: Dictionary = (pose[stroke_id] as Dictionary).duplicate(true)
+		var serialized_points: Array = []
+		for p in _decode_points(state.get("points",PackedVector3Array())):
+			serialized_points.append([p.x,p.y,p.z])
+		state["points"] = serialized_points
+		result[String(stroke_id)] = state
+	return result
+
+func _serialized_exposures() -> Array:
+	var result: Array = []
+	for exposure in exposures:
+		var rec: Dictionary = exposure.duplicate(true)
+		rec["pose"] = _serialize_pose(exposure.get("pose",{}))
+		result.append(rec)
+	return result
+
 func to_dict() -> Dictionary:
 	var serialized_strokes: Dictionary = {}
 	for stroke_id in strokes:
@@ -297,7 +335,7 @@ func to_dict() -> Dictionary:
 	return {
 		"id": id, "object_id": object_id,
 		"strokes": serialized_strokes, "stroke_order": stroke_order.duplicate(),
-		"exposures": exposures.duplicate(true), "cel_strokes": cel_strokes.duplicate(true),
+		"exposures": _serialized_exposures(), "cel_strokes": cel_strokes.duplicate(true),
 		"next_stroke_index": next_stroke_index,
 		"local_frame": local_frame, "local_duration": local_duration,
 		"local_playback_start": local_playback_start, "local_playback_end": local_playback_end,
@@ -312,17 +350,23 @@ func load_dict(data: Dictionary) -> void:
 	var raw_strokes: Dictionary = data.get("strokes", {})
 	for stroke_id in raw_strokes:
 		var rec: Dictionary = raw_strokes[stroke_id].duplicate(true)
-		var pts := PackedVector3Array()
-		for p in rec.get("points", []):
-			pts.append(Vector3(float(p[0]),float(p[1]),float(p[2])))
-		rec["points"] = pts
+		rec["points"] = _decode_points(rec.get("points", []))
 		strokes[String(stroke_id)] = rec
 	stroke_order.clear()
 	for stroke_id in data.get("stroke_order", []): stroke_order.append(String(stroke_id))
 	exposures.clear()
 	for raw_exposure in data.get("exposures", []):
-		if raw_exposure is Dictionary:
-			exposures.append((raw_exposure as Dictionary).duplicate(true))
+		if not raw_exposure is Dictionary: continue
+		var exposure: Dictionary = (raw_exposure as Dictionary).duplicate(true)
+		var raw_pose: Dictionary = exposure.get("pose",{})
+		var pose: Dictionary = {}
+		for stroke_id in raw_pose:
+			if not raw_pose[stroke_id] is Dictionary: continue
+			var state: Dictionary = (raw_pose[stroke_id] as Dictionary).duplicate(true)
+			state["points"] = _decode_points(state.get("points",[]))
+			pose[String(stroke_id)] = state
+		exposure["pose"] = pose
+		exposures.append(exposure)
 	cel_strokes = data.get("cel_strokes", {}).duplicate(true)
 	next_stroke_index = int(data.get("next_stroke_index", strokes.size()))
 	local_frame = int(data.get("local_frame", 0))
