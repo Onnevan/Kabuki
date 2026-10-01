@@ -66,6 +66,8 @@ var rig_bone_draw_depth_point := Vector3.ZERO
 var rig_bone_root_set := false
 var rig_bone_last_point := Vector3.ZERO
 var rig_target_object_id := ""
+var rig_chain_count := 0
+var drawing_content_layers: Dictionary = {}
 var drawing_data_by_object: Dictionary:
 	get: return drawing_controller.data_by_object
 var sculpt_mode := "push"
@@ -1660,6 +1662,8 @@ func _setup_rigging_workspace() -> void:
 	%CreateSkeleton.pressed.connect(_on_create_skeleton)
 	%AddBone.pressed.connect(_on_add_rig_bone)
 	%AutoWeights.pressed.connect(_on_auto_weights)
+	%RigFinishDialog.confirmed.connect(_confirm_finish_skeleton)
+	%RigFinishDialog.canceled.connect(_on_add_rig_bone)
 	_refresh_rig_parent_choices()
 
 func _refresh_rig_parent_choices() -> void:
@@ -1763,11 +1767,12 @@ func _on_create_skeleton() -> void:
 
 func _on_add_rig_bone() -> void:
 	var rig: RefCounted = _ensure_active_rig()
+	rig_chain_count += 1
 	rig_bone_draw_active = true
 	rig_bone_draw_parent = -1
 	rig_bone_root_set = false
 	rig_bone_draw_depth_point = selected_scene_node.global_position if selected_scene_node != null else camera_rig.pivot
-	status.text = "Create skeleton · click the root point first"
+	status.text = "Chain %d · click the root point first" % rig_chain_count
 
 func _add_rig_bone_point(screen_pos: Vector2) -> void:
 	if not rig_bone_draw_active: return
@@ -1795,18 +1800,27 @@ func _finish_rig_bone_drawing() -> void:
 	rig_bone_draw_active = false
 	rig_bone_draw_parent = -1
 	rig_bone_root_set = false
-	if not rig_target_object_id.is_empty() and scene_nodes.has(rig_target_object_id):
-		var target: Node3D = scene_nodes[rig_target_object_id]
-		var target_model: MotionObject = ProjectStore.objects.get(rig_target_object_id)
-		var rig_model: MotionObject = ProjectStore.objects.get(active_rig_id)
-		if target_model != null and rig_model != null and active_rig_runtime != null:
-			rigging_controller.set_parent(target_model,rig_model,target,active_rig_runtime,true)
-			_refresh_scene_object_list()
+	var rig: RefCounted = rigging_controller.rigs.get(active_rig_id)
+	var bone_count: int = rig.bones.size() if rig != null else 0
+	%RigFinishDialog.dialog_text = "Chain %d finished · %d bones total.\n\nAdd another independent chain, or finish the skeleton and calculate automatic weights." % [rig_chain_count,bone_count]
+	%RigFinishDialog.popup_centered()
+	status.text = "Chain %d finished · add another chain or finish skeleton" % rig_chain_count
+
+func _confirm_finish_skeleton() -> void:
+	if rig_target_object_id.is_empty() or not scene_nodes.has(rig_target_object_id):
+		status.text = "Skeleton finished"
+		rig_chain_count = 0
+		return
+	var target: Node3D = scene_nodes[rig_target_object_id]
+	var target_model: MotionObject = ProjectStore.objects.get(rig_target_object_id)
+	var rig_model: MotionObject = ProjectStore.objects.get(active_rig_id)
+	if target_model != null and rig_model != null and active_rig_runtime != null:
+		rigging_controller.set_parent(target_model,rig_model,target,active_rig_runtime,true)
+		_refresh_scene_object_list()
 		_select_scene_node(rig_target_object_id,target)
 		_on_auto_weights()
-		rig_target_object_id = ""
-	else:
-		status.text = "Skeleton finished"
+	rig_target_object_id = ""
+	rig_chain_count = 0
 
 func _on_auto_weights() -> void:
 	if not selected_scene_node is MeshInstance3D:
@@ -2182,6 +2196,7 @@ func _rebuild_static_bitmap_cache(target_canvas: ReferenceCanvas, canvas_id: Str
 	static_bitmap_runtime[canvas_id] = runtime
 
 func _on_bitmap_flipbook_stroke_started() -> void:
+	_ensure_drawing_content_layer("bitmap")
 	var data: RefCounted = _active_drawing_data()
 	if data == null: return
 	# Starting to paint on a held frame creates a new replacement cel immediately.
@@ -2380,8 +2395,25 @@ func _ensure_drawing_group() -> void:
 func _on_new_drawing_pressed() -> void:
 	_on_add_drawing_plane()
 
+func _ensure_drawing_content_layer(kind: String) -> void:
+	_ensure_drawing_group()
+	if active_drawing_id.is_empty(): return
+	if not drawing_content_layers.has(active_drawing_id):
+		drawing_content_layers[active_drawing_id] = {}
+	var layers: Dictionary = drawing_content_layers[active_drawing_id]
+	if layers.has(kind): return
+	var layer_name := "Bitmap 01" if kind == "bitmap" else "VectorDrawing 01"
+	var technical_type := "bitmap_drawing" if kind == "bitmap" else "vector_drawing"
+	var layer_obj := MotionObject.new(layer_name, technical_type, "drawing")
+	layer_obj.parent_id = active_drawing_id
+	ProjectStore.add_object(layer_obj)
+	layers[kind] = layer_obj.id
+	drawing_content_layers[active_drawing_id] = layers
+	_refresh_scene_object_list()
+
 func _begin_3d_stroke(pos: Vector2) -> void:
 	_ensure_drawing_group()
+	_ensure_drawing_content_layer("vector")
 	var data: RefCounted = _active_drawing_data()
 	var frame: int = _drawing_edit_frame()
 	if data != null and not data.has_exposure(frame):
