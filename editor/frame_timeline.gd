@@ -21,6 +21,15 @@ var drag_original_refs: Array = []
 var dragging_key := false
 var drawing_exposure_frames: Array[int] = []
 var drawing_only_mode := false
+var curve_height := 54.0
+var key_context_menu: PopupMenu
+var context_target_frame := 0
+var dragging_bezier_handle := false
+var bezier_handle_side := ""
+var bezier_handle_path := ""
+var bezier_handle_frame := -1
+var bezier_handle_row := -1
+var bezier_handle_component := -1
 var channel_paths: Array[String] = ["transform.position","transform.rotation","transform.scale"]
 var channel_labels: Array[String] = ["Position","Rotation","Scale"]
 signal key_selected(path: String, frame: int, interpolation: String)
@@ -38,6 +47,14 @@ func _ready()->void:
 	# Stop wheel/MMB here instead of letting the parent editor consume them.
 	mouse_filter=Control.MOUSE_FILTER_STOP
 	focus_mode=Control.FOCUS_ALL
+	key_context_menu = PopupMenu.new()
+	add_child(key_context_menu)
+	key_context_menu.add_item("Copy",0)
+	key_context_menu.add_item("Paste",1)
+	key_context_menu.add_item("Duplicate",2)
+	key_context_menu.add_separator()
+	key_context_menu.add_item("Delete",3)
+	key_context_menu.id_pressed.connect(_on_key_context_action)
 
 func set_frame(f:int)->void: current_frame=f;queue_redraw()
 func set_timeline_range(total_frames:int,start_frame:int,end_frame:int)->void:
@@ -125,7 +142,7 @@ func _row_y(index:int)->float:
 	var y:=HEADER_H+68.0
 	for i in range(index):
 		y+=34.0
-		if expanded[i]: y+=72.0
+		if expanded[i]: y+=curve_height+18.0
 	return y
 
 func _draw()->void:
