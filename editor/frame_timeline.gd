@@ -506,10 +506,17 @@ func _gui_input(e:InputEvent)->void:
 	if e is InputEventMouseButton and e.pressed:
 		grab_focus()
 	if e is InputEventMouseButton and (e.button_index==MOUSE_BUTTON_WHEEL_UP or e.button_index==MOUSE_BUTTON_WHEEL_DOWN) and e.pressed:
-		# Wheel zooms horizontally around the mouse position.  Do not require
-		# modifiers: the timeline itself owns the wheel while hovered.
-		var pivot:float=x_to_frame(e.position.x)
-		zoom_at(0.8 if e.button_index==MOUSE_BUTTON_WHEEL_UP else 1.25,pivot)
+		if e.ctrl_pressed and not drawing_only_mode:
+			curve_height=clampf(curve_height*(1.14 if e.button_index==MOUSE_BUTTON_WHEEL_UP else 0.88),36.0,240.0)
+			_update_curve_minimum_height()
+			queue_redraw()
+		else:
+			# Plain wheel keeps the existing horizontal timeline zoom.
+			var pivot:float=x_to_frame(e.position.x)
+			zoom_at(0.8 if e.button_index==MOUSE_BUTTON_WHEEL_UP else 1.25,pivot)
+		accept_event();return
+	if e is InputEventMouseButton and e.button_index==MOUSE_BUTTON_RIGHT and e.pressed and not drawing_only_mode:
+		_show_key_context_menu(e.position)
 		accept_event();return
 	if e is InputEventMouseButton and e.button_index==MOUSE_BUTTON_MIDDLE:
 		timeline_panning=e.pressed
@@ -517,11 +524,20 @@ func _gui_input(e:InputEvent)->void:
 		accept_event();return
 	if e is InputEventMouseButton and e.button_index==MOUSE_BUTTON_LEFT:
 		if e.pressed:
+			var handle_hit:=_hit_bezier_handle(e.position)
+			if not handle_hit.is_empty():
+				dragging_bezier_handle=true
+				bezier_handle_side=String(handle_hit["side"])
+				bezier_handle_path=String(handle_hit["path"])
+				bezier_handle_frame=int(handle_hit["frame"])
+				bezier_handle_row=int(handle_hit["row"])
+				bezier_handle_component=int(handle_hit["component"])
+				accept_event();return
 			if e.position.x<LANE_X:
 				for row in range(3):
 					var y:=_row_y(row)
 					if absf(e.position.y-y)<16.0:
-						expanded[row]=not expanded[row];custom_minimum_size.y=170.0+58.0*expanded.count(true);queue_redraw();accept_event();return
+						expanded[row]=not expanded[row];_update_curve_minimum_height();queue_redraw();accept_event();return
 			var hit:=_hit_key(e.position)
 			if not hit.is_empty():
 				_select_ref(hit,e.ctrl_pressed or e.shift_pressed);dragging_key=true;drag_origin_frame=int(hit.frame);drag_original_refs=selected_keys.duplicate(true)
@@ -529,8 +545,11 @@ func _gui_input(e:InputEvent)->void:
 			if e.position.x>=LANE_X:
 				scrubbing=true;frame_requested.emit(_frame_from_x(e.position.x));accept_event()
 		else:
-			scrubbing=false;dragging_key=false
+			scrubbing=false;dragging_key=false;dragging_bezier_handle=false
 	elif e is InputEventMouseMotion:
+		if dragging_bezier_handle:
+			_update_bezier_handle(e.position)
+			accept_event();return
 		if timeline_panning:
 			pan_pixels(e.position.x-pan_last_x)
 			pan_last_x=e.position.x
@@ -553,6 +572,8 @@ func _unhandled_key_input(e:InputEvent)->void:
 		key_clipboard=ProjectStore.copy_keys(object_id,selected_keys);get_viewport().set_input_as_handled()
 	elif k.ctrl_pressed and k.keycode==KEY_V:
 		ProjectStore.paste_keys(object_id,key_clipboard,current_frame);queue_redraw();get_viewport().set_input_as_handled()
+	elif k.ctrl_pressed and k.keycode==KEY_D:
+		_duplicate_selected();get_viewport().set_input_as_handled()
 	elif k.keycode==KEY_LEFT and not selected_keys.is_empty():
 		_move_selected(-1);queue_redraw();get_viewport().set_input_as_handled()
 	elif k.keycode==KEY_RIGHT and not selected_keys.is_empty():
