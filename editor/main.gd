@@ -2928,18 +2928,16 @@ func _refresh_transform_readout() -> void:
 	_show_transform(selected_scene_node)
 
 func _detect_ui_scale() -> float:
-	var screen: int = DisplayServer.window_get_current_screen()
-	var dpi: int = DisplayServer.screen_get_dpi(screen)
-	var screen_size: Vector2i = DisplayServer.screen_get_size(screen)
-	var target := 1.0
-	# DPI is the primary signal. Resolution only helps on very dense displays
-	# where desktop platforms report a generic/low DPI value.
-	# Desktop Auto is deliberately capped at 150%. Higher scales remain
-	# available explicitly and can be selected by platform-specific logic.
-	if dpi >= 175: target = 1.5
-	elif dpi >= 145: target = 1.25
-	elif dpi <= 0 and screen_size.x >= 3000: target = 1.5
-	return target
+	# Keep desktop at the design scale. Mobile/tablet scaling is handled
+	# separately so Windows DPI settings cannot unexpectedly enlarge Kabuki.
+	if OS.has_feature("mobile"):
+		var screen: int = DisplayServer.window_get_current_screen()
+		var dpi: int = DisplayServer.screen_get_dpi(screen)
+		if dpi >= 260: return 2.0
+		if dpi >= 210: return 1.75
+		if dpi >= 175: return 1.5
+		if dpi >= 145: return 1.25
+	return 1.0
 
 func _apply_ui_scale(value: float) -> void:
 	ui_scale = clampf(value,1.0,2.0)
