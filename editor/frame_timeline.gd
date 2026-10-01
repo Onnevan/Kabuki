@@ -229,8 +229,8 @@ func _frame_from_x(x:float)->int:
 	return clampi(roundi(x_to_frame(x)),0,frame_count)
 
 func _is_selected(path:String,frame:int)->bool:
-	for ref in selected_keys:
-		if String(ref.path)==path and int(ref.frame)==frame:return true
+	for key_ref in selected_keys:
+		if String(key_ref.path)==path and int(key_ref.frame)==frame:return true
 	return false
 
 func _hit_key(pos:Vector2)->Dictionary:
@@ -259,31 +259,31 @@ func _move_selected(delta:int)->void:
 	if delta==0:return
 	var refs:=selected_keys.duplicate(true)
 	refs.sort_custom(func(a,b):return int(a.frame)>int(b.frame) if delta>0 else int(a.frame)<int(b.frame))
-	for ref in refs:
-		var oldf:=int(ref.frame);var newf:=clampi(oldf+delta,0,frame_count)
-		if String(ref.path)=="*":ProjectStore.move_object_keys_at_frame(object_id,oldf,newf)
-		else:ProjectStore.move_key(object_id,String(ref.path),oldf,newf)
-		ref.frame=newf
+	for key_ref in refs:
+		var oldf:=int(key_ref.frame);var newf:=clampi(oldf+delta,0,frame_count)
+		if String(key_ref.path)=="*":ProjectStore.move_object_keys_at_frame(object_id,oldf,newf)
+		else:ProjectStore.move_key(object_id,String(key_ref.path),oldf,newf)
+		key_ref.frame=newf
 	selected_keys=refs
 	selected_key_frame=clampi(selected_key_frame+delta,0,frame_count)
 
 func _delete_selected()->void:
-	for ref in selected_keys:
-		if String(ref.path)=="*":
-			var copied:=ProjectStore.copy_keys(object_id,[ref])
+	for key_ref in selected_keys:
+		if String(key_ref.path)=="*":
+			var copied:=ProjectStore.copy_keys(object_id,[key_ref])
 			for item in copied:ProjectStore.delete_key(object_id,String(item.path),int(item.frame))
-		else:ProjectStore.delete_key(object_id,String(ref.path),int(ref.frame))
+		else:ProjectStore.delete_key(object_id,String(key_ref.path),int(key_ref.frame))
 	selected_keys.clear();selected_key_frame=-1;selected_key_path="";key_deselected.emit();queue_redraw()
 
 func _scale_selected(factor:float)->void:
 	if selected_keys.size()<2:return
 	var pivot:=int(selected_keys[0].frame)
-	for ref in selected_keys:
-		var oldf:=int(ref.frame)
+	for key_ref in selected_keys:
+		var oldf:=int(key_ref.frame)
 		var newf:=clampi(pivot+roundi(float(oldf-pivot)*factor),0,frame_count)
-		if String(ref.path)=="*":ProjectStore.move_object_keys_at_frame(object_id,oldf,newf)
-		else:ProjectStore.move_key(object_id,String(ref.path),oldf,newf)
-		ref.frame=newf
+		if String(key_ref.path)=="*":ProjectStore.move_object_keys_at_frame(object_id,oldf,newf)
+		else:ProjectStore.move_key(object_id,String(key_ref.path),oldf,newf)
+		key_ref.frame=newf
 	queue_redraw()
 
 func _gui_input(e:InputEvent)->void:
@@ -353,8 +353,8 @@ func get_selected_interpolation() -> String:
 
 func set_selected_interpolation(name:String)->void:
 	if selected_keys.is_empty(): return
-	for ref in selected_keys:
-		ProjectStore.set_key_interpolation(object_id,String(ref.path),int(ref.frame),name)
+	for key_ref in selected_keys:
+		ProjectStore.set_key_interpolation(object_id,String(key_ref.path),int(key_ref.frame),name)
 	var last: Dictionary = selected_keys[selected_keys.size()-1]
 	selected_key_path = String(last.path)
 	selected_key_frame = int(last.frame)
