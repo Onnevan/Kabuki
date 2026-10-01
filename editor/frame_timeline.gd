@@ -48,10 +48,13 @@ func set_timeline_range(total_frames:int,start_frame:int,end_frame:int)->void:
 	queue_redraw()
 func zoom_at(factor:float,pivot_frame:float)->void:
 	var old_span:float=maxf(1.0,view_end-view_start)
-	var max_span:float=maxf(4.0,float(frame_count))
+	var max_span:float=maxf(4.0,float(frame_count) * 2.0)
 	var new_span:float=clampf(old_span*factor,4.0,max_span)
 	var ratio:float=clampf((pivot_frame-view_start)/old_span,0.0,1.0)
-	view_start=clampf(pivot_frame-new_span*ratio,0.0,maxf(0.0,float(frame_count)-new_span))
+	var desired_start: float = pivot_frame-new_span*ratio
+	var min_start: float = minf(0.0,float(frame_count)-new_span)
+	var max_start: float = maxf(0.0,float(frame_count)-new_span)
+	view_start=clampf(desired_start,min_start,max_start)
 	view_end=view_start+new_span
 	queue_redraw()
 
@@ -59,7 +62,9 @@ func pan_pixels(delta_x:float)->void:
 	var usable:float=maxf(1.0,size.x-LANE_X-12.0)
 	var span:float=maxf(1.0,view_end-view_start)
 	var delta_frames:float=-delta_x/usable*span
-	var new_start:float=clampf(view_start+delta_frames,0.0,maxf(0.0,float(frame_count)-span))
+	var min_start:float=minf(0.0,float(frame_count)-span)
+	var max_start:float=maxf(0.0,float(frame_count)-span)
+	var new_start:float=clampf(view_start+delta_frames,min_start,max_start)
 	view_start=new_start
 	view_end=new_start+span
 	queue_redraw()
