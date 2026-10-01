@@ -12,7 +12,7 @@ uniform float exposure : hint_range(-4.0, 4.0) = 0.0;
 uniform float saturation : hint_range(0.0, 2.0) = 1.0;
 uniform float contrast : hint_range(0.0, 2.0) = 1.0;
 uniform float temperature : hint_range(-1.0, 1.0) = 0.0;
-uniform float tint : hint_range(-1.0, 1.0) = 0.0;
+uniform float color_tint : hint_range(-1.0, 1.0) = 0.0;
 
 uniform float vignette : hint_range(0.0, 1.0) = 0.0;
 uniform float chromatic_aberration : hint_range(0.0, 1.0) = 0.0;
@@ -61,9 +61,9 @@ void fragment() {
 
 	color.r += temperature * 0.12;
 	color.b -= temperature * 0.12;
-	color.g += tint * 0.08;
-	color.r -= tint * 0.035;
-	color.b -= tint * 0.035;
+	color.g += color_tint * 0.08;
+	color.r -= color_tint * 0.035;
+	color.b -= color_tint * 0.035;
 
 	float bw = dot(color, vec3(0.2126, 0.7152, 0.0722));
 	color = mix(color, vec3(bw), monochrome);
