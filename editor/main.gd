@@ -1201,9 +1201,12 @@ func _restore_projection_view() -> void:
 	status.text = "Drawing projection view restored"
 
 func _sync_transform_tool_buttons() -> void:
-	%MoveTool.button_pressed = active_tool == TransformGizmo.Mode.MOVE
-	%RotateTool.button_pressed = active_tool == TransformGizmo.Mode.ROTATE
-	%ScaleTool.button_pressed = active_tool == TransformGizmo.Mode.SCALE
+	var move_button := get_node_or_null("ToolRail/MoveTool") as Button
+	var rotate_button := get_node_or_null("ToolRail/RotateTool") as Button
+	var scale_button := get_node_or_null("ToolRail/ScaleTool") as Button
+	if move_button: move_button.button_pressed = active_tool == TransformGizmo.Mode.MOVE
+	if rotate_button: rotate_button.button_pressed = active_tool == TransformGizmo.Mode.ROTATE
+	if scale_button: scale_button.button_pressed = active_tool == TransformGizmo.Mode.SCALE
 
 func _on_tool_move_pressed() -> void:
 	active_tool = TransformGizmo.Mode.MOVE; gizmo.set_mode(active_tool); _sync_transform_tool_buttons(); status.text = "Move tool"
