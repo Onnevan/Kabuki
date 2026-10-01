@@ -622,8 +622,9 @@ func _on_save_project_as_pressed() -> void:
 
 func _on_save_project_file_selected(path: String) -> void:
 	var save_path := path
-	if save_path.get_extension().to_lower() != "kabuki":
-		save_path += ".kabuki"
+	var ext := save_path.get_extension().to_lower()
+	if ext != "kab":
+		save_path = save_path.get_basename() + ".kab"
 	_save_project_to(save_path)
 
 func _save_project_to(path: String) -> void:
