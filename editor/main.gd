@@ -56,6 +56,7 @@ var bone_edit_proxy: Node3D
 var ik_target_proxy: Node3D
 var ik_drag_active := false
 var drawing_3d_active := false
+var stroke_brush_preset := "clean"
 var drawing_sculpt_active := false
 var drawing_erase_active := false
 var active_stroke_3d: Stroke3D
@@ -117,6 +118,10 @@ func _ready() -> void:
 	%FillColorB.color_changed.connect(_on_fill_gradient_changed)
 	%FillGradientAngle.value_changed.connect(_on_fill_gradient_changed)
 	%BrushColor.pressed.connect(func(): _set_active_color_target("line"))
+	%StrokeClean.pressed.connect(func(): _set_stroke_brush_preset("clean"))
+	%StrokeInk.pressed.connect(func(): _set_stroke_brush_preset("ink"))
+	%StrokeDry.pressed.connect(func(): _set_stroke_brush_preset("dry"))
+	%StrokeRough.pressed.connect(func(): _set_stroke_brush_preset("rough"))
 	%FillColor.pressed.connect(func(): _set_active_color_target("fill_a"))
 	%FillColorB.pressed.connect(func(): _set_active_color_target("fill_b"))
 	%ActiveColor.color_changed.connect(_on_active_color_changed)
@@ -672,6 +677,10 @@ func _load_project_payload(payload: Dictionary, path: String) -> void:
 				stroke.points = rec.get("points", PackedVector3Array())
 				stroke.stroke_color = rec.get("color", Color.BLACK)
 				stroke.radius = float(rec.get("radius", 0.012))
+				stroke.brush_preset = String(rec.get("brush_preset", "clean"))
+				stroke.width_variation = float(rec.get("width_variation", 0.0))
+				stroke.width_frequency = float(rec.get("width_frequency", 1.0))
+				stroke.brush_seed = int(rec.get("brush_seed", 1))
 				stroke.fill_enabled = bool(rec.get("fill_enabled", false))
 				stroke.fill_color = rec.get("fill_color", Color.TRANSPARENT)
 				plane.add_child(stroke)
@@ -2172,6 +2181,36 @@ func _set_bitmap_tool(tool: int) -> void:
 	status.text = ["Brush", "Pencil", "Bitmap Eraser", "Line", "Rectangle", "Ellipse", "Fill", "Smudge", "Lasso Fill"][tool]
 	_update_drawing_tool_ui()
 
+func _set_stroke_brush_preset(preset: String) -> void:
+	stroke_brush_preset = preset
+	var buttons: Dictionary = {
+		"clean": %StrokeClean,
+		"ink": %StrokeInk,
+		"dry": %StrokeDry,
+		"rough": %StrokeRough
+	}
+	for key in buttons:
+		(buttons[key] as Button).button_pressed = String(key) == preset
+	status.text = "Vector brush · " + preset.capitalize()
+
+func _apply_stroke_brush(stroke: Stroke3D) -> void:
+	stroke.brush_preset = stroke_brush_preset
+	match stroke_brush_preset:
+		"ink":
+			stroke.width_variation = 0.22
+			stroke.width_frequency = 2.2
+		"dry":
+			stroke.width_variation = 0.38
+			stroke.width_frequency = 4.0
+		"rough":
+			stroke.width_variation = 0.58
+			stroke.width_frequency = 6.2
+		_:
+			stroke.width_variation = 0.0
+			stroke.width_frequency = 1.0
+	# Stable for the life of this stroke, different for each newly drawn stroke.
+	stroke.brush_seed = int(Time.get_ticks_usec() % 2147483647)
+
 func _update_drawing_tool_ui() -> void:
 	var bitmap: bool = bool(%DrawingCanvas.bitmap_mode)
 	var current_tool: int = int(%DrawingCanvas.tool)
@@ -2180,6 +2219,7 @@ func _update_drawing_tool_ui() -> void:
 	for control in [%BitmapBrush,%BitmapPencil,%BitmapSmudge,%BitmapLassoFill,%BitmapEraser,%BitmapLine,%BitmapRect,%BitmapEllipse,%BitmapFillTool]:
 		control.visible = bitmap
 	%StrokeTool.button_pressed = drawing_3d_active
+	%StrokePresetSurface.visible = workspace == "drawing" and drawing_3d_active
 	%BitmapTool.button_pressed = bitmap
 	%EraseTool.button_pressed = drawing_erase_active
 	%SculptTool.button_pressed = drawing_sculpt_active
@@ -2825,6 +2865,10 @@ func _on_plane_duplicate() -> void:
 			copy.points = src.points.duplicate()
 			copy.stroke_color = src.stroke_color
 			copy.radius = src.radius
+			copy.brush_preset = src.brush_preset
+			copy.width_variation = src.width_variation
+			copy.width_frequency = src.width_frequency
+			copy.brush_seed = src.brush_seed
 			copy.fill_enabled = src.fill_enabled
 			copy.fill_color = src.fill_color
 			active_drawing_group.add_child(copy)
@@ -2869,6 +2913,7 @@ func _begin_3d_stroke(pos: Vector2) -> void:
 	active_stroke_3d = Stroke3DClass.new()
 	active_stroke_3d.stroke_color = %BrushColor.color
 	active_stroke_3d.radius = %BrushSize.value * 0.0012
+	_apply_stroke_brush(active_stroke_3d)
 	active_stroke_3d.fill_enabled = %Fill.button_pressed
 	active_stroke_3d.fill_color = %FillColor.color
 	active_stroke_3d.fill_mode = "gradient" if %FillMode.selected == 1 else "solid"
@@ -3008,6 +3053,8 @@ func _responsive_layout() -> void:
 	var hud_w: float=minf(760.0,maxf(340.0,%ViewportFrame.size.x-156.0))
 	%DrawingContextSurface.position=%ViewportFrame.position+Vector2(104.0,20.0)
 	%DrawingContextSurface.size=Vector2(hud_w,58.0)
+	if %StrokePresetSurface.visible:
+		%StrokePresetSurface.position=%ViewportFrame.position+Vector2(72.0,68.0)
 	%DrawingBar.position=Vector2(14.0,9.0)
 	%DrawingBar.size=Vector2(hud_w-28.0,40.0)
 	# Plane controls share the Drawing HUD row but anchor independently to the
