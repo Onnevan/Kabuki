@@ -2308,6 +2308,9 @@ func _update_drawing_tool_ui() -> void:
 	%SculptStrength.visible = drawing_sculpt_active
 	%Fill.visible = drawing_3d_active
 	%FillColor.visible = drawing_3d_active
+	%StartCap.visible = drawing_3d_active
+	%EndCap.visible = drawing_3d_active
+	%CapSeparator.visible = drawing_3d_active
 	# Floating chrome is content-sized. Never leave an empty or stretched bar.
 	var context_controls: Array[Control] = [%BitmapClear,%LassoFillMode,%LassoColorALabel,%LassoColorA,%LassoColorBLabel,%LassoColorB,%LassoAngleLabel,%LassoGradientAngle,%SculptMode,%SculptStrength,%BrushSize,%BrushPreset,%BrushOpacity,%BrushHardness,%BrushColor,%Fill,%FillColor]
 	var has_context: bool = false
@@ -3061,15 +3064,13 @@ func set_ui_scale_mode(mode: String) -> void:
 
 func _position_stroke_preset_flyout() -> void:
 	if not %StrokePresetSurface.visible: return
-	# Containers resolve their children at the end of the layout pass, so this
-	# must run deferred. Convert the pencil's final global rect back to root-local.
-	var tool_rect: Rect2 = %StrokeTool.get_global_rect()
-	var flyout_size: Vector2 = %StrokePresetSurface.size
-	var target_global := Vector2(
-		tool_rect.end.x + 10.0,
-		tool_rect.position.y + (tool_rect.size.y - flyout_size.y) * 0.5
-	)
-	%StrokePresetSurface.global_position = target_global
+	# Presets form a vertical child palette beside the primary vector tool.
+	# Use the rail's deterministic local layout rather than chasing container globals.
+	var x := %DrawingToolSurface.position.x + %DrawingToolSurface.size.x + 8.0
+	var y := %DrawingToolSurface.position.y + 10.0
+	%StrokePresetSurface.position = Vector2(x,y)
+	var wanted: Vector2 = %StrokePresetBar.get_combined_minimum_size()
+	%StrokePresetSurface.size = wanted + Vector2(16.0,16.0)
 
 func _responsive_layout() -> void:
 	var w: float=size.x
