@@ -2954,8 +2954,13 @@ func _responsive_layout() -> void:
 	var hud_w: float=minf(760.0,maxf(340.0,%ViewportFrame.size.x-156.0))
 	%DrawingContextSurface.position=%ViewportFrame.position+Vector2(104.0,20.0)
 	%DrawingContextSurface.size=Vector2(hud_w,58.0)
-	%DrawingBar.position=%DrawingContextSurface.position+Vector2(14.0,9.0)
+	%DrawingBar.position=Vector2(14.0,9.0)
 	%DrawingBar.size=Vector2(hud_w-28.0,40.0)
+	# Plane controls share the Drawing HUD row but anchor independently to the
+	# viewport's right edge. Never position them relative to the application root.
+	var plane_w: float = 272.0
+	%DrawingPlaneSurface.position=%ViewportFrame.position+Vector2(%ViewportFrame.size.x-plane_w-16.0,20.0)
+	%DrawingPlaneSurface.size=Vector2(plane_w,58.0)
 	%DrawingAnimBar.position=%ViewportFrame.position+Vector2(106.0,%ViewportFrame.size.y-58.0)
 	%DrawingAnimBar.size=Vector2(minf(720.0,%ViewportFrame.size.x-156.0),42.0)
 
