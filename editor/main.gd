@@ -774,6 +774,7 @@ func _select(obj: RuntimeObject) -> void:
 	%MaterialMetallic.value = obj.get_material_metallic()
 	gizmo.attach(obj)
 	timeline.set_object(obj.model.id)
+	_sync_animation_canvas_editor()
 
 func _select_scene_node(id: String, node: Node3D) -> void:
 	if workspace == "rigging" and not pending_parent_child_id.is_empty() and id != pending_parent_child_id:
@@ -808,6 +809,28 @@ func _select_scene_node(id: String, node: Node3D) -> void:
 		%LightColor.color = light.light_color
 		%LightShadow.button_pressed = light.shadow_enabled
 		%LightType.select(0 if light is DirectionalLight3D else (1 if light is OmniLight3D else 2))
+	_sync_animation_canvas_editor()
+
+func _selected_is_reference_canvas() -> bool:
+	return not selected_object_id.is_empty() and scene_nodes.has(selected_object_id) and scene_nodes[selected_object_id] is ReferenceCanvas and drawing_data_by_object.has(selected_object_id)
+
+func _sync_animation_canvas_editor() -> void:
+	var show_local: bool = workspace == "drawing" or (workspace == "animation" and _selected_is_reference_canvas())
+	%DrawingAnimBar.visible = show_local
+	%LocalDrawingTimeline.visible = show_local
+	if workspace == "animation":
+		%OnionSkin.visible = false
+		%CelMenu.visible = show_local
+	else:
+		%OnionSkin.visible = true
+		%CelMenu.visible = true
+	if not show_local:
+		return
+	if workspace == "animation" and _selected_is_reference_canvas():
+		active_drawing_id = selected_object_id
+		active_drawing_group = scene_nodes[selected_object_id] as ReferenceCanvas
+		%DrawingCanvas.switch_canvas(active_drawing_id)
+	_refresh_drawing_timeline()
 
 func _show_transform(node: Node3D) -> void:
 	%PosX.set_value_no_signal(node.position.x); %PosY.set_value_no_signal(node.position.y); %PosZ.set_value_no_signal(node.position.z)
@@ -2452,8 +2475,7 @@ func _on_workspace_tab_changed(tab: int) -> void:
 		# the apparent size of actual scene geometry.
 		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	%RightPanel.visible = workspace == "scene" or workspace == "drawing" or workspace == "rigging" or workspace == "compositor"
-	%DrawingAnimBar.visible = workspace == "drawing"
-	%LocalDrawingTimeline.visible = workspace == "drawing"
+	_sync_animation_canvas_editor()
 	%DrawingToolSurface.visible = workspace == "drawing"
 	%DrawingToolRail.visible = workspace == "drawing"
 	%DrawingPlaneSurface.visible = workspace == "drawing"
@@ -2476,7 +2498,7 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	# exposing scene-view orientation controls.
 	%ViewGizmo.visible = workspace != "drawing" and workspace != "animation"
 	%ToolRail.visible = workspace != "drawing"
-	%Title.text = "OBJECTS" if workspace != "drawing" else "DRAWINGS"
+	%Title.text = "DRAWINGS" if workspace == "drawing" else ("ANIMATABLES" if workspace == "animation" else "OBJECTS")
 	%Status.text = workspace.to_upper() + " workspace"
 	%EditorTitle.text = workspace.to_upper() + " EDITOR"
 	# Drawing temporarily presents the active canvas' local clip range in the
