@@ -5,6 +5,10 @@ var points := PackedVector3Array()
 var stroke_color := Color(0.08, 0.08, 0.08, 1.0)
 var radius := 0.012
 var sides := 10
+var brush_preset := "clean"
+var width_variation := 0.0
+var width_frequency := 1.0
+var brush_seed := 1
 var fill_enabled := false
 var fill_color := Color(0.8, 0.25, 0.18, 0.55)
 var fill_mode := "solid"
@@ -30,7 +34,7 @@ func _points_equal(a: PackedVector3Array, b: PackedVector3Array) -> bool:
 	return true
 
 func style_dict() -> Dictionary:
-	return {"radius": radius, "color": stroke_color, "fill_enabled": fill_enabled, "fill_color": fill_color, "fill_mode": fill_mode, "fill_color_b": fill_color_b, "fill_gradient_angle": fill_gradient_angle}
+	return {"radius": radius, "color": stroke_color, "fill_enabled": fill_enabled, "fill_color": fill_color, "fill_mode": fill_mode, "fill_color_b": fill_color_b, "fill_gradient_angle": fill_gradient_angle, "brush_preset": brush_preset, "width_variation": width_variation, "width_frequency": width_frequency, "brush_seed": brush_seed}
 
 func add_point(p: Vector3) -> void:
 	if not points.is_empty() and points[-1].distance_to(p) < 0.006:
@@ -138,6 +142,15 @@ func _smoothed_points() -> PackedVector3Array:
 	out.append(points[-1])
 	return out
 
+func _radius_at(index: int, count: int) -> float:
+	if width_variation <= 0.0001 or count <= 1: return radius
+	var t := float(index) / float(count - 1)
+	# Two smooth harmonics produce coherent ink wobble rather than per-point jitter.
+	var phase := float(brush_seed % 997) * 0.017
+	var wave := sin(t * TAU * width_frequency + phase) * 0.68
+	wave += sin(t * TAU * width_frequency * 0.47 + phase * 1.91) * 0.32
+	return radius * maxf(0.18, 1.0 + wave * width_variation)
+
 func _build_line_surface(result: ArrayMesh) -> void:
 	var curve_points := _smoothed_points()
 	if curve_points.size() < 2: return
@@ -175,10 +188,12 @@ func _build_line_surface(result: ArrayMesh) -> void:
 		for j in range(sides):
 			var a0 := TAU * float(j) / float(sides)
 			var a1 := TAU * float(j + 1) / float(sides)
-			var r00: Vector3 = ring_side[i] * cos(a0) * radius + ring_up[i] * sin(a0) * radius
-			var r01: Vector3 = ring_side[i] * cos(a1) * radius + ring_up[i] * sin(a1) * radius
-			var r10: Vector3 = ring_side[i + 1] * cos(a0) * radius + ring_up[i + 1] * sin(a0) * radius
-			var r11: Vector3 = ring_side[i + 1] * cos(a1) * radius + ring_up[i + 1] * sin(a1) * radius
+			var radius_a := _radius_at(i, curve_points.size())
+			var radius_b := _radius_at(i + 1, curve_points.size())
+			var r00: Vector3 = ring_side[i] * cos(a0) * radius_a + ring_up[i] * sin(a0) * radius_a
+			var r01: Vector3 = ring_side[i] * cos(a1) * radius_a + ring_up[i] * sin(a1) * radius_a
+			var r10: Vector3 = ring_side[i + 1] * cos(a0) * radius_b + ring_up[i + 1] * sin(a0) * radius_b
+			var r11: Vector3 = ring_side[i + 1] * cos(a1) * radius_b + ring_up[i + 1] * sin(a1) * radius_b
 			_tri(st, curve_points[i] + r00, curve_points[i + 1] + r10, curve_points[i + 1] + r11)
 			_tri(st, curve_points[i] + r00, curve_points[i + 1] + r11, curve_points[i] + r01)
 	# Flat caps prevent open ends without adding disconnected end geometry.
@@ -187,10 +202,12 @@ func _build_line_surface(result: ArrayMesh) -> void:
 	for j in range(sides):
 		var a0 := TAU * float(j) / float(sides)
 		var a1 := TAU * float(j + 1) / float(sides)
-		var s0: Vector3 = ring_side[0] * cos(a0) * radius + ring_up[0] * sin(a0) * radius
-		var s1: Vector3 = ring_side[0] * cos(a1) * radius + ring_up[0] * sin(a1) * radius
-		var e0: Vector3 = ring_side[-1] * cos(a0) * radius + ring_up[-1] * sin(a0) * radius
-		var e1: Vector3 = ring_side[-1] * cos(a1) * radius + ring_up[-1] * sin(a1) * radius
+		var start_radius := _radius_at(0, curve_points.size())
+		var end_radius := _radius_at(curve_points.size() - 1, curve_points.size())
+		var s0: Vector3 = ring_side[0] * cos(a0) * start_radius + ring_up[0] * sin(a0) * start_radius
+		var s1: Vector3 = ring_side[0] * cos(a1) * start_radius + ring_up[0] * sin(a1) * start_radius
+		var e0: Vector3 = ring_side[-1] * cos(a0) * end_radius + ring_up[-1] * sin(a0) * end_radius
+		var e1: Vector3 = ring_side[-1] * cos(a1) * end_radius + ring_up[-1] * sin(a1) * end_radius
 		_tri(st, start_center, start_center + s1, start_center + s0)
 		_tri(st, end_center, end_center + e0, end_center + e1)
 	st.commit(result)
