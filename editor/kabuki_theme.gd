@@ -53,6 +53,7 @@ static func build() -> Theme:
 	t.set_stylebox("selected_focus","ItemList",box("#17364A",8,"#285B78",8))
 	t.set_color("font_selected_color","TabBar",Color("#A7DAFA"))
 	t.set_color("font_unselected_color","TabBar",Color("#8C9AA7"))
+	t.set_font_size("font_size","TabBar",16)
 	t.set_stylebox("tab_selected","TabBar",box("#173D56",12,"#2D6C91",14))
 	t.set_stylebox("tab_unselected","TabBar",box("#0B1218",12,"",14))
 	t.set_stylebox("tab_hovered","TabBar",box(PANEL_RAISED,12,"",14))
