@@ -225,8 +225,9 @@ tooltip_text="Move pivot to the current editor orbit pivot without moving visibl
 [node name="AddBone" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
 visible=false
-text="BONE"
+text="New Chain"
 icon=ExtResource("26")
+tooltip_text="Start another independent bone chain in the current skeleton"
 [node name="AutoWeights" type="Button" parent="LeftPanel/RiggingPanel/RiggingBox"]
 unique_name_in_owner=true
 visible=false
@@ -1134,6 +1135,11 @@ filters=PackedStringArray("*.png ; PNG Images")
 [connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions/PlaneUp" to="." method="_on_plane_up"]
 [connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions/PlaneDown" to="." method="_on_plane_down"]
 [connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlaneActions/PlaneDuplicate" to="." method="_on_plane_duplicate"]
+
+[node name="RigFinishDialog" type="ConfirmationDialog" parent="."]
+title="Finish Skeleton"
+ok_button_text="Finish & Bind"
+cancel_button_text="Add Chain"
 
 [node name="TessellationDialog" type="ConfirmationDialog" parent="."]
 unique_name_in_owner=true
