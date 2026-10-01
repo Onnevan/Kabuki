@@ -20,6 +20,7 @@ var drag_origin_frame := -1
 var drag_original_refs: Array = []
 var dragging_key := false
 var drawing_exposure_frames: Array[int] = []
+var drawing_only_mode := false
 var channel_paths: Array[String] = ["transform.position","transform.rotation","transform.scale"]
 var channel_labels: Array[String] = ["Position","Rotation","Scale"]
 signal key_selected(path: String, frame: int, interpolation: String)
@@ -111,6 +112,11 @@ func set_drawing_exposures(frames: Array[int]) -> void:
 	drawing_exposure_frames = frames.duplicate()
 	queue_redraw()
 
+func set_drawing_only_mode(enabled: bool) -> void:
+	drawing_only_mode = enabled
+	custom_minimum_size.y = 112.0 if enabled else 220.0
+	queue_redraw()
+
 func _keys(path:String)->Array:
 	if object_id.is_empty(): return []
 	return ProjectStore.get_keys(object_id,path)
@@ -139,30 +145,32 @@ func _draw()->void:
 		var major:bool=f%major_every==0
 		draw_line(Vector2(x,HEADER_H if major else HEADER_H-5),Vector2(x,size.y),Color("#31414F",0.46 if major else 0.12),1)
 		if major: draw_string(get_theme_default_font(),Vector2(x+4,25),str(f),HORIZONTAL_ALIGNMENT_LEFT,-1,12,Color("#778896"))
-	draw_string(get_theme_default_font(),Vector2(18,27),("▼ " if expanded.has(true) else "▶ ")+"Selected Object",HORIZONTAL_ALIGNMENT_LEFT,-1,14,Color("#D5E0E9"))
-	draw_rect(Rect2(10,SUMMARY_Y-18,LANE_X-20,30),Color("#182733"))
-	draw_string(get_theme_default_font(),Vector2(18,SUMMARY_Y+4),"◆  All Channels",HORIZONTAL_ALIGNMENT_LEFT,-1,12,Color("#dbe4ef"))
-	for gf in ProjectStore.get_object_key_frames(object_id):
-		var gx:=frame_to_x(float(gf))
-		var gp:=PackedVector2Array([Vector2(gx,SUMMARY_Y-7),Vector2(gx+6,SUMMARY_Y-1),Vector2(gx,SUMMARY_Y+5),Vector2(gx-6,SUMMARY_Y-1)])
-		draw_colored_polygon(gp,Color.WHITE if _is_selected("*",gf) else Color("#8fa8c2"))
-	for row in range(3):
-		var y:=_row_y(row)
-		draw_rect(Rect2(10,y-23,LANE_X-20,31),Color("#121E28"))
-		draw_string(get_theme_default_font(),Vector2(18,y),("▼ " if expanded[row] else "▶ ")+channel_labels[row],HORIZONTAL_ALIGNMENT_LEFT,-1,13,COLORS[row])
-		draw_line(Vector2(0,y+8),Vector2(size.x,y+8),Color("#23323E",0.7),1)
-		for k in _keys(channel_paths[row]):
-			var kf:=int(k.frame)
-			var x:=frame_to_x(float(kf))
-			var p:=PackedVector2Array([Vector2(x,y-7),Vector2(x+6,y-1),Vector2(x,y+5),Vector2(x-6,y-1)])
-			draw_colored_polygon(p,Color.WHITE if _is_selected(channel_paths[row],kf) else COLORS[row])
-		if expanded[row]: _draw_curve(row,y+12.0,step)
-	if not drawing_exposure_frames.is_empty():
-		var ey := HEADER_H + 12.0
-		draw_string(get_theme_default_font(),Vector2(14,ey+4),"Drawing Cels",HORIZONTAL_ALIGNMENT_LEFT,-1,12,Color("#f0c96b"))
+	if drawing_only_mode:
+		var ey := HEADER_H + 28.0
+		draw_string(get_theme_default_font(),Vector2(18,ey+4),"CELS",HORIZONTAL_ALIGNMENT_LEFT,-1,12,Color("#f0c96b"))
+		draw_line(Vector2(LANE_X,ey+10),Vector2(size.x,ey+10),Color("#23323E",0.7),1)
 		for ef in drawing_exposure_frames:
 			var ex := frame_to_x(float(ef))
-			draw_rect(Rect2(ex-4, ey-7, 8, 14), Color("#f0c96b"))
+			draw_rect(Rect2(ex-5,ey-8,10,18),Color("#f0c96b"))
+	else:
+		draw_string(get_theme_default_font(),Vector2(18,27),("▼ " if expanded.has(true) else "▶ ")+"Selected Object",HORIZONTAL_ALIGNMENT_LEFT,-1,14,Color("#D5E0E9"))
+		draw_rect(Rect2(10,SUMMARY_Y-18,LANE_X-20,30),Color("#182733"))
+		draw_string(get_theme_default_font(),Vector2(18,SUMMARY_Y+4),"◆  All Channels",HORIZONTAL_ALIGNMENT_LEFT,-1,12,Color("#dbe4ef"))
+		for gf in ProjectStore.get_object_key_frames(object_id):
+			var gx:=frame_to_x(float(gf))
+			var gp:=PackedVector2Array([Vector2(gx,SUMMARY_Y-7),Vector2(gx+6,SUMMARY_Y-1),Vector2(gx,SUMMARY_Y+5),Vector2(gx-6,SUMMARY_Y-1)])
+			draw_colored_polygon(gp,Color.WHITE if _is_selected("*",gf) else Color("#8fa8c2"))
+		for row in range(3):
+			var y:=_row_y(row)
+			draw_rect(Rect2(10,y-23,LANE_X-20,31),Color("#121E28"))
+			draw_string(get_theme_default_font(),Vector2(18,y),("▼ " if expanded[row] else "▶ ")+channel_labels[row],HORIZONTAL_ALIGNMENT_LEFT,-1,13,COLORS[row])
+			draw_line(Vector2(0,y+8),Vector2(size.x,y+8),Color("#23323E",0.7),1)
+			for k in _keys(channel_paths[row]):
+				var kf:=int(k.frame)
+				var x:=frame_to_x(float(kf))
+				var p:=PackedVector2Array([Vector2(x,y-7),Vector2(x+6,y-1),Vector2(x,y+5),Vector2(x-6,y-1)])
+				draw_colored_polygon(p,Color.WHITE if _is_selected(channel_paths[row],kf) else COLORS[row])
+			if expanded[row]: _draw_curve(row,y+12.0,step)
 	var px:=frame_to_x(float(current_frame))
 	draw_line(Vector2(px,HEADER_H-2),Vector2(px,size.y),Color("#3AA7EB"),2)
 	draw_circle(Vector2(px,HEADER_H-4),7,Color("#3AA7EB"))
