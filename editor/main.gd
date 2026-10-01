@@ -1633,11 +1633,11 @@ func _sync_local_clip_ui() -> void:
 	%SceneStart.set_value_no_signal(data.scene_start)
 	var modes: Array[String] = ["loop","ping_pong","hold","reverse","once"]
 	%ClipMode.select(maxi(0,modes.find(String(data.playback_mode))))
-	if workspace == "drawing":
-		timeline.set_timeline_range(maxi(1,data.local_duration-1),data.local_playback_start,data.local_playback_end)
-	else:
-		timeline.set_timeline_range(ProjectStore.duration_frames,ProjectStore.playback_start,ProjectStore.playback_end)
-	timeline.set_frame(data.local_frame if workspace == "drawing" else ProjectStore.current_frame)
+	# The bottom Animation timeline is always the scene/global timeline.
+	# Drawing has its own LOCAL clip controls above it; never repurpose the
+	# shared global timeline for a canvas clip.
+	timeline.set_timeline_range(ProjectStore.duration_frames,ProjectStore.playback_start,ProjectStore.playback_end)
+	timeline.set_frame(ProjectStore.current_frame)
 	timeline.queue_redraw()
 
 func _on_clip_mode_selected(index: int) -> void:
@@ -1759,27 +1759,11 @@ func key_active_drawing_pose(interpolation := "hold") -> void:
 	status.text = "Drawing pose keyed at frame %d" % ProjectStore.current_frame
 
 func _on_timeline_frame_requested(frame: int) -> void:
-	if workspace == "drawing":
-		var data: RefCounted = _active_drawing_data()
-		if data == null: return
-		data.set_local_frame(frame)
-		%DrawingCanvas.set_local_frame(data.local_frame)
-		timeline.set_frame(data.local_frame)
-		_apply_drawing_frame(ProjectStore.current_frame)
-		_refresh_drawing_timeline()
-		status.text = "Local frame %d · %s" % [data.local_frame, active_drawing_group.name if active_drawing_group else "Canvas"]
-		return
+	# The bottom timeline always scrubs scene time, including while Drawing is open.
 	ProjectStore.set_frame(frame)
 
 func _on_frame_slider_value_changed(value: float) -> void:
-	if workspace == "drawing":
-		var data: RefCounted = _active_drawing_data()
-		if data != null:
-			data.set_local_frame(int(value))
-			%DrawingCanvas.set_local_frame(data.local_frame)
-			timeline.set_frame(data.local_frame)
-			_apply_drawing_frame(ProjectStore.current_frame)
-			return
+	# Global frame control remains global in every workspace.
 	ProjectStore.set_frame(int(value))
 func _on_prev_pressed() -> void:
 	if workspace == "drawing":
