@@ -3066,8 +3066,8 @@ func _position_stroke_preset_flyout() -> void:
 	if not %StrokePresetSurface.visible: return
 	# Presets form a vertical child palette beside the primary vector tool.
 	# Use the rail's deterministic local layout rather than chasing container globals.
-	var x := %DrawingToolSurface.position.x + %DrawingToolSurface.size.x + 8.0
-	var y := %DrawingToolSurface.position.y + 10.0
+	var x: float = %DrawingToolSurface.position.x + %DrawingToolSurface.size.x + 8.0
+	var y: float = %DrawingToolSurface.position.y + 10.0
 	%StrokePresetSurface.position = Vector2(x,y)
 	var wanted: Vector2 = %StrokePresetBar.get_combined_minimum_size()
 	%StrokePresetSurface.size = wanted + Vector2(16.0,16.0)
