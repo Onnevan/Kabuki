@@ -781,7 +781,7 @@ func _pick_rig_bone_at_screen(mouse: Vector2) -> String:
 		if not found_child:
 			var rest_global: Transform3D = active_rig_runtime.skeleton.get_bone_global_rest(bone_index)
 			var pose_global: Transform3D = active_rig_runtime.skeleton.get_bone_global_pose(bone_index)
-			var rest_tail_world: Vector3 = active_rig_runtime.terminal_tip if active_rig_runtime.terminal_tip_valid else (active_rig_runtime.global_transform * (rest_global.origin + Vector3(0.0,0.45,0.0)))
+			var rest_tail_world: Vector3 = active_rig_runtime.terminal_tips[bone_index] if active_rig_runtime.terminal_tips.has(bone_index) else (active_rig_runtime.global_transform * (rest_global.origin + Vector3(0.0,0.45,0.0)))
 			var rest_tail_in_rig: Vector3 = active_rig_runtime.global_transform.affine_inverse() * rest_tail_world
 			tail_in_rig = pose_global * (rest_global.affine_inverse() * rest_tail_in_rig)
 		var head_world: Vector3 = active_rig_runtime.global_transform * head_in_rig
