@@ -2402,6 +2402,16 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	%Title.text = "OBJECTS" if workspace != "drawing" else "DRAWINGS"
 	%Status.text = workspace.to_upper() + " workspace"
 	%EditorTitle.text = workspace.to_upper() + " EDITOR"
+	# Drawing temporarily presents the active canvas' local clip range in the
+	# shared timeline widget. Every other workspace must immediately restore
+	# the scene timeline; local clip duration must never become scene duration.
+	if workspace == "drawing":
+		_sync_local_clip_ui()
+	else:
+		timeline.set_timeline_range(ProjectStore.duration_frames,ProjectStore.playback_start,ProjectStore.playback_end)
+		timeline.set_frame(ProjectStore.current_frame)
+		timeline.set_drawing_exposures([])
+		timeline.queue_redraw()
 	for reference_canvas in drawing_planes:
 		if is_instance_valid(reference_canvas):
 			reference_canvas.set_guide_visible(workspace == "scene")
