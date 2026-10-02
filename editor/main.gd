@@ -2442,6 +2442,7 @@ func _set_bitmap_tool(tool: int) -> void:
 		bitmap_buttons[tool].set_pressed_no_signal(true)
 	status.text = ["Brush", "Pencil", "Bitmap Eraser", "Line", "Rectangle", "Ellipse", "Fill", "Smudge", "Lasso Fill"][tool]
 	_update_drawing_tool_ui()
+	_sync_tool_param_sliders()
 
 func _setup_world_controls() -> void:
 	for label in ["Solid","Gradient","Image"]: %WorldMode.add_item(label)
@@ -2521,7 +2522,7 @@ func _apply_stroke_brush(stroke: Stroke3D) -> void:
 func _tool_param_profile() -> Dictionary:
 	if drawing_sculpt_active:
 		return {"primary":"SIZE","primary_min":1.0,"primary_max":500.0,"primary_step":1.0,"primary_value":%BrushSize.value,
-			"secondary":"STRENGTH","secondary_min":0.0,"secondary_max":1.0,"secondary_step":0.01,"secondary_value":absf(%SculptStrength.value)}
+			"secondary":"STRENGTH","secondary_min":-1.0,"secondary_max":1.0,"secondary_step":0.01,"secondary_value":%SculptStrength.value}
 	if drawing_erase_active:
 		return {"primary":"SIZE","primary_min":1.0,"primary_max":500.0,"primary_step":1.0,"primary_value":%BrushSize.value,
 			"secondary":"OPACITY","secondary_min":0.0,"secondary_max":1.0,"secondary_step":0.01,"secondary_value":1.0}
@@ -2625,7 +2626,7 @@ func _draw_tool_feedback() -> void:
 		"SIZE":
 			radius = clampf(tool_feedback_value * 0.5,4.0,minf(overlay.size.x,overlay.size.y)*0.42)
 		"OPACITY","STRENGTH":
-			alpha = clampf(tool_feedback_value,0.05,1.0)
+			alpha = clampf(absf(tool_feedback_value),0.05,1.0)
 		"TOLERANCE":
 			radius = lerpf(24.0,minf(overlay.size.x,overlay.size.y)*0.35,clampf(tool_feedback_value,0.0,1.0))
 			alpha = 0.22
