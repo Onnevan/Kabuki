@@ -888,12 +888,13 @@ render_target_update_mode=4
 transparent_bg=false
 disable_3d=true
 
-[node name="RenderComposite" type="ColorRect" parent="RenderCompositorViewport"]
+[node name="RenderComposite" type="TextureRect" parent="RenderCompositorViewport"]
 unique_name_in_owner=true
 offset_right=1920.0
 offset_bottom=1080.0
 mouse_filter=2
-color=Color(1,1,1,1)
+expand_mode=1
+stretch_mode=0
 script=ExtResource("6")
 
 [node name="ViewportTop" type="HBoxContainer" parent="."]
