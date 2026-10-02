@@ -209,6 +209,8 @@ func _ready() -> void:
 	%UndoPaint.pressed.connect(_undo_drawing)
 	%RedoPaint.pressed.connect(_redo_drawing)
 	%RenderAnimationTop.pressed.connect(_on_render_animation_pressed)
+	%RenderFrameTop.pressed.connect(_on_render_frame_pressed)
+	%RenderFrameDialog.file_selected.connect(_on_render_frame_file_selected)
 	%ViewX.pressed.connect(func(): _align_view_axis(Vector3.RIGHT, "X"))
 	%ViewY.pressed.connect(func(): _align_view_axis(Vector3.UP, "Y"))
 	%ViewZ.pressed.connect(func(): _align_view_axis(Vector3.BACK, "Z"))
@@ -1721,6 +1723,10 @@ func _screen_to_plane(pos: Vector2, z_plane: float) -> Vector3:
 
 func _on_frame_changed(frame: int) -> void:
 	frame_label.text = "%03d" % frame
+	if effects_display != null and effects_display.effect_material != null:
+		effects_display.effect_material.set_shader_parameter("noise_seed",float(frame))
+	if render_composite != null and render_composite.effect_material != null:
+		render_composite.effect_material.set_shader_parameter("noise_seed",float(frame))
 	frame_slider.set_value_no_signal(frame)
 	timeline.set_frame(frame)
 	for r in runtime_objects: r.apply_frame(frame)
@@ -2272,6 +2278,110 @@ func _restore_vector_drawing_state(canvas_id: String, state: Dictionary) -> void
 	_refresh_drawing_timeline()
 	_refresh_vector_onion_skin(group,data,_drawing_edit_frame())
 
+func _on_render_frame_pressed() -> void:
+	if render_in_progress: return
+	if render_camera_id.is_empty() or not scene_nodes.has(render_camera_id):
+		status.text = "Render frame · create or select a scene camera first"
+		return
+	var base_name := "kabuki"
+	if not current_project_path.is_empty():
+		base_name = current_project_path.get_file().get_basename()
+	%RenderFrameDialog.current_file = "%s_%05d.png" % [base_name,ProjectStore.current_frame]
+	%RenderFrameDialog.popup_centered_ratio(0.65)
+
+func _on_render_frame_file_selected(path: String) -> void:
+	if render_in_progress: return
+	var output_path := path
+	if not output_path.to_lower().ends_with(".png"):
+		output_path += ".png"
+	call_deferred("_render_current_frame_png",output_path)
+
+func _render_current_frame_png(output_path: String) -> void:
+	if render_in_progress: return
+	if render_camera_id.is_empty() or not scene_nodes.has(render_camera_id): return
+	var render_cam := _scene_camera_node(render_camera_id)
+	if render_cam == null:
+		status.text = "Render frame · camera unavailable"
+		return
+	var camera_obj: MotionObject = ProjectStore.objects.get(render_camera_id)
+	if camera_obj == null: return
+
+	render_in_progress = true
+	playing = false
+	_stop_local_playback()
+	%RenderAnimation.disabled = true
+	%RenderAnimationTop.disabled = true
+	%RenderFrameTop.disabled = true
+
+	var frame := ProjectStore.current_frame
+	var previous_viewport_size := viewport.size
+	var previous_compositor_size := render_compositor.size
+	var previous_compositor_update := render_compositor.render_target_update_mode
+	var previous_stretch := canvas.stretch
+	var previous_editor_current: bool = camera.current
+	var previous_render_current: bool = render_cam.current
+	var previous_grid_visible: bool = world_grid.visible
+	var previous_gizmo_visible: bool = gizmo.visible
+	var previous_view_gizmo_visible: bool = bool(%ViewGizmo.visible)
+	var previous_camera_frame_visible: bool = bool(%CameraFrame.visible)
+	var previous_ik_visible: bool = bool(%IKGuide.visible)
+	var previous_gradient_visible: bool = bool(%GradientGuide.visible)
+
+	var rx := maxi(64,int(camera_obj.properties.get("camera.resolution_x",1920)))
+	var ry := maxi(64,int(camera_obj.properties.get("camera.resolution_y",1080)))
+	canvas.stretch = false
+	viewport.size = Vector2i(rx,ry)
+	render_compositor.size = Vector2i(rx,ry)
+	_sync_final_postprocess_rect()
+	render_composite.set_source_texture(viewport.get_texture())
+	render_compositor.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	camera.current = false
+	render_cam.current = true
+	world_grid.visible = false
+	gizmo.visible = false
+	%ViewGizmo.visible = false
+	%CameraFrame.visible = false
+	%IKGuide.visible = false
+	%GradientGuide.visible = false
+	for reference_canvas in drawing_planes:
+		if is_instance_valid(reference_canvas):
+			reference_canvas.set_guide_visible(false)
+	_set_render_camera_gizmo_visible(false)
+
+	status.text = "Rendering frame %d · %dx%d" % [frame,rx,ry]
+	ProjectStore.set_frame(frame)
+	await RenderingServer.frame_post_draw
+	render_compositor.render_target_update_mode = SubViewport.UPDATE_ONCE
+	await RenderingServer.frame_post_draw
+	var image := render_compositor.get_texture().get_image()
+	var err := ERR_CANT_CREATE
+	if image != null and not image.is_empty():
+		err = image.save_png(output_path)
+
+	render_cam.current = previous_render_current
+	camera.current = previous_editor_current
+	canvas.stretch = previous_stretch
+	viewport.size = previous_viewport_size
+	render_compositor.size = previous_compositor_size
+	render_compositor.render_target_update_mode = previous_compositor_update
+	_sync_final_postprocess_rect()
+	effects_display.set_source_texture(viewport.get_texture())
+	render_composite.set_source_texture(viewport.get_texture())
+	world_grid.visible = previous_grid_visible
+	gizmo.visible = previous_gizmo_visible
+	%ViewGizmo.visible = previous_view_gizmo_visible
+	%CameraFrame.visible = previous_camera_frame_visible
+	%IKGuide.visible = previous_ik_visible
+	%GradientGuide.visible = previous_gradient_visible
+	if not camera_view_active:
+		_set_render_camera_gizmo_visible(true)
+	%RenderAnimation.disabled = false
+	%RenderAnimationTop.disabled = false
+	%RenderFrameTop.disabled = false
+	render_in_progress = false
+	status.text = "Frame rendered · %s" % output_path.get_file() if err == OK else "Render frame failed"
+
+
 func _on_render_animation_pressed() -> void:
 	if render_in_progress: return
 	if render_camera_id.is_empty() or not scene_nodes.has(render_camera_id):
@@ -2443,7 +2553,9 @@ func _apply_global_filters() -> void:
 		"color_tint": %Tint.value,
 		"vignette": %Vignette.value,
 		"chromatic_aberration": %ChromaticAberration.value,
-		"monochrome": 1.0 if %Monochrome.button_pressed else 0.0
+		"monochrome": 1.0 if %Monochrome.button_pressed else 0.0,
+		"noise_amount": %Noise.value,
+		"noise_seed": float(ProjectStore.current_frame)
 	}
 	effects_display.set_filters(values)
 	render_composite.set_filters(values)
@@ -2467,6 +2579,7 @@ func _on_reset_filters_pressed() -> void:
 	%Vignette.value=0.0
 	%ChromaticAberration.value=0.0
 	%Monochrome.set_pressed_no_signal(false)
+	%Noise.value=0.0
 	_apply_global_filters()
 
 func _setup_workspace_tabs() -> void:
