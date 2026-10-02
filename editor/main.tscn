@@ -487,19 +487,26 @@ max_value=0.08
 step=0.002
 value=0.025
 tooltip_text="Depth sculpt strength. Negative values pull toward the camera."
+[node name="BrushSizeLabel" type="Label" parent="DrawingContextSurface/DrawingBar"]
+unique_name_in_owner=true
+text="SIZE"
 [node name="BrushSize" type="HSlider" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
-custom_minimum_size=Vector2(150,0)
+custom_minimum_size=Vector2(160,0)
 min_value=1.0
-max_value=50.0
+max_value=500.0
+step=1.0
 value=10.0
 [node name="BrushPreset" type="OptionButton" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 custom_minimum_size=Vector2(95,0)
 tooltip_text="Brush preset"
+[node name="BrushOpacityLabel" type="Label" parent="DrawingContextSurface/DrawingBar"]
+unique_name_in_owner=true
+text="OPACITY"
 [node name="BrushOpacity" type="HSlider" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
-custom_minimum_size=Vector2(70,0)
+custom_minimum_size=Vector2(110,0)
 min_value=0.05
 max_value=1.0
 step=0.05
@@ -1486,8 +1493,8 @@ filters=PackedStringArray("*.png ; PNG Images")
 
 [connection signal="pressed" from="DrawingBar/Stroke3D" to="." method="_on_draw_stroke3d_pressed"]
 [connection signal="pressed" from="DrawingBar/Bitmap" to="." method="_on_draw_bitmap_pressed"]
-[connection signal="value_changed" from="DrawingBar/BrushSize" to="." method="_on_brush_size_changed"]
-[connection signal="color_changed" from="DrawingBar/BrushColor" to="." method="_on_brush_color_changed"]
+[connection signal="value_changed" from="DrawingContextSurface/DrawingBar/BrushSize" to="." method="_on_brush_size_changed"]
+[connection signal="color_changed" from="DrawingContextSurface/DrawingBar/LineBlock/BrushColor" to="." method="_on_brush_color_changed"]
 [connection signal="pressed" from="DrawingBar/ClearDrawing" to="DrawingCanvas" method="clear_canvas"]
 [connection signal="pressed" from="DrawingBar/FinishBitmap" to="DrawingCanvas" method="finish_bitmap"]
 [connection signal="bitmap_finished" from="DrawingCanvas" to="." method="_on_bitmap_finished"]
@@ -1505,7 +1512,7 @@ filters=PackedStringArray("*.png ; PNG Images")
 [connection signal="toggled" from="DrawingAnimBar/OnionSkin" to="." method="_on_onion_skin_toggled"]
 
 [connection signal="item_selected" from="DrawingBar/SculptMode" to="." method="_on_sculpt_mode_selected"]
-[connection signal="color_changed" from="DrawingBar/FillColor" to="." method="_on_fill_color_changed"]
+[connection signal="color_changed" from="DrawingContextSurface/DrawingBar/FillColor" to="." method="_on_fill_color_changed"]
 
 [connection signal="pressed" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/PlanesHead/AddDrawingPlane" to="." method="_on_add_drawing_plane"]
 [connection signal="item_selected" from="LeftPanel/ScenePanel/SceneBox/DrawingPlanes/DrawingPlaneList" to="." method="_on_drawing_plane_selected"]
