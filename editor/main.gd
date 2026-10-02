@@ -755,15 +755,198 @@ func _on_save_project_file_selected(path: String) -> void:
 		save_path = save_path.get_basename() + ".kab"
 	_save_project_to(save_path)
 
+func _color_to_kab(value: Color) -> Array:
+	return [value.r,value.g,value.b,value.a]
+
+func _kab_to_color(value: Variant, fallback: Color) -> Color:
+	if value is Array and value.size() >= 3:
+		return Color(float(value[0]),float(value[1]),float(value[2]),float(value[3]) if value.size() > 3 else 1.0)
+	return fallback
+
+func _image_to_kab(image: Image) -> String:
+	if image == null or image.is_empty(): return ""
+	return Marshalls.raw_to_base64(image.save_png_to_buffer())
+
+func _kab_to_image(encoded: String) -> Image:
+	if encoded.is_empty(): return null
+	var image := Image.new()
+	var err := image.load_png_from_buffer(Marshalls.base64_to_raw(encoded))
+	return image if err == OK and not image.is_empty() else null
+
+func _variant_to_kab(value: Variant) -> String:
+	return Marshalls.raw_to_base64(var_to_bytes(value,false))
+
+func _kab_to_variant(encoded: String) -> Variant:
+	if encoded.is_empty(): return null
+	return bytes_to_var(Marshalls.base64_to_raw(encoded),false)
+
+func _serialize_world_state() -> Dictionary:
+	var image_data := ""
+	if %WorldBackdrop.texture != null:
+		var image := (%WorldBackdrop.texture as Texture2D).get_image()
+		image_data = _image_to_kab(image)
+	return {
+		"mode": world_mode,
+		"color": _color_to_kab(%WorldColor.color),
+		"gradient_a": _color_to_kab(%GradientA.color),
+		"gradient_b": _color_to_kab(%GradientB.color),
+		"gradient_mapping": %WorldGradientMapping.selected,
+		"image_mode": world_image_mode,
+		"image_png": image_data
+	}
+
+func _restore_world_state(data: Dictionary) -> void:
+	world_mode = String(data.get("mode","solid"))
+	%WorldColor.color = _kab_to_color(data.get("color"),Color(0.32,0.32,0.32,1.0))
+	%GradientA.color = _kab_to_color(data.get("gradient_a"),Color(0.12,0.16,0.24,1.0))
+	%GradientB.color = _kab_to_color(data.get("gradient_b"),Color(0.55,0.7,0.9,1.0))
+	%WorldGradientMapping.select(clampi(int(data.get("gradient_mapping",0)),0,maxi(0,%WorldGradientMapping.item_count-1)))
+	world_image_mode = String(data.get("image_mode","camera"))
+	%WorldImageMode.select(0 if world_image_mode == "camera" else 1)
+	%WorldMode.select(["solid","gradient","image"].find(world_mode) if ["solid","gradient","image"].has(world_mode) else 0)
+	%WorldColor.visible = world_mode == "solid"
+	%WorldGradientBox.visible = world_mode == "gradient"
+	%WorldImageBox.visible = world_mode == "image"
+	var image := _kab_to_image(String(data.get("image_png","")))
+	%WorldBackdrop.texture = ImageTexture.create_from_image(image) if image != null else null
+	_refresh_world()
+
+func _serialize_compositor_state() -> Dictionary:
+	return {
+		"blur": %Blur.value,
+		"glow": %Glow.value,
+		"glow_threshold": %GlowThreshold.value,
+		"glow_radius": %GlowRadius.value,
+		"exposure": %Exposure.value,
+		"saturation": %Saturation.value,
+		"contrast": %Contrast.value,
+		"temperature": %Temperature.value,
+		"tint": %Tint.value,
+		"vignette": %Vignette.value,
+		"chromatic_aberration": %ChromaticAberration.value,
+		"monochrome": %Monochrome.button_pressed,
+		"noise": %Noise.value,
+		"noise_animated": %NoiseAnimated.button_pressed,
+		"noise_colored": %NoiseColored.button_pressed
+	}
+
+func _restore_compositor_state(data: Dictionary) -> void:
+	%Blur.set_value_no_signal(float(data.get("blur",0.0)))
+	%Glow.set_value_no_signal(float(data.get("glow",0.0)))
+	%GlowThreshold.set_value_no_signal(float(data.get("glow_threshold",0.7)))
+	%GlowRadius.set_value_no_signal(float(data.get("glow_radius",3.0)))
+	%Exposure.set_value_no_signal(float(data.get("exposure",0.0)))
+	%Saturation.set_value_no_signal(float(data.get("saturation",1.0)))
+	%Contrast.set_value_no_signal(float(data.get("contrast",1.0)))
+	%Temperature.set_value_no_signal(float(data.get("temperature",0.0)))
+	%Tint.set_value_no_signal(float(data.get("tint",0.0)))
+	%Vignette.set_value_no_signal(float(data.get("vignette",0.0)))
+	%ChromaticAberration.set_value_no_signal(float(data.get("chromatic_aberration",0.0)))
+	%Monochrome.set_pressed_no_signal(bool(data.get("monochrome",false)))
+	%Noise.set_value_no_signal(float(data.get("noise",0.0)))
+	%NoiseAnimated.set_pressed_no_signal(bool(data.get("noise_animated",true)))
+	%NoiseColored.set_pressed_no_signal(bool(data.get("noise_colored",false)))
+	_apply_global_filters()
+
+func _serialize_scene_runtime() -> Dictionary:
+	var result: Dictionary = {}
+	for object_id in scene_nodes.keys():
+		var node: Node3D = scene_nodes[object_id]
+		var state: Dictionary = {}
+		if node is RuntimeObject:
+			var runtime := node as RuntimeObject
+			state["kind"] = "runtime"
+			state["material"] = {
+				"color": _color_to_kab(runtime.get_material_color()),
+				"roughness": runtime.get_material_roughness(),
+				"metallic": runtime.get_material_metallic(),
+				"two_sided": bool(runtime.material.get_shader_parameter("two_sided")) if runtime.material != null else (runtime.standard_material == null or runtime.standard_material.cull_mode == BaseMaterial3D.CULL_DISABLED)
+			}
+			var model: MotionObject = ProjectStore.objects.get(String(object_id))
+			if model != null and model.technical_type == "image_mesh" and runtime.texture != null:
+				state["image_png"] = _image_to_kab(runtime.texture.get_image())
+		elif node is Light3D:
+			var light := node as Light3D
+			state["kind"] = "light"
+			state["light_type"] = "directional" if light is DirectionalLight3D else ("omni" if light is OmniLight3D else "spot")
+			state["energy"] = light.light_energy
+			state["color"] = _color_to_kab(light.light_color)
+			state["shadow"] = light.shadow_enabled
+		result[String(object_id)] = state
+	return result
+
+func _apply_runtime_material(runtime: RuntimeObject, state: Dictionary) -> void:
+	var material: Dictionary = state.get("material",{})
+	if material.is_empty(): return
+	runtime.set_material_color(_kab_to_color(material.get("color"),Color.WHITE))
+	runtime.set_material_roughness(float(material.get("roughness",0.8)))
+	runtime.set_material_metallic(float(material.get("metallic",0.0)))
+	runtime.set_material_two_sided(bool(material.get("two_sided",true)))
+
+func _serialize_rigs() -> Dictionary:
+	var result: Dictionary = {}
+	for rig_id in rigging_controller.rigs.keys():
+		var rig: RefCounted = rigging_controller.rigs[rig_id]
+		result[String(rig_id)] = _variant_to_kab(rig.to_dict())
+	return result
+
+func _restore_rig_data(payload: Dictionary) -> void:
+	rigging_controller.clear()
+	for rig_id_value in payload.keys():
+		var rig_id := String(rig_id_value)
+		var raw: Variant = _kab_to_variant(String(payload[rig_id_value]))
+		if not raw is Dictionary: continue
+		var record: Dictionary = raw
+		var rig = rigging_controller.create_rig(rig_id)
+		rig.bones.clear()
+		for bone_value in record.get("bones",[]):
+			if bone_value is Dictionary: rig.bones.append((bone_value as Dictionary).duplicate(true))
+		rig.bindings = (record.get("bindings",{}) as Dictionary).duplicate(true)
+		rig.ik_constraints = (record.get("ik_constraints",{}) as Dictionary).duplicate(true)
+
+func _restore_scene_hierarchy() -> void:
+	for object_id in scene_nodes.keys():
+		if not ProjectStore.objects.has(object_id): continue
+		var obj: MotionObject = ProjectStore.objects[object_id]
+		if obj.parent_id.is_empty() or not scene_nodes.has(obj.parent_id): continue
+		var node: Node3D = scene_nodes[object_id]
+		var parent_node: Node3D = scene_nodes[obj.parent_id]
+		if node.get_parent() != parent_node:
+			node.reparent(parent_node,false)
+		node.transform = obj.transform
+
+func _restore_rig_bindings() -> void:
+	for rig_id_value in rigging_controller.rigs.keys():
+		var rig_id := String(rig_id_value)
+		if not scene_nodes.has(rig_id) or not scene_nodes[rig_id] is RigRuntime: continue
+		var runtime := scene_nodes[rig_id] as RigRuntime
+		var rig: RefCounted = rigging_controller.rigs[rig_id]
+		for object_id_value in rig.bindings.keys():
+			var object_id := String(object_id_value)
+			if not scene_nodes.has(object_id) or not scene_nodes[object_id] is MeshInstance3D: continue
+			var binding: Dictionary = rig.bindings[object_id_value]
+			runtime.bind_mesh(scene_nodes[object_id] as MeshInstance3D,binding.get("bone_weights",[]))
+
 func _save_project_to(path: String) -> void:
+	# Persist the active bitmap editor before taking the snapshot.
+	if not active_drawing_id.is_empty() and %DrawingCanvas.bitmap_mode:
+		%DrawingCanvas.key_current_cel()
 	var drawing_payload: Dictionary = {}
 	for object_id in drawing_data_by_object:
 		var data: RefCounted = drawing_data_by_object[object_id]
 		drawing_payload[object_id] = data.to_dict()
 	var payload := {
+		"format": "kabuki_bundle",
+		"bundle_version": 2,
+		"app_version": KABUKI_VERSION,
 		"project": ProjectStore.to_dict(),
 		"drawings": drawing_payload,
-		"bitmap_cels": %DrawingCanvas.export_bitmap_cels()
+		"bitmap_cels": %DrawingCanvas.export_bitmap_cels(),
+		"world": _serialize_world_state(),
+		"compositor": _serialize_compositor_state(),
+		"scene_runtime": _serialize_scene_runtime(),
+		"rigs": _serialize_rigs(),
+		"render": {"camera_id": render_camera_id}
 	}
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
@@ -798,12 +981,16 @@ func _clear_runtime_project() -> void:
 	runtime_objects.clear()
 	scene_nodes.clear()
 	drawing_controller.clear()
+	rigging_controller.clear()
 	vector_onion_roots.clear()
 	active_drawing_group = null
 	active_drawing_id = ""
+	active_rig_id = ""
+	active_rig_runtime = null
 	selected = null
 	selected_scene_node = null
 	selected_object_id = ""
+	render_camera_id = ""
 	gizmo.attach(null)
 
 func _load_project_payload(payload: Dictionary, path: String) -> void:
@@ -811,8 +998,15 @@ func _load_project_payload(payload: Dictionary, path: String) -> void:
 	if not ProjectStore.load_dict(payload.get("project", {})):
 		status.text = "Unsupported KABUKI project"
 		return
+
+	# Bundle v2 fields are optional so legacy .kab files remain loadable.
+	_restore_world_state(payload.get("world",{}))
+	_restore_compositor_state(payload.get("compositor",{}))
+	_restore_rig_data(payload.get("rigs",{}))
 	%DrawingCanvas.import_bitmap_cels(payload.get("bitmap_cels", {}))
 	var drawings: Dictionary = payload.get("drawings", {})
+	var runtime_payload: Dictionary = payload.get("scene_runtime",{})
+
 	# Rebuild reference canvases first; their children are reconstructed below.
 	for object_id in ProjectStore.objects:
 		var obj: MotionObject = ProjectStore.objects[object_id]
@@ -843,28 +1037,96 @@ func _load_project_payload(payload: Dictionary, path: String) -> void:
 				stroke.end_cap = String(rec.get("end_cap", "flat"))
 				stroke.fill_enabled = bool(rec.get("fill_enabled", false))
 				stroke.fill_color = rec.get("fill_color", Color.TRANSPARENT)
+				stroke.fill_mode = String(rec.get("fill_mode","solid"))
+				stroke.fill_color_b = rec.get("fill_color_b",Color.TRANSPARENT)
+				stroke.fill_gradient_angle = float(rec.get("fill_gradient_angle",0.0))
 				plane.add_child(stroke)
 				stroke.rebuild()
-	# Rebuild non-drawing scene anchors.
+
+	# Rebuild every other project object, not only cameras/lights.
 	for object_id in ProjectStore.objects:
 		if scene_nodes.has(object_id): continue
 		var obj: MotionObject = ProjectStore.objects[object_id]
-		if obj.technical_type == "camera":
-			var camera_rig_node := _build_scene_camera(obj)
-			world_root.add_child(camera_rig_node)
-			camera_rig_node.transform = obj.transform
-			scene_nodes[obj.id] = camera_rig_node
-			if render_camera_id.is_empty(): render_camera_id = obj.id
-		elif obj.technical_type == "light":
-			var loaded_light := DirectionalLight3D.new()
-			world_root.add_child(loaded_light)
-			loaded_light.transform = obj.transform
-			scene_nodes[obj.id] = loaded_light
+		var state: Dictionary = runtime_payload.get(obj.id,{})
+		match obj.technical_type:
+			"camera":
+				var camera_rig_node := _build_scene_camera(obj)
+				world_root.add_child(camera_rig_node)
+				camera_rig_node.transform = obj.transform
+				scene_nodes[obj.id] = camera_rig_node
+			"light":
+				var light_type := String(state.get("light_type","directional"))
+				var loaded_light: Light3D
+				if light_type == "omni": loaded_light = OmniLight3D.new()
+				elif light_type == "spot": loaded_light = SpotLight3D.new()
+				else: loaded_light = DirectionalLight3D.new()
+				world_root.add_child(loaded_light)
+				loaded_light.transform = obj.transform
+				loaded_light.light_energy = float(state.get("energy",1.0))
+				loaded_light.light_color = _kab_to_color(state.get("color"),Color.WHITE)
+				loaded_light.shadow_enabled = bool(state.get("shadow",false))
+				scene_nodes[obj.id] = loaded_light
+			"plane":
+				var runtime_plane := RuntimeObject.new()
+				world_root.add_child(runtime_plane)
+				runtime_plane.setup_plane(obj)
+				runtime_plane.transform = obj.transform
+				_apply_runtime_material(runtime_plane,state)
+				runtime_objects.append(runtime_plane)
+				scene_nodes[obj.id] = runtime_plane
+			"image_mesh":
+				var image := _kab_to_image(String(state.get("image_png","")))
+				if image != null:
+					var runtime_image := RuntimeObject.new()
+					world_root.add_child(runtime_image)
+					runtime_image.setup(obj,image)
+					runtime_image.transform = obj.transform
+					_apply_runtime_material(runtime_image,state)
+					runtime_objects.append(runtime_image)
+					scene_nodes[obj.id] = runtime_image
+				else:
+					var missing_anchor := Node3D.new()
+					missing_anchor.name = obj.name
+					world_root.add_child(missing_anchor)
+					missing_anchor.transform = obj.transform
+					scene_nodes[obj.id] = missing_anchor
+			"rig":
+				if rigging_controller.rigs.has(obj.id):
+					var rig_runtime := RigRuntimeClass.new()
+					world_root.add_child(rig_runtime)
+					rig_runtime.transform = obj.transform
+					rig_runtime.setup(rigging_controller.rigs[obj.id])
+					scene_nodes[obj.id] = rig_runtime
+			_:
+				var anchor := Node3D.new()
+				anchor.name = obj.name
+				world_root.add_child(anchor)
+				anchor.transform = obj.transform
+				scene_nodes[obj.id] = anchor
+
+	_restore_scene_hierarchy()
+	_restore_rig_bindings()
+
+	var requested_render_camera := String((payload.get("render",{}) as Dictionary).get("camera_id",""))
+	if not requested_render_camera.is_empty() and scene_nodes.has(requested_render_camera):
+		render_camera_id = requested_render_camera
+	else:
+		for object_id in ProjectStore.objects:
+			var obj: MotionObject = ProjectStore.objects[object_id]
+			if obj.technical_type == "camera":
+				render_camera_id = obj.id
+				break
+
 	for loaded_object_id in scene_nodes.keys():
 		_apply_object_visibility(String(loaded_object_id))
 	_refresh_scene_object_list()
 	_refresh_drawing_planes()
 	_apply_drawing_frame(ProjectStore.current_frame)
+	%TimelineDuration.set_value_no_signal(ProjectStore.duration_frames)
+	%PlaybackStart.set_value_no_signal(ProjectStore.playback_start)
+	%PlaybackEnd.set_value_no_signal(ProjectStore.playback_end)
+	timeline.set_timeline_range(ProjectStore.duration_frames,ProjectStore.playback_start,ProjectStore.playback_end)
+	timeline.set_frame(ProjectStore.current_frame)
 	current_project_path = path
 	%ProjectName.text = path.get_file()
 	status.text = "Project loaded · " + path.get_file()
