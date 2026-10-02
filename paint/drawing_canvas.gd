@@ -274,14 +274,18 @@ func _push_undo() -> void:
 func undo_paint() -> void:
 	if undo_stack.is_empty() or raster == null: return
 	redo_stack.append(raster.duplicate())
-	raster=undo_stack.pop_back()
-	_refresh_texture(); queue_redraw()
+	raster = undo_stack.pop_back()
+	key_current_cel()
+	_refresh_texture()
+	queue_redraw()
 
 func redo_paint() -> void:
 	if redo_stack.is_empty() or raster == null: return
 	undo_stack.append(raster.duplicate())
-	raster=redo_stack.pop_back()
-	_refresh_texture(); queue_redraw()
+	raster = redo_stack.pop_back()
+	key_current_cel()
+	_refresh_texture()
+	queue_redraw()
 
 func finish_bitmap() -> void:
 	_ensure_raster()
