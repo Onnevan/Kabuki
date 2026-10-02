@@ -99,8 +99,12 @@ func _point_segment_distance(p:Vector2,a:Vector2,b:Vector2)->float:
 	var t:=clampf((p-a).dot(ab)/den,0.,1.);return p.distance_to(a+ab*t)
 func _process(_d:float)->void:_sync()
 func _sync()->void:
-	if target==null or not is_instance_valid(target):visible=false;return
-	visible=true;global_position=target.global_position
+	if target==null or not is_instance_valid(target):
+		visible=false
+		return
+	# Visibility is controlled by the workspace/editor. Do not force it back on
+	# every frame, otherwise Drawing cannot hide the canvas transform gizmo.
+	global_position=target.global_position
 	if orientation_local: global_basis=target.global_basis.orthonormalized()
 	else: global_rotation=Vector3.ZERO
 	var cam:=get_viewport().get_camera_3d()
