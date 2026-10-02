@@ -918,6 +918,7 @@ tooltip_text="Transform gizmo orientation"
 [node name="ViewportGrow" type="Control" parent="ViewportTop"]
 size_flags_horizontal=3
 [node name="PreviewChip" type="Label" parent="ViewportTop"]
+unique_name_in_owner=true
 text="PREVIEW"
 
 [node name="CameraFrame" type="Control" parent="."]
