@@ -50,6 +50,11 @@ var transform_start := Transform3D.IDENTITY
 var drag_start_mouse := Vector2.ZERO
 var workspace := "scene"
 var render_preview := false
+var local_playing := false
+var local_play_accumulator := 0.0
+var local_play_direction := 1
+var local_hold_counter := 0
+var render_in_progress := false
 var drag_offset := Vector3.ZERO
 var last_mouse := Vector2.ZERO
 var scene_object_controller: RefCounted = SceneObjectControllerClass.new()
@@ -218,6 +223,9 @@ func _ready() -> void:
 	for clip_mode_name in ["Loop", "Ping-Pong", "Hold", "Loop + Hold"]:
 		%ClipMode.add_item(clip_mode_name)
 	%ClipMode.item_selected.connect(_on_clip_mode_selected)
+	%LocalPlay.pressed.connect(_on_local_play_pressed)
+	%RenderAnimation.pressed.connect(_on_render_animation_pressed)
+	%RenderOutputDialog.dir_selected.connect(_on_render_output_dir_selected)
 	%LocalDuration.value_changed.connect(_on_local_duration_changed)
 	%LocalPlaybackStart.value_changed.connect(_on_local_playback_start_changed)
 	%LocalPlaybackEnd.value_changed.connect(_on_local_playback_end_changed)
@@ -273,6 +281,8 @@ func _process(delta: float) -> void:
 			var next_frame: int = ProjectStore.current_frame + 1
 			if next_frame > ProjectStore.playback_end: next_frame = ProjectStore.playback_start
 			ProjectStore.set_frame(next_frame)
+	if local_playing:
+		_process_local_playback(delta)
 
 func _setup_viewport_controls() -> void:
 	%ProjectionMode.clear()
@@ -2045,8 +2055,85 @@ func _on_next_pressed() -> void:
 	ProjectStore.set_frame(ProjectStore.current_frame + 1)
 func _on_play_pressed() -> void:
 	playing = not playing
+	if playing and local_playing:
+		_stop_local_playback()
 	%PlayButton.text = ""
 	%PlayButton.icon = load("res://assets/icons/lucide/pause.svg") if playing else load("res://assets/icons/lucide/play-nav.svg")
+func _on_local_play_pressed() -> void:
+	if workspace != "drawing": return
+	var data: RefCounted = _active_drawing_data()
+	if data == null: return
+	local_playing = not local_playing
+	if local_playing:
+		playing = false
+		%PlayButton.icon = load("res://assets/icons/lucide/play-nav.svg")
+		local_play_accumulator = 0.0
+		local_hold_counter = 0
+		var start_frame := int(data.local_playback_start)
+		var end_frame := int(data.local_playback_end)
+		if int(data.local_frame) < start_frame or int(data.local_frame) > end_frame:
+			data.set_local_frame(start_frame)
+		local_play_direction = -1 if int(data.local_frame) >= end_frame and String(data.playback_mode) == "ping_pong" else 1
+		%LocalPlay.icon = load("res://assets/icons/lucide/pause.svg")
+	else:
+		_stop_local_playback()
+
+func _stop_local_playback() -> void:
+	local_playing = false
+	local_play_accumulator = 0.0
+	local_hold_counter = 0
+	if has_node("%LocalPlay"):
+		%LocalPlay.icon = load("res://assets/icons/lucide/play-nav.svg")
+
+func _process_local_playback(delta: float) -> void:
+	if workspace != "drawing":
+		_stop_local_playback()
+		return
+	var data: RefCounted = _active_drawing_data()
+	if data == null:
+		_stop_local_playback()
+		return
+	var speed: float = maxf(0.01,float(data.playback_speed))
+	local_play_accumulator += delta*speed
+	var step_time := 1.0/maxf(1.0,float(ProjectStore.fps))
+	while local_play_accumulator >= step_time and local_playing:
+		local_play_accumulator -= step_time
+		var start_frame := int(data.local_playback_start)
+		var end_frame := int(data.local_playback_end)
+		var current := int(data.local_frame)
+		var next_local := current
+		match String(data.playback_mode):
+			"ping_pong":
+				next_local = current+local_play_direction
+				if next_local > end_frame:
+					local_play_direction = -1
+					next_local = maxi(start_frame,end_frame-1)
+				elif next_local < start_frame:
+					local_play_direction = 1
+					next_local = mini(end_frame,start_frame+1)
+			"hold":
+				if current >= end_frame:
+					_stop_local_playback()
+					break
+				next_local = mini(current+1,end_frame)
+			"loop_hold":
+				if current >= end_frame:
+					if local_hold_counter < int(data.hold_frames):
+						local_hold_counter += 1
+						next_local = end_frame
+					else:
+						local_hold_counter = 0
+						next_local = start_frame
+				else:
+					next_local = current+1
+			_:
+				next_local = current+1
+				if next_local > end_frame: next_local = start_frame
+		data.set_local_frame(next_local)
+		%DrawingCanvas.set_local_frame(data.local_frame)
+		local_drawing_timeline.set_frame(data.local_frame)
+		_apply_drawing_frame(ProjectStore.current_frame)
+
 func _on_key_pressed() -> void:
 	if workspace == "drawing":
 		_key_active_flipbook_cel()
@@ -2175,6 +2262,100 @@ func _restore_vector_drawing_state(canvas_id: String, state: Dictionary) -> void
 	_apply_drawing_frame(ProjectStore.current_frame)
 	_refresh_drawing_timeline()
 	_refresh_vector_onion_skin(group,data,_drawing_edit_frame())
+
+func _on_render_animation_pressed() -> void:
+	if render_in_progress: return
+	if render_camera_id.is_empty() or not scene_nodes.has(render_camera_id):
+		status.text = "Render animation · create or select a scene camera first"
+		return
+	%RenderOutputDialog.popup_centered_ratio(0.65)
+
+func _on_render_output_dir_selected(path: String) -> void:
+	if render_in_progress: return
+	call_deferred("_render_animation_png_sequence",path)
+
+func _render_animation_png_sequence(output_dir: String) -> void:
+	if render_in_progress: return
+	if render_camera_id.is_empty() or not scene_nodes.has(render_camera_id): return
+	var render_cam := _scene_camera_node(render_camera_id)
+	if render_cam == null:
+		status.text = "Render animation · camera unavailable"
+		return
+	var camera_obj: MotionObject = ProjectStore.objects.get(render_camera_id)
+	if camera_obj == null: return
+
+	render_in_progress = true
+	playing = false
+	_stop_local_playback()
+	%RenderAnimation.disabled = true
+
+	var previous_frame := ProjectStore.current_frame
+	var previous_viewport_size := viewport.size
+	var previous_stretch := canvas.stretch
+	var previous_editor_current := camera.current
+	var previous_render_current := render_cam.current
+	var previous_grid_visible := world_grid.visible
+	var previous_gizmo_visible := gizmo.visible
+	var previous_view_gizmo_visible := %ViewGizmo.visible
+	var previous_camera_frame_visible := %CameraFrame.visible
+	var previous_ik_visible := %IKGuide.visible
+	var previous_gradient_visible := %GradientGuide.visible
+
+	var rx := maxi(64,int(camera_obj.properties.get("camera.resolution_x",1920)))
+	var ry := maxi(64,int(camera_obj.properties.get("camera.resolution_y",1080)))
+	canvas.stretch = false
+	viewport.size = Vector2i(rx,ry)
+	camera.current = false
+	render_cam.current = true
+	world_grid.visible = false
+	gizmo.visible = false
+	%ViewGizmo.visible = false
+	%CameraFrame.visible = false
+	%IKGuide.visible = false
+	%GradientGuide.visible = false
+	for reference_canvas in drawing_planes:
+		if is_instance_valid(reference_canvas):
+			reference_canvas.set_guide_visible(false)
+	_set_render_camera_gizmo_visible(false)
+
+	var start_frame := int(ProjectStore.playback_start)
+	var end_frame := int(ProjectStore.playback_end)
+	var total := maxi(1,end_frame-start_frame+1)
+	var base_name := "kabuki"
+	if not current_project_path.is_empty():
+		base_name = current_project_path.get_file().get_basename()
+	var failed := false
+
+	for frame in range(start_frame,end_frame+1):
+		status.text = "Rendering %d / %d · frame %d" % [frame-start_frame+1,total,frame]
+		ProjectStore.set_frame(frame)
+		await RenderingServer.frame_post_draw
+		var image := viewport.get_texture().get_image()
+		if image == null or image.is_empty():
+			failed = true
+			break
+		var filename := "%s_%05d.png" % [base_name,frame]
+		var err := image.save_png(output_dir.path_join(filename))
+		if err != OK:
+			failed = true
+			break
+
+	render_cam.current = previous_render_current
+	camera.current = previous_editor_current
+	canvas.stretch = previous_stretch
+	viewport.size = previous_viewport_size
+	ProjectStore.set_frame(previous_frame)
+	world_grid.visible = previous_grid_visible
+	gizmo.visible = previous_gizmo_visible
+	%ViewGizmo.visible = previous_view_gizmo_visible
+	%CameraFrame.visible = previous_camera_frame_visible
+	%IKGuide.visible = previous_ik_visible
+	%GradientGuide.visible = previous_gradient_visible
+	if not camera_view_active:
+		_set_render_camera_gizmo_visible(true)
+	%RenderAnimation.disabled = false
+	render_in_progress = false
+	status.text = "Render failed" if failed else "Animation rendered · %d PNG frames · %dx%d" % [total,rx,ry]
 
 func _on_material_color_changed(value: Color) -> void:
 	if selected: selected.set_material_color(value)
