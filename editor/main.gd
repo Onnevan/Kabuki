@@ -403,12 +403,22 @@ func _set_visual_visibility_recursive(node: Node, visible_state: bool) -> void:
 	for child in node.get_children():
 		_set_visual_visibility_recursive(child,visible_state)
 
+func _object_effectively_visible(object_id: String) -> bool:
+	var cursor_id := object_id
+	var guard := 0
+	while not cursor_id.is_empty() and ProjectStore.objects.has(cursor_id) and guard < 64:
+		var cursor: MotionObject = ProjectStore.objects[cursor_id]
+		if not cursor.visible: return false
+		cursor_id = cursor.parent_id
+		guard += 1
+	return true
+
 func _apply_object_visibility(object_id: String) -> void:
 	if not ProjectStore.objects.has(object_id): return
 	var obj: MotionObject = ProjectStore.objects[object_id]
 	if not scene_nodes.has(object_id): return
 	var node: Node3D = scene_nodes[object_id]
-	if not obj.visible:
+	if not _object_effectively_visible(object_id):
 		_set_visual_visibility_recursive(node,false)
 		return
 	# Restore through normal evaluation so animated stroke/cel visibility is not
@@ -424,7 +434,10 @@ func _set_object_visible(object_id: String, visible_state: bool) -> void:
 	if not ProjectStore.objects.has(object_id): return
 	var obj: MotionObject = ProjectStore.objects[object_id]
 	obj.visible = visible_state
-	_apply_object_visibility(object_id)
+	# Re-evaluate the whole hierarchy because parent visibility affects children,
+	# while each child keeps its own visibility toggle for later restoration.
+	for affected_id in scene_nodes.keys():
+		_apply_object_visibility(String(affected_id))
 	ProjectStore.project_changed.emit()
 	_refresh_scene_object_list()
 	_refresh_drawing_planes()
