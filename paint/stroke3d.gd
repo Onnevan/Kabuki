@@ -60,20 +60,33 @@ func sculpt_screen(brush_pos: Vector2, camera: Camera3D, brush_radius_px: float,
 	_sculpt_has_last = true
 	if points.is_empty(): return false
 
-	# Convert screen-space interaction into a stable local-space scale.
-	# A 100 px brush should produce a clearly visible deformation regardless of zoom.
-	var reference_world := global_position
-	var world_radius: float = maxf(0.001,brush_radius_px * 0.002)
-	if not camera.is_position_behind(reference_world):
-		var depth_to_canvas: float = camera.global_position.distance_to(reference_world)
-		var a := camera.project_position(brush_pos,depth_to_canvas)
-		var b := camera.project_position(brush_pos + Vector2(maxf(1.0,brush_radius_px),0.0),depth_to_canvas)
-		world_radius = maxf(0.001,a.distance_to(b))
+	var viewport_size := camera.get_viewport().get_visible_rect().size
+	var world_per_px: float
+	if camera.projection == Camera3D.PROJECTION_ORTHOGONAL:
+		world_per_px = camera.size / maxf(1.0,viewport_size.y)
+	else:
+		var depth := maxf(0.01,camera.global_position.distance_to(global_position))
+		world_per_px = 2.0 * depth * tan(deg_to_rad(camera.fov) * 0.5) / maxf(1.0,viewport_size.y)
+
+	var basis_scale := global_transform.basis.get_scale()
+	var local_scale_ref := maxf(0.0001,(basis_scale.x+basis_scale.y+basis_scale.z)/3.0)
+	var local_per_px := world_per_px / local_scale_ref
+	var brush_radius_local := brush_radius_px * local_per_px
+	var amount_strength := clampf(absf(strength),0.0,1.0)
+
+	# Brush center projected onto the stroke's drawing plane.
+	var plane_origin := global_position
+	var plane_normal := global_transform.basis.z.normalized()
+	var ray_origin := camera.project_ray_origin(brush_pos)
+	var ray_dir := camera.project_ray_normal(brush_pos)
+	var denom := ray_dir.dot(plane_normal)
+	var brush_local := Vector3.ZERO
+	if absf(denom) > 0.00001:
+		var hit_distance := (plane_origin-ray_origin).dot(plane_normal)/denom
+		brush_local = to_local(ray_origin+ray_dir*hit_distance)
 
 	var changed := false
 	var original := points.duplicate()
-	var abs_strength := absf(strength)
-	var normalized_strength := clampf(abs_strength / 0.08,0.0,2.0)
 
 	for i in range(points.size()):
 		var world_point := to_global(original[i])
@@ -82,44 +95,31 @@ func sculpt_screen(brush_pos: Vector2, camera: Camera3D, brush_radius_px: float,
 		var distance_px := screen_point.distance_to(brush_pos)
 		if distance_px > brush_radius_px: continue
 
-		var falloff := 1.0 - distance_px / maxf(brush_radius_px,1.0)
-		# Smoothstep falloff: strong center, soft edge.
-		falloff = falloff * falloff * (3.0 - 2.0 * falloff)
+		var falloff := 1.0-distance_px/maxf(brush_radius_px,1.0)
+		falloff = falloff*falloff*(3.0-2.0*falloff)
+		var influence := amount_strength*falloff
 
 		match mode:
 			"move":
 				if drag.length_squared() > 0.0:
-					var screen_delta := (local_right * drag.x - local_up * drag.y)
-					var local_per_px := world_radius / maxf(brush_radius_px,1.0)
-					points[i] += screen_delta * local_per_px * normalized_strength * falloff
+					points[i] += (local_right*drag.x-local_up*drag.y)*local_per_px*influence
 
 			"pinch":
-				var depth := camera.global_position.distance_to(world_point)
-				var target_world := camera.project_position(brush_pos,depth)
-				var target_local := to_local(target_world)
-				var amount := clampf(normalized_strength * 0.22 * falloff,0.0,0.9)
-				points[i] = points[i].lerp(target_local,amount)
+				points[i] = points[i].lerp(brush_local,clampf(influence*0.65,0.0,0.95))
 
 			"smooth":
-				if i > 0 and i < original.size()-1:
-					var avg := (original[i-1] + original[i+1]) * 0.5
-					var amount := clampf(normalized_strength * 0.38 * falloff,0.0,0.95)
-					points[i] = points[i].lerp(avg,amount)
+				if i>0 and i<original.size()-1:
+					var avg := (original[i-1]+original[i+1])*0.5
+					points[i] = points[i].lerp(avg,clampf(influence*0.8,0.0,0.98))
 
 			"inflate":
-				var tangent := Vector3.RIGHT
-				if i > 0 and i < original.size()-1:
-					tangent = (original[i+1]-original[i-1]).normalized()
-				elif i+1 < original.size():
-					tangent = (original[i+1]-original[i]).normalized()
-				elif i > 0:
-					tangent = (original[i]-original[i-1]).normalized()
-				var outward := tangent.cross(local_view).normalized()
-				var radial_sign := 1.0 if screen_point.x >= brush_pos.x else -1.0
-				points[i] += outward * radial_sign * world_radius * 0.18 * normalized_strength * falloff * signf(strength if not is_zero_approx(strength) else 1.0)
+				var radial := original[i]-brush_local
+				radial -= local_view*radial.dot(local_view)
+				if radial.length_squared()>0.000001:
+					points[i] += radial.normalized()*brush_radius_local*0.22*influence*signf(strength if not is_zero_approx(strength) else 1.0)
 
 			_:
-				points[i] += local_view * world_radius * 0.15 * normalized_strength * falloff * signf(strength if not is_zero_approx(strength) else 1.0)
+				points[i] += local_view*brush_radius_local*0.25*influence*signf(strength if not is_zero_approx(strength) else 1.0)
 
 		changed = true
 
