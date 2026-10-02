@@ -2320,6 +2320,9 @@ func _on_fill_tolerance_changed(value: float) -> void:
 
 func _set_bitmap_tool(tool: int) -> void:
 	_on_draw_bitmap_pressed()
+	%DrawingCanvas.brush_color = %BrushColor.color
+	%DrawingCanvas.opacity = %BrushOpacity.value
+	%DrawingCanvas.brush_size = %BrushSize.value
 	%DrawingCanvas.set_tool(tool)
 	status.text = ["Brush", "Pencil", "Bitmap Eraser", "Line", "Rectangle", "Ellipse", "Fill", "Smudge", "Lasso Fill"][tool]
 	_update_drawing_tool_ui()
@@ -2420,12 +2423,16 @@ func _update_drawing_tool_ui() -> void:
 	# has context; keep the rail itself visually consistent.
 	%BitmapClear.visible = bitmap
 	%BitmapCommit.visible = false
+	var size_active: bool = bitmap and (current_tool == 0 or current_tool == 1 or current_tool == 2 or current_tool == 3 or current_tool == 4 or current_tool == 5 or current_tool == 7)
+	var opacity_active: bool = bitmap and current_tool >= 0 and current_tool <= 8
 	var brush_active: bool = bitmap and (current_tool == 0 or current_tool == 1 or current_tool == 2)
 	var lasso_active: bool = bitmap and current_tool == 8
 	var gradient_active: bool = lasso_active and %LassoFillMode.selected == 1
-	%BrushSize.visible = brush_active
+	%BrushSizeLabel.visible = size_active
+	%BrushSize.visible = size_active
 	%BrushPreset.visible = brush_active and current_tool != 2
-	%BrushOpacity.visible = brush_active
+	%BrushOpacityLabel.visible = opacity_active
+	%BrushOpacity.visible = opacity_active
 	%BrushHardness.visible = brush_active and current_tool == 0
 	var fill_active: bool = bitmap and current_tool == 6
 	%FillToleranceLabel.visible = fill_active
@@ -2446,7 +2453,7 @@ func _update_drawing_tool_ui() -> void:
 	%EndCap.visible = drawing_3d_active
 	%CapSeparator.visible = drawing_3d_active
 	# Floating chrome is content-sized. Never leave an empty or stretched bar.
-	var context_controls: Array[Control] = [%BitmapClear,%LassoFillMode,%LassoColorALabel,%LassoColorA,%LassoColorBLabel,%LassoColorB,%LassoAngleLabel,%LassoGradientAngle,%SculptMode,%SculptStrength,%BrushSize,%BrushPreset,%BrushOpacity,%BrushHardness,%FillToleranceLabel,%FillTolerance,%BrushColor,%Fill,%FillColor]
+	var context_controls: Array[Control] = [%BitmapClear,%LassoFillMode,%LassoColorALabel,%LassoColorA,%LassoColorBLabel,%LassoColorB,%LassoAngleLabel,%LassoGradientAngle,%SculptMode,%SculptStrength,%BrushSizeLabel,%BrushSize,%BrushPreset,%BrushOpacityLabel,%BrushOpacity,%BrushHardness,%FillToleranceLabel,%FillTolerance,%BrushColor,%Fill,%FillColor]
 	var has_context: bool = false
 	for control: Control in context_controls:
 		if control.visible:
@@ -2589,6 +2596,9 @@ func _on_draw_bitmap_pressed() -> void:
 	drawing_3d_active = false
 	drawing_sculpt_active = false
 	drawing_erase_active = false
+	%DrawingCanvas.brush_color = %BrushColor.color
+	%DrawingCanvas.opacity = %BrushOpacity.value
+	%DrawingCanvas.brush_size = %BrushSize.value
 	%DrawingCanvas.bitmap_mode = true
 	%DrawingCanvas.visible = true
 	%DrawingCanvas.queue_redraw()
