@@ -14,6 +14,7 @@ uniform float chromatic_aberration : hint_range(0.0, 1.0) = 0.0;
 uniform float monochrome : hint_range(0.0, 1.0) = 0.0;
 uniform float noise_amount : hint_range(0.0, 1.0) = 0.0;
 uniform float noise_seed = 0.0;
+uniform float noise_colored : hint_range(0.0, 1.0) = 0.0;
 
 float luminance_of(vec3 c) {
 	return dot(c, vec3(0.2126, 0.7152, 0.0722));
@@ -23,6 +24,16 @@ float grain_hash(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
 	p3 += dot(p3, p3.yzx + 33.33 + noise_seed);
 	return fract((p3.x + p3.y) * p3.z);
+}
+
+vec3 grain_rgb(vec2 pixel) {
+	float n1 = grain_hash(pixel) - 0.5;
+	if (noise_colored < 0.5) {
+		return vec3(n1);
+	}
+	float n2 = grain_hash(pixel + vec2(17.23, 9.71)) - 0.5;
+	float n3 = grain_hash(pixel + vec2(41.11, 27.59)) - 0.5;
+	return vec3(n1, n2, n3);
 }
 
 vec3 bright_part(vec3 c) {
@@ -95,8 +106,7 @@ void fragment() {
 
 	if (noise_amount > 0.001) {
 		vec2 pixel = floor(uv / max(px, vec2(0.000001)));
-		float n = grain_hash(pixel) - 0.5;
-		color += vec3(n) * noise_amount;
+		color += grain_rgb(pixel) * noise_amount;
 	}
 
 	COLOR = vec4(max(color, vec3(0.0)), 1.0);
