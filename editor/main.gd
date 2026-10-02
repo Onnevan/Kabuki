@@ -1136,6 +1136,17 @@ func _on_import_pressed() -> void: %FileDialog.popup_centered_ratio(0.7)
 func _on_file_selected(path: String) -> void:
 	var img := Image.load_from_file(path)
 	if img == null or img.is_empty(): status.text = "Could not load image"; return
+	if %FileDialog.has_meta("world_image_request") and bool(%FileDialog.get_meta("world_image_request")):
+		%FileDialog.remove_meta("world_image_request")
+		world_mode = "image"
+		%WorldMode.select(2)
+		%WorldColor.visible = false
+		%WorldGradientBox.visible = false
+		%WorldImageBox.visible = true
+		%WorldBackdrop.texture = ImageTexture.create_from_image(img)
+		_refresh_world()
+		status.text = "World image loaded · " + path.get_file()
+		return
 	var obj := MotionObject.new(path.get_file(), "image_mesh", "prop")
 	ProjectStore.add_object(obj)
 	var runtime := RuntimeObject.new()
@@ -2783,25 +2794,42 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 		status.text = "Animation rendered · %d PNG frames · %dx%d" % [total,rx,ry]
 
 func _on_material_color_changed(value: Color) -> void:
-	if selected: selected.set_material_color(value)
+	if selected:
+		selected.set_material_color(value)
+		if selected.model != null: selected.model.properties["material.color"] = value
 
 func _on_material_roughness_changed(value: float) -> void:
-	if selected: selected.set_material_roughness(value)
+	if selected:
+		selected.set_material_roughness(value)
+		if selected.model != null: selected.model.properties["material.roughness"] = value
 
 func _on_material_metallic_changed(value: float) -> void:
-	if selected: selected.set_material_metallic(value)
+	if selected:
+		selected.set_material_metallic(value)
+		if selected.model != null: selected.model.properties["material.metallic"] = value
 
 func _on_material_two_sided_toggled(enabled: bool) -> void:
-	if selected: selected.set_material_two_sided(enabled)
+	if selected:
+		selected.set_material_two_sided(enabled)
+		if selected.model != null: selected.model.properties["material.two_sided"] = enabled
 
 func _on_light_energy_changed(value: float) -> void:
-	if selected_scene_node is Light3D: (selected_scene_node as Light3D).light_energy = value
+	if selected_scene_node is Light3D:
+		(selected_scene_node as Light3D).light_energy = value
+		if ProjectStore.objects.has(selected_object_id):
+			(ProjectStore.objects[selected_object_id] as MotionObject).properties["light.energy"] = value
 
 func _on_light_color_changed(value: Color) -> void:
-	if selected_scene_node is Light3D: (selected_scene_node as Light3D).light_color = value
+	if selected_scene_node is Light3D:
+		(selected_scene_node as Light3D).light_color = value
+		if ProjectStore.objects.has(selected_object_id):
+			(ProjectStore.objects[selected_object_id] as MotionObject).properties["light.color"] = value
 
 func _on_light_shadow_toggled(enabled: bool) -> void:
-	if selected_scene_node is Light3D: (selected_scene_node as Light3D).shadow_enabled = enabled
+	if selected_scene_node is Light3D:
+		(selected_scene_node as Light3D).shadow_enabled = enabled
+		if ProjectStore.objects.has(selected_object_id):
+			(ProjectStore.objects[selected_object_id] as MotionObject).properties["light.shadow"] = enabled
 
 func _on_light_type_selected(index: int) -> void:
 	if not (selected_scene_node is Light3D): return
@@ -2815,6 +2843,12 @@ func _on_light_type_selected(index: int) -> void:
 	replacement.light_color = old_light.light_color
 	replacement.light_energy = old_light.light_energy
 	replacement.shadow_enabled = old_light.shadow_enabled
+	if ProjectStore.objects.has(selected_object_id):
+		var light_model: MotionObject = ProjectStore.objects[selected_object_id]
+		light_model.properties["light.type"] = ["directional","omni","spot"][index]
+		light_model.properties["light.energy"] = replacement.light_energy
+		light_model.properties["light.color"] = replacement.light_color
+		light_model.properties["light.shadow"] = replacement.shadow_enabled
 	world_root.add_child(replacement)
 	scene_nodes[selected_object_id] = replacement
 	old_light.queue_free()
