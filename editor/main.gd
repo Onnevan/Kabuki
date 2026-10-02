@@ -3161,7 +3161,7 @@ func _sculpt_drawing(pos: Vector2) -> void:
 	if changed and data:
 		# Editing a drawing at a frame must create/update that frame's pose.
 		# This prevents the evaluator from snapping the sculpt back to an older cel.
-		data.set_exposure(ProjectStore.current_frame, data.snapshot_pose(), "linear" if auto_key.button_pressed else "hold")
+		data.set_exposure(_drawing_edit_frame(), data.snapshot_pose(), "linear" if auto_key.button_pressed else "hold")
 		_refresh_drawing_timeline()
 
 func _on_brush_size_changed(value: float) -> void:
