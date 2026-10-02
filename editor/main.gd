@@ -254,6 +254,7 @@ func _ready() -> void:
 		%SculptMode.add_item(label)
 	%SculptMode.select(0)
 	%SculptMode.item_selected.connect(_on_sculpt_mode_selected)
+	_setup_antialiasing_controls()
 	effects_display.set_source_texture(viewport.get_texture())
 	render_composite.set_source_texture(viewport.get_texture())
 	render_compositor.render_target_update_mode = SubViewport.UPDATE_DISABLED
@@ -827,7 +828,9 @@ func _serialize_compositor_state() -> Dictionary:
 		"monochrome": %Monochrome.button_pressed,
 		"noise": %Noise.value,
 		"noise_animated": %NoiseAnimated.button_pressed,
-		"noise_colored": %NoiseColored.button_pressed
+		"noise_colored": %NoiseColored.button_pressed,
+		"antialiasing": %AntialiasingMode.selected,
+		"render_sampling": %RenderSampling.selected
 	}
 
 func _restore_compositor_state(data: Dictionary) -> void:
@@ -846,6 +849,9 @@ func _restore_compositor_state(data: Dictionary) -> void:
 	%Noise.set_value_no_signal(float(data.get("noise",0.0)))
 	%NoiseAnimated.set_pressed_no_signal(bool(data.get("noise_animated",true)))
 	%NoiseColored.set_pressed_no_signal(bool(data.get("noise_colored",false)))
+	%AntialiasingMode.select(clampi(int(data.get("antialiasing",2)),0,3))
+	%RenderSampling.select(clampi(int(data.get("render_sampling",1)),0,2))
+	_apply_antialiasing(%AntialiasingMode.selected)
 	_apply_global_filters()
 
 func _serialize_scene_runtime() -> Dictionary:
@@ -2609,9 +2615,12 @@ func _render_current_frame_png(output_path: String) -> void:
 
 	var rx := maxi(64,int(camera_obj.properties.get("camera.resolution_x",1920)))
 	var ry := maxi(64,int(camera_obj.properties.get("camera.resolution_y",1080)))
+	var sample_scale: int = _render_sampling_scale()
+	var render_rx: int = rx * sample_scale
+	var render_ry: int = ry * sample_scale
 	canvas.stretch = false
-	viewport.size = Vector2i(rx,ry)
-	render_compositor.size = Vector2i(rx,ry)
+	viewport.size = Vector2i(render_rx,render_ry)
+	render_compositor.size = Vector2i(render_rx,render_ry)
 	_sync_final_postprocess_rect()
 	render_composite.set_source_texture(viewport.get_texture())
 	render_compositor.render_target_update_mode = SubViewport.UPDATE_DISABLED
@@ -2628,7 +2637,7 @@ func _render_current_frame_png(output_path: String) -> void:
 			reference_canvas.set_guide_visible(false)
 	_set_render_camera_gizmo_visible(false)
 
-	status.text = "Rendering frame %d · %dx%d" % [frame,rx,ry]
+	status.text = "Rendering frame %d · %dx%d · sampling %dx" % [frame,rx,ry,sample_scale]
 	ProjectStore.set_frame(frame)
 	await RenderingServer.frame_post_draw
 	render_compositor.render_target_update_mode = SubViewport.UPDATE_ONCE
@@ -2636,6 +2645,8 @@ func _render_current_frame_png(output_path: String) -> void:
 	var image := render_compositor.get_texture().get_image()
 	var err := ERR_CANT_CREATE
 	if image != null and not image.is_empty():
+		if sample_scale > 1:
+			image.resize(rx,ry,Image.INTERPOLATE_LANCZOS)
 		err = image.save_png(output_path)
 
 	render_cam.current = previous_render_current
@@ -2709,9 +2720,12 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 
 	var rx := maxi(64,int(camera_obj.properties.get("camera.resolution_x",1920)))
 	var ry := maxi(64,int(camera_obj.properties.get("camera.resolution_y",1080)))
+	var sample_scale: int = _render_sampling_scale()
+	var render_rx: int = rx * sample_scale
+	var render_ry: int = ry * sample_scale
 	canvas.stretch = false
-	viewport.size = Vector2i(rx,ry)
-	render_compositor.size = Vector2i(rx,ry)
+	viewport.size = Vector2i(render_rx,render_ry)
+	render_compositor.size = Vector2i(render_rx,render_ry)
 	_sync_final_postprocess_rect()
 	render_composite.set_source_texture(viewport.get_texture())
 	render_compositor.render_target_update_mode = SubViewport.UPDATE_DISABLED
@@ -2741,7 +2755,7 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 		if render_cancel_requested:
 			aborted = true
 			break
-		status.text = "Rendering %d / %d · frame %d" % [frame-start_frame+1,total,frame]
+		status.text = "Rendering %d / %d · frame %d · sampling %dx" % [frame-start_frame+1,total,frame,sample_scale]
 		ProjectStore.set_frame(frame)
 		await RenderingServer.frame_post_draw
 		if render_cancel_requested:
@@ -2756,6 +2770,8 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 		if image == null or image.is_empty():
 			failed = true
 			break
+		if sample_scale > 1:
+			image.resize(rx,ry,Image.INTERPOLATE_LANCZOS)
 		var filename := "%s_%05d.png" % [base_name,frame]
 		var err := image.save_png(output_dir.path_join(filename))
 		if err != OK:
@@ -2792,7 +2808,7 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	elif failed:
 		status.text = "Render failed"
 	else:
-		status.text = "Animation rendered · %d PNG frames · %dx%d" % [total,rx,ry]
+		status.text = "Animation rendered · %d PNG frames · %dx%d · sampling %dx" % [total,rx,ry,sample_scale]
 
 func _on_material_color_changed(value: Color) -> void:
 	if selected:
@@ -2856,6 +2872,39 @@ func _on_light_type_selected(index: int) -> void:
 	selected_scene_node = replacement
 	_show_transform(replacement)
 	status.text = "Light type: " + ["Directional", "Point", "Spot"][index]
+
+func _setup_antialiasing_controls() -> void:
+	%AntialiasingMode.clear()
+	for label in ["Off","MSAA 2x","MSAA 4x","MSAA 8x"]:
+		%AntialiasingMode.add_item(label)
+	%AntialiasingMode.select(2)
+	%AntialiasingMode.item_selected.connect(_on_antialiasing_mode_selected)
+
+	%RenderSampling.clear()
+	for label in ["1x","2x","4x"]:
+		%RenderSampling.add_item(label)
+	%RenderSampling.select(1)
+
+	_apply_antialiasing(%AntialiasingMode.selected)
+
+func _on_antialiasing_mode_selected(index: int) -> void:
+	_apply_antialiasing(index)
+	status.text = "Antialiasing · " + %AntialiasingMode.get_item_text(index)
+
+func _apply_antialiasing(index: int) -> void:
+	var mode: Viewport.MSAA = Viewport.MSAA_DISABLED
+	match index:
+		1: mode = Viewport.MSAA_2X
+		2: mode = Viewport.MSAA_4X
+		3: mode = Viewport.MSAA_8X
+	viewport.msaa_3d = mode
+	viewport.msaa_2d = mode
+
+func _render_sampling_scale() -> int:
+	match %RenderSampling.selected:
+		1: return 2
+		2: return 4
+		_: return 1
 
 func _sync_final_postprocess_rect() -> void:
 	if render_composite == null or render_compositor == null:
