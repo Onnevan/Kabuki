@@ -13,7 +13,6 @@ const DrawingControllerClass = preload("res://drawing/drawing_controller.gd")
 const RiggingControllerClass = preload("res://rigging/rigging_controller.gd")
 const RigRuntimeClass = preload("res://rigging/rig_runtime.gd")
 const SceneObjectControllerClass = preload("res://editor/scene_object_controller.gd")
-const KabukiPostProcessShader = preload("res://render/kabuki_postprocess.gdshader")
 const EyeIcon = preload("res://assets/icons/lucide/eye.svg")
 const EyeOffIcon = preload("res://assets/icons/lucide/eye-off.svg")
 const ToolSizeIcon = preload("res://assets/icons/lucide/circle.svg")
@@ -38,8 +37,9 @@ const ToolAngleIcon = preload("res://assets/icons/lucide/rotate-cw.svg")
 @onready var camera_rig: EditorCameraRig = %EditorCameraRig
 @onready var world_grid: WorldGrid = %WorldGrid
 @onready var world_environment: WorldEnvironment = %WorldEnvironment
-var postprocess_quad: MeshInstance3D
-var postprocess_material: ShaderMaterial
+@onready var effects_display: FinalPostProcess = %EffectsDisplay
+@onready var render_compositor: SubViewport = %RenderCompositorViewport
+@onready var render_composite: FinalPostProcess = %RenderComposite
 var selected: RuntimeObject
 var runtime_objects: Array[RuntimeObject] = []
 var playing := false
@@ -250,7 +250,10 @@ func _ready() -> void:
 		%SculptMode.add_item(label)
 	%SculptMode.select(0)
 	%SculptMode.item_selected.connect(_on_sculpt_mode_selected)
-	_setup_postprocess_quad()
+	effects_display.set_source_texture(viewport.get_texture())
+	render_composite.set_source_texture(viewport.get_texture())
+	render_compositor.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	_sync_final_postprocess_rect()
 	_apply_global_filters()
 	_update_preview_mode()
 	_on_frame_changed(0)
@@ -2300,7 +2303,8 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	var previous_stretch := canvas.stretch
 	var previous_editor_current: bool = camera.current
 	var previous_render_current: bool = render_cam.current
-	var previous_postprocess_visible: bool = postprocess_quad.visible if postprocess_quad != null else false
+	var previous_compositor_size := render_compositor.size
+	var previous_compositor_update := render_compositor.render_target_update_mode
 	var previous_grid_visible: bool = world_grid.visible
 	var previous_gizmo_visible: bool = gizmo.visible
 	var previous_view_gizmo_visible: bool = bool(%ViewGizmo.visible)
@@ -2312,8 +2316,10 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	var ry := maxi(64,int(camera_obj.properties.get("camera.resolution_y",1080)))
 	canvas.stretch = false
 	viewport.size = Vector2i(rx,ry)
-	if postprocess_quad != null:
-		postprocess_quad.visible = true
+	render_compositor.size = Vector2i(rx,ry)
+	_sync_final_postprocess_rect()
+	render_composite.set_source_texture(viewport.get_texture())
+	render_compositor.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	camera.current = false
 	render_cam.current = true
 	world_grid.visible = false
@@ -2338,10 +2344,12 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	for frame in range(start_frame,end_frame+1):
 		status.text = "Rendering %d / %d · frame %d" % [frame-start_frame+1,total,frame]
 		ProjectStore.set_frame(frame)
-		# The native CompositorEffect runs inside SceneViewport's render pipeline,
-		# so the viewport texture already contains the final post-processed frame.
+		# Render the complete SceneViewport first (including transparent drawings),
+		# then run the color stack over that final texture in a 2D pass.
 		await RenderingServer.frame_post_draw
-		var image := viewport.get_texture().get_image()
+		render_compositor.render_target_update_mode = SubViewport.UPDATE_ONCE
+		await RenderingServer.frame_post_draw
+		var image := render_compositor.get_texture().get_image()
 		if image == null or image.is_empty():
 			failed = true
 			break
@@ -2353,10 +2361,13 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 
 	render_cam.current = previous_render_current
 	camera.current = previous_editor_current
-	if postprocess_quad != null:
-		postprocess_quad.visible = previous_postprocess_visible
 	canvas.stretch = previous_stretch
 	viewport.size = previous_viewport_size
+	render_compositor.size = previous_compositor_size
+	render_compositor.render_target_update_mode = previous_compositor_update
+	_sync_final_postprocess_rect()
+	effects_display.set_source_texture(viewport.get_texture())
+	render_composite.set_source_texture(viewport.get_texture())
 	ProjectStore.set_frame(previous_frame)
 	world_grid.visible = previous_grid_visible
 	gizmo.visible = previous_gizmo_visible
@@ -2410,22 +2421,13 @@ func _on_light_type_selected(index: int) -> void:
 	_show_transform(replacement)
 	status.text = "Light type: " + ["Directional", "Point", "Spot"][index]
 
-func _setup_postprocess_quad() -> void:
-	if postprocess_quad != null and is_instance_valid(postprocess_quad):
+func _sync_final_postprocess_rect() -> void:
+	if render_composite == null or render_compositor == null:
 		return
-	postprocess_quad = MeshInstance3D.new()
-	postprocess_quad.name = "__KabukiPostProcess"
-	var quad := QuadMesh.new()
-	quad.size = Vector2(2.0,2.0)
-	postprocess_quad.mesh = quad
-	postprocess_quad.extra_cull_margin = 16384.0
-	postprocess_quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	postprocess_material = ShaderMaterial.new()
-	postprocess_material.shader = KabukiPostProcessShader
-	postprocess_material.render_priority = 127
-	postprocess_quad.material_override = postprocess_material
-	postprocess_quad.visible = false
-	world_root.add_child(postprocess_quad)
+	var s := render_compositor.size
+	render_composite.position = Vector2.ZERO
+	render_composite.size = Vector2(float(s.x),float(s.y))
+	render_composite.set_source_texture(viewport.get_texture())
 
 
 func _apply_global_filters() -> void:
@@ -2443,9 +2445,8 @@ func _apply_global_filters() -> void:
 		"chromatic_aberration": %ChromaticAberration.value,
 		"monochrome": 1.0 if %Monochrome.button_pressed else 0.0
 	}
-	if postprocess_material != null:
-		for key in values:
-			postprocess_material.set_shader_parameter(StringName(key),values[key])
+	effects_display.set_filters(values)
+	render_composite.set_filters(values)
 
 func _on_filter_changed(_value: float) -> void:
 	_apply_global_filters()
@@ -3960,10 +3961,9 @@ func _on_preview_mode_toggled(render_mode: bool) -> void:
 
 func _update_preview_mode() -> void:
 	%PreviewMode.text = "◉  RENDER" if render_preview else "◐  PREVIEW"
-	# PREVIEW bypasses post effects. RENDER enables a fullscreen pass inside the
-	# SceneViewport itself; editor UI remains outside the processed image.
-	if postprocess_quad != null and not render_in_progress:
-		postprocess_quad.visible = render_preview
+	# PREVIEW bypasses post effects. RENDER shows the postprocessed final
+	# SceneViewport texture, including transparent vector/bitmap drawings.
+	effects_display.visible = render_preview and workspace == "compositor"
 	%PreviewChip.text = "RENDER" if render_preview else "PREVIEW"
 	for r in runtime_objects:
 		if r.material:
@@ -4079,6 +4079,11 @@ func _responsive_layout() -> void:
 	%RightPanel.size=Vector2(right_w,content_h)
 	%ViewportFrame.position=Vector2(center_left,content_top)
 	%ViewportFrame.size=Vector2(maxf(360.0,center_right-center_left),content_h)
+	%EffectsDisplay.position=%ViewportFrame.position
+	%EffectsDisplay.size=%ViewportFrame.size
+	if not render_in_progress:
+		render_compositor.size = Vector2i(maxi(2,int(%ViewportFrame.size.x)),maxi(2,int(%ViewportFrame.size.y)))
+		_sync_final_postprocess_rect()
 
 	%ViewportTop.position=%ViewportFrame.position+Vector2(22.0,20.0)
 	%ViewportTop.size=Vector2(maxf(100.0,%ViewportFrame.size.x-44.0),48.0)
