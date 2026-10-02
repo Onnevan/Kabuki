@@ -2330,11 +2330,12 @@ func _on_fill_tolerance_changed(value: float) -> void:
 	status.text = "Fill tolerance · %d%%" % roundi(value*100.0)
 
 func _set_bitmap_tool(tool: int) -> void:
-	_on_draw_bitmap_pressed()
+	if not %DrawingCanvas.bitmap_mode:
+		_on_draw_bitmap_pressed()
+	%DrawingCanvas.set_tool(tool)
 	%DrawingCanvas.brush_color = bitmap_color
 	%DrawingCanvas.opacity = %BrushOpacity.value
 	%DrawingCanvas.brush_size = %BrushSize.value
-	%DrawingCanvas.set_tool(tool)
 	status.text = ["Brush", "Pencil", "Bitmap Eraser", "Line", "Rectangle", "Ellipse", "Fill", "Smudge", "Lasso Fill"][tool]
 	_update_drawing_tool_ui()
 
