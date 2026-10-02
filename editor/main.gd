@@ -1205,7 +1205,7 @@ func _navigate_pan(delta: Vector2) -> void:
 	_commit_camera_view_navigation()
 
 func _navigate_zoom(amount: float) -> void:
-	if workspace == "drawing" and camera.projection == Camera3D.PROJECTION_ORTHOGONAL:
+	if workspace == "drawing" and not drawing_sculpt_active and camera.projection == Camera3D.PROJECTION_ORTHOGONAL:
 		# Orthographic cameras do not zoom by changing distance. Adjust the
 		# orthographic view height so artwork, bitmap and canvas scale together.
 		var factor: float = 0.88 if amount < 0.0 else 1.0 / 0.88
@@ -1227,11 +1227,9 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 		if %DrawingCanvas.bitmap_mode:
 			%DrawingCanvas.input_pressure = current_stylus_pressure
 		if _gradient_guide_input(event): return
-		# DRAWING is deliberately a 2D editing view onto a 3D reference plane.
-		# Keep the camera orthographic and axis-locked: MMB pans, wheel zooms.
-		# Orbiting here changes the projection used by drawing tools and causes
-		# strokes/bitmap layers to appear projected onto the canvas.
-		if camera.projection != Camera3D.PROJECTION_ORTHOGONAL:
+		# Normal Drawing is a canvas-locked 2D editor. Sculpt is the exception:
+		# it operates in a freely navigable 3D view so stroke depth is visible.
+		if not drawing_sculpt_active and camera.projection != Camera3D.PROJECTION_ORTHOGONAL:
 			camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 		if event is InputEventMouseButton:
 			last_mouse = event.position
@@ -1240,8 +1238,16 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
 				_navigate_zoom(1.0); return
 			elif event.button_index == MOUSE_BUTTON_MIDDLE:
-				panning = event.pressed
-				orbiting = false
+				if drawing_sculpt_active:
+					if Input.is_key_pressed(KEY_SHIFT):
+						panning = event.pressed
+						orbiting = false
+					else:
+						orbiting = event.pressed
+						panning = false
+				else:
+					panning = event.pressed
+					orbiting = false
 				return
 			elif event.button_index == MOUSE_BUTTON_LEFT:
 				if workspace == "rigging" and rig_bone_draw_active:
@@ -2997,8 +3003,14 @@ func _on_draw_sculpt_pressed() -> void:
 	drawing_erase_active = false
 	%DrawingCanvas.bitmap_mode = false
 	%DrawingCanvas.visible = false
+	# Sculpt needs a genuine spatial view. Start from the current frontal canvas
+	# framing, then switch to perspective and let the camera rig orbit freely.
+	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+	camera_rig.align_transform(camera.global_transform)
+	orbiting = false
+	panning = false
 	_update_drawing_tool_ui()
-	status.text = "Sculpt · 2D canvas view · middle mouse pans"
+	status.text = "Sculpt · 3D view · MMB orbit · Shift+MMB pan · wheel zoom"
 
 func _on_draw_eraser_pressed() -> void:
 	drawing_3d_active = false
