@@ -2502,6 +2502,9 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	workspace_camera_states[workspace] = camera_rig.get_state()
 	var leaving_drawing: bool = workspace == "drawing" and next_workspace != "drawing"
 	if leaving_drawing:
+		if %DrawingCanvas.bitmap_mode and not active_drawing_id.is_empty():
+			%DrawingCanvas.key_current_cel()
+			_ensure_drawing_content_layer("bitmap")
 		_finalize_static_bitmap_if_needed()
 	workspace = next_workspace
 	# Never carry the vertex-weight overlay out of Rigging.
