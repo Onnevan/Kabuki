@@ -19,6 +19,7 @@ var brush_color := Color(0.08, 0.08, 0.08, 1.0)
 var brush_size := 10.0
 var tool: int = TOOL_BRUSH
 var opacity := 1.0
+var input_pressure := 1.0
 var hardness := 0.78
 var flow := 0.34
 var spacing_ratio := 0.10
@@ -294,6 +295,12 @@ func finish_bitmap() -> void:
 func _gui_input(event: InputEvent) -> void:
 	if not bitmap_mode: return
 	_ensure_raster()
+	# Apple Pencil pressure arrives on ScreenDrag. Mouse emulation may still
+	# deliver the actual drawing events, so retain the latest pressure sample.
+	if event is InputEventScreenDrag:
+		var sd := event as InputEventScreenDrag
+		input_pressure = _pressure_or_full(sd.pressure)
+		return
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.button_index != MOUSE_BUTTON_LEFT: return
@@ -316,6 +323,7 @@ func _gui_input(event: InputEvent) -> void:
 				_paint_segment(mb.position, mb.position)
 		else:
 			var changed: bool = painting
+			input_pressure = 1.0
 			if painting and (tool == TOOL_LINE or tool == TOOL_RECT or tool == TOOL_ELLIPSE):
 				_commit_shape(stroke_start, mb.position)
 			elif painting and tool == TOOL_LASSO_FILL and lasso_points.size() >= 3:
@@ -329,6 +337,7 @@ func _gui_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion and painting:
 		var mm := event as InputEventMouseMotion
+		input_pressure = _pressure_or_full(mm.pressure)
 		if tool == TOOL_BRUSH or tool == TOOL_PENCIL or tool == TOOL_ERASER:
 			_paint_segment(last_point, mm.position)
 		elif tool == TOOL_SMUDGE:
@@ -382,21 +391,34 @@ func _normalized_rect(a: Vector2,b: Vector2) -> Rect2:
 	var br := Vector2(maxf(a.x,b.x),maxf(a.y,b.y))
 	return Rect2(tl,br-tl)
 
+func _pressure_or_full(value: float) -> float:
+	# Ordinary mouse motion reports zero pressure. Treat that as full pressure so
+	# existing mouse behaviour remains unchanged.
+	return clampf(value,0.0,1.0) if value > 0.0 else 1.0
+
+func _effective_brush_size() -> float:
+	var p := pow(_pressure_or_full(input_pressure),0.72)
+	return brush_size * lerpf(0.12,1.0,p)
+
+func _effective_opacity() -> float:
+	return opacity * lerpf(0.08,1.0,_pressure_or_full(input_pressure))
+
 func _paint_color() -> Color:
 	var c := brush_color
-	c.a *= opacity
+	c.a *= _effective_opacity()
 	return c
 
 func _paint_segment(a: Vector2,b: Vector2) -> void:
 	raster_texture_dirty = true
+	var effective_size := _effective_brush_size()
 	var dist := a.distance_to(b)
-	var spacing := maxf(0.75,brush_size*spacing_ratio)
+	var spacing := maxf(0.75,effective_size*spacing_ratio)
 	var steps := maxi(1,ceili(dist/spacing))
 	for i in range(steps+1):
 		_stamp(a.lerp(b,float(i)/float(steps)))
 
 func _stamp(p: Vector2) -> void:
-	var radius := maxf(0.5,brush_size*0.5)
+	var radius := maxf(0.5,_effective_brush_size()*0.5)
 	var min_x := maxi(0,int(floor(p.x-radius-1.0)))
 	var max_x := mini(raster.get_width()-1,int(ceil(p.x+radius+1.0)))
 	var min_y := maxi(0,int(floor(p.y-radius-1.0)))
@@ -407,7 +429,7 @@ func _stamp(p: Vector2) -> void:
 			if d > 1.0: continue
 			if tool == TOOL_ERASER:
 				var dst: Color = raster.get_pixel(x,y)
-				var erase_amount := (1.0-smoothstep(0.35,1.0,d))*0.72*opacity
+				var erase_amount := (1.0-smoothstep(0.35,1.0,d))*0.72*_effective_opacity()
 				dst.a *= 1.0-erase_amount
 				raster.set_pixel(x,y,dst)
 				continue
@@ -442,14 +464,15 @@ func _blend_pixel(x: int,y: int,src: Color,coverage: float) -> void:
 
 func _smudge_segment(a: Vector2,b: Vector2) -> void:
 	raster_texture_dirty = true
+	var effective_size := _effective_brush_size()
 	var dist := a.distance_to(b)
-	var steps := maxi(1,ceili(dist/maxf(1.0,brush_size*0.12)))
+	var steps := maxi(1,ceili(dist/maxf(1.0,effective_size*0.12)))
 	for i in range(steps+1):
 		var p := a.lerp(b,float(i)/float(steps))
 		_smudge_stamp(p,(b-a).normalized())
 
 func _smudge_stamp(p: Vector2,direction: Vector2) -> void:
-	var radius := maxi(2,int(brush_size*0.5))
+	var radius := maxi(2,int(_effective_brush_size()*0.5))
 	var source_offset := Vector2i(roundi(-direction.x*radius*0.45),roundi(-direction.y*radius*0.45))
 	var changes: Array[Dictionary] = []
 	for y in range(-radius,radius+1):
@@ -459,7 +482,7 @@ func _smudge_stamp(p: Vector2,direction: Vector2) -> void:
 			var dstp := Vector2i(roundi(p.x)+x,roundi(p.y)+y)
 			var srcp := dstp+source_offset
 			if not _inside(dstp) or not _inside(srcp): continue
-			var amount := (1.0-smoothstep(0.2,1.0,d))*0.22*opacity
+			var amount := (1.0-smoothstep(0.2,1.0,d))*0.22*_effective_opacity()
 			var mixed := raster.get_pixelv(dstp).lerp(raster.get_pixelv(srcp),amount)
 			changes.append({"p":dstp,"c":mixed})
 	for change in changes:
