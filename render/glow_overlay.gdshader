@@ -22,10 +22,10 @@ vec3 sample_base(vec2 uv) {
 	}
 	vec2 px = TEXTURE_PIXEL_SIZE * blur;
 	vec3 c = texture(TEXTURE, uv).rgb * 0.227027;
-	c += texture(screen_texture, uv + vec2(px.x, 0.0)).rgb * 0.1945946;
-	c += texture(screen_texture, uv - vec2(px.x, 0.0)).rgb * 0.1945946;
-	c += texture(screen_texture, uv + vec2(0.0, px.y)).rgb * 0.1945946;
-	c += texture(screen_texture, uv - vec2(0.0, px.y)).rgb * 0.1945946;
+	c += texture(TEXTURE, uv + vec2(px.x, 0.0)).rgb * 0.1945946;
+	c += texture(TEXTURE, uv - vec2(px.x, 0.0)).rgb * 0.1945946;
+	c += texture(TEXTURE, uv + vec2(0.0, px.y)).rgb * 0.1945946;
+	c += texture(TEXTURE, uv - vec2(0.0, px.y)).rgb * 0.1945946;
 	return c;
 }
 
