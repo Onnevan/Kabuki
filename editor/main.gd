@@ -103,6 +103,10 @@ var camera_view_active := false
 var editor_view_before_camera: Dictionary = {}
 var transform_space: int = 0 # 0 global, 1 local
 var active_color_target := "line"
+var gp_line_color := Color(0.08,0.08,0.08,1.0)
+var gp_fill_color := Color(0.8,0.25,0.18,0.55)
+var gp_fill_color_b := Color(0.95,0.75,0.2,0.55)
+var bitmap_color := Color(0.08,0.08,0.08,1.0)
 var drawing_palette: Array[Color] = [
 	Color("#111318"), Color("#FFFFFF"), Color("#E94B4B"), Color("#F39C3D"),
 	Color("#F1D04B"), Color("#58B368"), Color("#35A7A0"), Color("#3F8FE5"),
@@ -139,6 +143,11 @@ func _ready() -> void:
 	%FillColorB.pressed.connect(func(): _set_active_color_target("fill_b"))
 	%GradientGuide.draw.connect(_draw_gradient_guide)
 	_setup_drawing_palette()
+	gp_line_color = %BrushColor.color
+	gp_fill_color = %FillColor.color
+	gp_fill_color_b = %FillColorB.color
+	bitmap_color = %ActiveColor.color
+	%ActiveColor.color_changed.connect(_on_bitmap_color_changed)
 	_setup_color_swatches()
 	_refresh_gradient_preview()
 	theme = KabukiThemeBuilder.build()
@@ -2322,7 +2331,7 @@ func _on_fill_tolerance_changed(value: float) -> void:
 
 func _set_bitmap_tool(tool: int) -> void:
 	_on_draw_bitmap_pressed()
-	%DrawingCanvas.brush_color = %BrushColor.color
+	%DrawingCanvas.brush_color = bitmap_color
 	%DrawingCanvas.opacity = %BrushOpacity.value
 	%DrawingCanvas.brush_size = %BrushSize.value
 	%DrawingCanvas.set_tool(tool)
@@ -2629,6 +2638,7 @@ func _on_draw_stroke3d_pressed() -> void:
 	_ensure_drawing_content_layer("vector")
 	_apply_drawing_frame(ProjectStore.current_frame)
 	_update_drawing_tool_ui()
+	active_color_target = "line"
 	status.text = "Grease Pencil · vector canvas active"
 
 func _on_draw_bitmap_pressed() -> void:
@@ -2651,7 +2661,7 @@ func _on_draw_bitmap_pressed() -> void:
 	drawing_3d_active = false
 	drawing_sculpt_active = false
 	drawing_erase_active = false
-	%DrawingCanvas.brush_color = %BrushColor.color
+	%DrawingCanvas.brush_color = bitmap_color
 	%DrawingCanvas.opacity = %BrushOpacity.value
 	%DrawingCanvas.brush_size = %BrushSize.value
 	%DrawingCanvas.bitmap_mode = true
@@ -2659,6 +2669,12 @@ func _on_draw_bitmap_pressed() -> void:
 	%DrawingCanvas.queue_redraw()
 	_refresh_drawing_timeline()
 	_update_drawing_tool_ui()
+	active_color_target = "bitmap"
+	%ActiveColor.set_block_signals(true)
+	%ActiveColor.color = bitmap_color
+	%ActiveColor.set_block_signals(false)
+	%DrawingCanvas.brush_color = bitmap_color
+	_paint_color_swatch(%ActiveColor,bitmap_color)
 	status.text = "Bitmap paint · persistent raster cel on active canvas"
 
 func _on_draw_sculpt_pressed() -> void:
@@ -2788,28 +2804,41 @@ func _setup_drawing_palette() -> void:
 
 func _set_active_color_target(target: String) -> void:
 	active_color_target = target
+	%ActiveColor.set_block_signals(true)
 	match target:
-		"fill_a": %ActiveColor.color = %FillColor.color
-		"fill_b": %ActiveColor.color = %FillColorB.color
-		_: %ActiveColor.color = %BrushColor.color
+		"fill_a": %ActiveColor.color = gp_fill_color
+		"fill_b": %ActiveColor.color = gp_fill_color_b
+		"line": %ActiveColor.color = gp_line_color
+		_: %ActiveColor.color = bitmap_color
+	%ActiveColor.set_block_signals(false)
+	_paint_color_swatch(%ActiveColor,%ActiveColor.color)
 	%PalettePopup.popup(Rect2i(Vector2i(%ActiveColor.global_position)+Vector2i(0,36),Vector2i(300,118)))
 
 func _apply_palette_color(color: Color) -> void:
 	match active_color_target:
 		"fill_a":
+			gp_fill_color = color
 			%FillColor.color = color
 		"fill_b":
+			gp_fill_color_b = color
 			%FillColorB.color = color
-		_:
+		"line":
+			gp_line_color = color
 			%BrushColor.color = color
+		_:
+			bitmap_color = color
+			%ActiveColor.set_block_signals(true)
+			%ActiveColor.color = color
+			%ActiveColor.set_block_signals(false)
+			%DrawingCanvas.brush_color = bitmap_color
+			_paint_color_swatch(%ActiveColor,bitmap_color)
 	%PalettePopup.hide()
 
-func _on_active_color_changed(color: Color) -> void:
-	match active_color_target:
-		"fill_a": %FillColor.color = color
-		"fill_b": %FillColorB.color = color
-		_: %BrushColor.color = color
-	_refresh_color_swatches()
+func _on_bitmap_color_changed(color: Color) -> void:
+	if active_color_target != "bitmap": return
+	bitmap_color = color
+	%DrawingCanvas.brush_color = bitmap_color
+	_paint_color_swatch(%ActiveColor,bitmap_color)
 
 func _reset_gradient_handles() -> void:
 	var viewport_control: Control = %ViewportContainer as Control
@@ -2861,20 +2890,13 @@ func _gradient_guide_input(event: InputEvent) -> bool:
 	return false
 
 func _on_brush_color_changed(value: Color) -> void:
+	gp_line_color = value
 	_paint_color_swatch(%BrushColor,value)
-	if active_color_target == "line":
-		%ActiveColor.set_block_signals(true)
-		%ActiveColor.color = value
-		%ActiveColor.set_block_signals(false)
-		_paint_color_swatch(%ActiveColor,value)
-	%DrawingCanvas.brush_color = value
 	_apply_selected_stroke_style()
 
 func _on_fill_color_changed(value: Color) -> void:
+	gp_fill_color = value
 	_paint_color_swatch(%FillColor,value)
-	if active_color_target == "fill_a":
-		%ActiveColor.set_pick_color(value)
-		_paint_color_swatch(%ActiveColor,value)
 	_refresh_gradient_preview()
 	_apply_selected_stroke_style()
 
@@ -2890,6 +2912,7 @@ func _on_fill_mode_selected(index: int) -> void:
 	_apply_selected_stroke_style()
 
 func _on_fill_gradient_changed(_value) -> void:
+	gp_fill_color_b = %FillColorB.color
 	_refresh_color_swatches()
 	_refresh_gradient_preview()
 	_apply_selected_stroke_style()
@@ -2903,15 +2926,15 @@ func _apply_selected_stroke_style() -> void:
 	# Color controls edit only the selected/last stroke. With no stroke selected
 	# they are simply the style for the next stroke.
 	if selected_stroke == null or not is_instance_valid(selected_stroke): return
-	selected_stroke.set_style(%BrushColor.color, %Fill.button_pressed, %FillColor.color, "gradient" if %FillMode.selected == 1 else "solid", %FillColorB.color, float(%FillGradientAngle.value))
+	selected_stroke.set_style(gp_line_color, %Fill.button_pressed, gp_fill_color, "gradient" if %FillMode.selected == 1 else "solid", gp_fill_color_b, float(%FillGradientAngle.value))
 	var data: RefCounted = drawing_data_by_object.get(active_drawing_id)
 	if data and not selected_stroke.stroke_id.is_empty():
 		var record: Dictionary = data.strokes.get(selected_stroke.stroke_id, {})
-		record["color"] = %BrushColor.color
+		record["color"] = gp_line_color
 		record["fill_enabled"] = %Fill.button_pressed
-		record["fill_color"] = %FillColor.color
+		record["fill_color"] = gp_fill_color
 		record["fill_mode"] = "gradient" if %FillMode.selected == 1 else "solid"
-		record["fill_color_b"] = %FillColorB.color
+		record["fill_color_b"] = gp_fill_color_b
 		record["fill_gradient_angle"] = float(%FillGradientAngle.value)
 
 func _apply_active_drawing_style() -> void:
@@ -3209,13 +3232,13 @@ func _begin_3d_stroke(pos: Vector2) -> void:
 		_apply_drawing_frame(ProjectStore.current_frame)
 		_refresh_drawing_timeline()
 	active_stroke_3d = Stroke3DClass.new()
-	active_stroke_3d.stroke_color = %BrushColor.color
+	active_stroke_3d.stroke_color = gp_line_color
 	active_stroke_3d.radius = %BrushSize.value * 0.0012
 	_apply_stroke_brush(active_stroke_3d)
 	active_stroke_3d.fill_enabled = %Fill.button_pressed
-	active_stroke_3d.fill_color = %FillColor.color
+	active_stroke_3d.fill_color = gp_fill_color
 	active_stroke_3d.fill_mode = "gradient" if %FillMode.selected == 1 else "solid"
-	active_stroke_3d.fill_color_b = %FillColorB.color
+	active_stroke_3d.fill_color_b = gp_fill_color_b
 	active_stroke_3d.fill_gradient_angle = float(%FillGradientAngle.value)
 	active_drawing_group.add_child(active_stroke_3d)
 	var world_point := _ray_to_drawing_plane(pos, active_drawing_group)
