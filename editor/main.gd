@@ -15,6 +15,11 @@ const RigRuntimeClass = preload("res://rigging/rig_runtime.gd")
 const SceneObjectControllerClass = preload("res://editor/scene_object_controller.gd")
 const EyeIcon = preload("res://assets/icons/lucide/eye.svg")
 const EyeOffIcon = preload("res://assets/icons/lucide/eye-off.svg")
+const ToolSizeIcon = preload("res://assets/icons/lucide/circle.svg")
+const ToolOpacityIcon = preload("res://assets/icons/lucide/droplet.svg")
+const ToolStrengthIcon = preload("res://assets/icons/lucide/blend.svg")
+const ToolToleranceIcon = preload("res://assets/icons/lucide/paint-bucket.svg")
+const ToolAngleIcon = preload("res://assets/icons/lucide/rotate-cw.svg")
 
 @onready var viewport: SubViewport = %SceneViewport
 @onready var world_root: Node3D = %WorldRoot
@@ -2555,20 +2560,39 @@ func _sync_tool_param_sliders() -> void:
 	var active: bool = workspace == "drawing" and not profile.is_empty()
 	%ToolParamSurface.visible = active
 	if not active: return
-	%PrimaryLabel.text = String(profile["primary"])
+	var primary_kind := String(profile["primary"])
+	%PrimaryIcon.texture = _tool_param_icon(primary_kind)
+	%PrimaryIcon.tooltip_text = primary_kind.capitalize()
 	%PrimarySlider.min_value = float(profile["primary_min"])
 	%PrimarySlider.max_value = float(profile["primary_max"])
 	%PrimarySlider.step = float(profile["primary_step"])
 	%PrimarySlider.set_value_no_signal(float(profile["primary_value"]))
 	var secondary_enabled: bool = bool(profile.get("secondary_enabled",true))
-	%SecondaryLabel.text = String(profile["secondary"])
-	%SecondaryLabel.modulate = Color.WHITE if secondary_enabled else Color(1.0,1.0,1.0,0.32)
+	var secondary_kind := String(profile["secondary"])
+	%SecondaryIcon.visible = secondary_enabled
+	%SecondarySlider.visible = secondary_enabled
 	%SecondarySlider.editable = secondary_enabled
-	%SecondarySlider.modulate = Color.WHITE if secondary_enabled else Color(1.0,1.0,1.0,0.22)
-	%SecondarySlider.min_value = float(profile["secondary_min"])
-	%SecondarySlider.max_value = float(profile["secondary_max"])
-	%SecondarySlider.step = float(profile["secondary_step"])
-	%SecondarySlider.set_value_no_signal(float(profile["secondary_value"]))
+	if secondary_enabled:
+		%SecondaryIcon.texture = _tool_param_icon(secondary_kind)
+		%SecondaryIcon.tooltip_text = secondary_kind.capitalize()
+		%SecondarySlider.min_value = float(profile["secondary_min"])
+		%SecondarySlider.max_value = float(profile["secondary_max"])
+		%SecondarySlider.step = float(profile["secondary_step"])
+		%SecondarySlider.set_value_no_signal(float(profile["secondary_value"]))
+
+func _tool_param_icon(kind: String) -> Texture2D:
+	match kind:
+		"SIZE":
+			return ToolSizeIcon
+		"OPACITY":
+			return ToolOpacityIcon
+		"STRENGTH":
+			return ToolStrengthIcon
+		"TOLERANCE":
+			return ToolToleranceIcon
+		"ANGLE":
+			return ToolAngleIcon
+	return ToolSizeIcon
 
 func _on_primary_tool_param_changed(value: float) -> void:
 	var profile: Dictionary = _tool_param_profile()
@@ -2630,11 +2654,8 @@ func _end_tool_feedback() -> void:
 func _draw_tool_feedback() -> void:
 	if not tool_feedback_active: return
 	var overlay: Control = %ToolFeedbackOverlay
-	# Preview at the last drawing cursor position, not in the middle of the image.
-	# Canvas input coordinates and this overlay share the viewport-frame space.
-	var center := last_mouse
-	if center.x < 0.0 or center.y < 0.0 or center.x > overlay.size.x or center.y > overlay.size.y:
-		center = overlay.size * 0.5
+	# Slider feedback is deliberately stable and independent from cursor position.
+	var center := overlay.size * 0.5
 	var radius := 56.0
 	var alpha := 0.32
 	match tool_feedback_kind:
@@ -3680,8 +3701,11 @@ func _responsive_layout() -> void:
 	var plane_w: float = 272.0
 	%DrawingPlaneSurface.position=%ViewportFrame.position+Vector2(%ViewportFrame.size.x-plane_w-16.0,20.0)
 	%DrawingPlaneSurface.size=Vector2(plane_w,58.0)
-	%ToolParamSurface.position=%ViewportFrame.position+Vector2(%ViewportFrame.size.x-86.0,96.0)
-	%ToolParamSurface.size=Vector2(68.0,minf(520.0,%ViewportFrame.size.y-210.0))
+	var param_w: float = 44.0
+	var param_h: float = minf(430.0,%ViewportFrame.size.y-210.0)
+	var param_right_margin: float = 14.0
+	%ToolParamSurface.position=%ViewportFrame.position+Vector2(%ViewportFrame.size.x-param_w-param_right_margin,96.0)
+	%ToolParamSurface.size=Vector2(param_w,param_h)
 	%ToolFeedbackOverlay.position=%ViewportFrame.position
 	%ToolFeedbackOverlay.size=%ViewportFrame.size
 	var local_timeline_h: float = 112.0
