@@ -1,10 +1,11 @@
-[gd_scene load_steps=42 format=3]
+[gd_scene load_steps=43 format=3]
 
 [ext_resource path="res://editor/main.gd" type="Script" id="1"]
 [ext_resource path="res://editor/editor_camera_rig.gd" type="Script" id="2"]
 [ext_resource path="res://editor/transform_gizmo.gd" type="Script" id="3"]
 [ext_resource path="res://editor/world_grid.gd" type="Script" id="4"]
 [ext_resource path="res://editor/frame_timeline.gd" type="Script" id="5"]
+[ext_resource path="res://render/final_postprocess.gd" type="Script" id="6"]
 [ext_resource path="res://paint/drawing_canvas.gd" type="Script" id="7"]
 [ext_resource path="res://assets/icons/lucide/undo-2.svg" type="Texture2D" id="8"]
 [ext_resource path="res://assets/icons/lucide/redo-2.svg" type="Texture2D" id="9"]
@@ -868,6 +869,34 @@ unique_name_in_owner=true
 visible=false
 script=ExtResource("5")
 custom_minimum_size=Vector2(0,112)
+
+[node name="EffectsDisplay" type="TextureRect" parent="."]
+unique_name_in_owner=true
+visible=false
+offset_left=294.0
+offset_top=66.0
+offset_right=1046.0
+offset_bottom=650.0
+mouse_filter=2
+expand_mode=1
+stretch_mode=0
+script=ExtResource("6")
+
+[node name="RenderCompositorViewport" type="SubViewport" parent="."]
+unique_name_in_owner=true
+size=Vector2i(1920,1080)
+render_target_update_mode=0
+transparent_bg=false
+disable_3d=true
+
+[node name="RenderComposite" type="TextureRect" parent="RenderCompositorViewport"]
+unique_name_in_owner=true
+offset_right=1920.0
+offset_bottom=1080.0
+mouse_filter=2
+expand_mode=1
+stretch_mode=0
+script=ExtResource("6")
 
 [node name="ViewportTop" type="HBoxContainer" parent="."]
 unique_name_in_owner=true
