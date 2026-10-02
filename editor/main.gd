@@ -774,11 +774,11 @@ func _kab_to_image(encoded: String) -> Image:
 	return image if err == OK and not image.is_empty() else null
 
 func _variant_to_kab(value: Variant) -> String:
-	return Marshalls.raw_to_base64(var_to_bytes(value,false))
+	return Marshalls.raw_to_base64(var_to_bytes(value))
 
 func _kab_to_variant(encoded: String) -> Variant:
 	if encoded.is_empty(): return null
-	return bytes_to_var(Marshalls.base64_to_raw(encoded),false)
+	return bytes_to_var(Marshalls.base64_to_raw(encoded))
 
 func _serialize_world_state() -> Dictionary:
 	var image_data := ""
