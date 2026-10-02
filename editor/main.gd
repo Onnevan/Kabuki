@@ -234,6 +234,7 @@ func _ready() -> void:
 	for label in ["Push / Pull", "Move", "Pinch", "Smooth", "Inflate"]:
 		%SculptMode.add_item(label)
 	%SculptMode.select(0)
+	%SculptMode.item_selected.connect(_on_sculpt_mode_selected)
 	_update_preview_mode()
 	_on_frame_changed(0)
 	_responsive_layout()
@@ -1263,7 +1264,7 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 				elif drawing_sculpt_active:
 					if event.pressed:
 						for child in active_drawing_group.get_children() if active_drawing_group else []:
-							if child is Stroke3D: (child as Stroke3D).begin_sculpt(event.position)
+							if child is Stroke3D: (child as Stroke3D).begin_sculpt(event.position,camera,maxf(12.0,%BrushSize.value*2.5))
 						_sculpt_drawing(event.position)
 					else:
 						for child in active_drawing_group.get_children() if active_drawing_group else []:
