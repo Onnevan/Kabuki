@@ -3139,7 +3139,7 @@ func _erase_drawing(pos: Vector2) -> void:
 			if camera.unproject_position(world_point).distance_to(pos) <= radius_px:
 				stroke.visible = false
 				if data and not stroke.stroke_id.is_empty():
-					data.call("remove_stroke_from_pose", ProjectStore.current_frame, stroke.stroke_id)
+					data.call("remove_stroke_from_pose", _drawing_edit_frame(), stroke.stroke_id)
 				changed = true
 				break
 	if changed:
@@ -3151,17 +3151,29 @@ func _sculpt_drawing(pos: Vector2) -> void:
 	var strength: float = float(%SculptStrength.value)
 	var changed := false
 	var data: RefCounted = drawing_data_by_object.get(active_drawing_id)
+	var frame := _drawing_edit_frame()
+	var frame_pose: Dictionary = {}
+	if data:
+		frame_pose = data.current_cel_pose(frame)
+		if frame_pose.is_empty():
+			frame_pose = data.flipbook_pose(frame)
+			if frame_pose.is_empty():
+				frame_pose = data.snapshot_pose()
 	for child in active_drawing_group.get_children():
 		if child is Stroke3D:
 			var stroke := child as Stroke3D
 			if stroke.sculpt_screen(pos, camera, radius_px, strength, sculpt_mode):
 				changed = true
 				if data and not stroke.stroke_id.is_empty():
-					data.update_stroke_points(stroke.stroke_id, stroke.points)
+					var state: Dictionary = frame_pose.get(stroke.stroke_id,{})
+					state["points"] = stroke.points.duplicate()
+					state["visible"] = bool(state.get("visible",true))
+					frame_pose[stroke.stroke_id] = state
 	if changed and data:
-		# Editing a drawing at a frame must create/update that frame's pose.
-		# This prevents the evaluator from snapping the sculpt back to an older cel.
-		data.set_exposure(_drawing_edit_frame(), data.snapshot_pose(), "linear" if auto_key.button_pressed else "hold")
+		# Sculpt edits only the active drawing keyframe. Canonical stroke data is
+		# intentionally left untouched so other cels keep their own geometry.
+		data.set_exposure(frame, frame_pose, "linear" if auto_key.button_pressed else "hold")
+		drawing_controller.invalidate(active_drawing_id)
 		_refresh_drawing_timeline()
 
 func _on_brush_size_changed(value: float) -> void:
