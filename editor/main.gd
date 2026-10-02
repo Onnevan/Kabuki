@@ -249,8 +249,12 @@ func _ready() -> void:
 		%SculptMode.add_item(label)
 	%SculptMode.select(0)
 	%SculptMode.item_selected.connect(_on_sculpt_mode_selected)
-	effects_engine.set_source_texture(viewport.get_texture())
+	# One compositor path only:
+	# SceneViewport -> RenderComposite(shader) -> RenderCompositorViewport -> EffectsEngine(display)
 	render_composite.set_source_texture(viewport.get_texture())
+	effects_engine.material = null
+	effects_engine.set_source_texture(render_compositor.get_texture())
+	render_compositor.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_apply_global_filters()
 	_update_preview_mode()
 	_on_frame_changed(0)
@@ -2315,6 +2319,7 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	viewport.size = Vector2i(rx,ry)
 	render_compositor.size = Vector2i(rx,ry)
 	render_composite.set_source_texture(viewport.get_texture())
+	effects_engine.set_source_texture(render_compositor.get_texture())
 	render_compositor.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	camera.current = false
 	render_cam.current = true
@@ -2362,6 +2367,7 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	render_compositor.size = previous_compositor_size
 	render_compositor.render_target_update_mode = previous_compositor_update
 	render_composite.set_source_texture(viewport.get_texture())
+	effects_engine.set_source_texture(render_compositor.get_texture())
 	ProjectStore.set_frame(previous_frame)
 	world_grid.visible = previous_grid_visible
 	gizmo.visible = previous_gizmo_visible
@@ -2430,7 +2436,6 @@ func _apply_global_filters() -> void:
 		"chromatic_aberration": %ChromaticAberration.value,
 		"monochrome": 1.0 if %Monochrome.button_pressed else 0.0
 	}
-	effects_engine.set_filters(values)
 	render_composite.set_filters(values)
 
 func _on_filter_changed(_value: float) -> void:
@@ -3945,9 +3950,10 @@ func _on_preview_mode_toggled(render_mode: bool) -> void:
 
 func _update_preview_mode() -> void:
 	%PreviewMode.text = "◉  RENDER" if render_preview else "◐  PREVIEW"
-	# Compositor effects are intentionally bypassed in Preview/edit modes.
-	# RENDER displays the exact post-processed SceneViewport output.
+	# PREVIEW bypasses post effects completely. RENDER shows the exact texture
+	# produced by the offscreen compositor, which is also used for PNG export.
 	effects_engine.visible = render_preview
+	render_compositor.render_target_update_mode = SubViewport.UPDATE_ALWAYS if render_preview else SubViewport.UPDATE_DISABLED
 	%PreviewChip.text = "RENDER" if render_preview else "PREVIEW"
 	for r in runtime_objects:
 		if r.material:
@@ -4065,6 +4071,8 @@ func _responsive_layout() -> void:
 	%ViewportFrame.size=Vector2(maxf(360.0,center_right-center_left),content_h)
 	%EffectsEngine.position=%ViewportFrame.position
 	%EffectsEngine.size=%ViewportFrame.size
+	if not render_in_progress:
+		render_compositor.size = Vector2i(maxi(1,int(%ViewportFrame.size.x)),maxi(1,int(%ViewportFrame.size.y)))
 
 	%ViewportTop.position=%ViewportFrame.position+Vector2(22.0,20.0)
 	%ViewportTop.size=Vector2(maxf(100.0,%ViewportFrame.size.x-44.0),48.0)
