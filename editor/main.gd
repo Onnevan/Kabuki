@@ -2013,9 +2013,9 @@ func _refresh_vector_onion_skin(group: Node3D,data: RefCounted,frame: int) -> vo
 	var previous_frame: int = data.previous_exposure_frame(frame)
 	var next_frame: int = data.next_exposure_frame(frame)
 	if previous_frame >= 0:
-		_add_vector_onion_pose(root,data,data.current_cel_pose(previous_frame),Color(1.0,0.24,0.24,0.28))
+		_add_vector_onion_pose(root,data,data.cel_pose(previous_frame),Color(1.0,0.24,0.24,0.28))
 	if next_frame >= 0:
-		_add_vector_onion_pose(root,data,data.current_cel_pose(next_frame),Color(0.25,0.55,1.0,0.24))
+		_add_vector_onion_pose(root,data,data.cel_pose(next_frame),Color(0.25,0.55,1.0,0.24))
 
 func key_active_drawing_pose(interpolation := "hold") -> void:
 	if active_drawing_id.is_empty() or not drawing_data_by_object.has(active_drawing_id): return
@@ -3165,7 +3165,7 @@ func _sculpt_drawing(pos: Vector2) -> void:
 	var frame := _drawing_edit_frame()
 	var frame_pose: Dictionary = {}
 	if data:
-		frame_pose = data.current_cel_pose(frame)
+		frame_pose = data.cel_pose(frame)
 		if frame_pose.is_empty():
 			frame_pose = data.flipbook_pose(frame)
 			if frame_pose.is_empty():
