@@ -2424,6 +2424,11 @@ func _set_bitmap_tool(tool: int) -> void:
 	%DrawingCanvas.brush_color = bitmap_color
 	%DrawingCanvas.opacity = %BrushOpacity.value
 	%DrawingCanvas.brush_size = %BrushSize.value
+	var bitmap_buttons: Array[Button] = [%BitmapBrush,%BitmapPencil,%BitmapEraser,%BitmapLine,%BitmapRect,%BitmapEllipse,%BitmapFillTool,%BitmapSmudge,%BitmapLassoFill]
+	for button in bitmap_buttons:
+		button.set_pressed_no_signal(false)
+	if tool >= 0 and tool < bitmap_buttons.size():
+		bitmap_buttons[tool].set_pressed_no_signal(true)
 	status.text = ["Brush", "Pencil", "Bitmap Eraser", "Line", "Rectangle", "Ellipse", "Fill", "Smudge", "Lasso Fill"][tool]
 	_update_drawing_tool_ui()
 
@@ -2632,7 +2637,7 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	# Drawing manipulators are editor overlays, never scene content. Scene and
 	# every other workspace expose only their own gizmos/overlays.
 	var drawing_overlay_visible: bool = workspace == "drawing"
-	%GradientGuide.visible = drawing_overlay_visible and %FillMode.selected == 1
+	%GradientGuide.visible = drawing_overlay_visible and drawing_3d_active and %FillMode.selected == 1
 	if not drawing_overlay_visible:
 		gradient_drag_handle = 0
 	%GradientGuide.queue_redraw()
@@ -2753,6 +2758,8 @@ func _on_draw_bitmap_pressed() -> void:
 	%DrawingCanvas.brush_color = bitmap_color
 	%DrawingCanvas.opacity = %BrushOpacity.value
 	%DrawingCanvas.brush_size = %BrushSize.value
+	%GradientGuide.visible = false
+	gradient_drag_handle = 0
 	%DrawingCanvas.bitmap_mode = true
 	%DrawingCanvas.visible = true
 	%DrawingCanvas.queue_redraw()
@@ -2994,7 +3001,7 @@ func _on_fill_mode_selected(index: int) -> void:
 	%FillColorB.visible = gradient
 	%GradientPreview.visible = gradient
 	%FillGradientAngle.visible = false
-	%GradientGuide.visible = gradient and workspace == "drawing"
+	%GradientGuide.visible = gradient and workspace == "drawing" and drawing_3d_active
 	if gradient and gradient_handle_a == Vector2.ZERO:
 		_reset_gradient_handles()
 	%GradientGuide.queue_redraw()
