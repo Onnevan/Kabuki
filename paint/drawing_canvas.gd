@@ -390,7 +390,7 @@ func _stamp(p: Vector2) -> void:
 			if d > 1.0: continue
 			if tool == TOOL_ERASER:
 				var dst: Color = raster.get_pixel(x,y)
-				var erase_amount := (1.0-smoothstep(0.35,1.0,d))*0.72
+				var erase_amount := (1.0-smoothstep(0.35,1.0,d))*0.72*opacity
 				dst.a *= 1.0-erase_amount
 				raster.set_pixel(x,y,dst)
 				continue
@@ -442,7 +442,7 @@ func _smudge_stamp(p: Vector2,direction: Vector2) -> void:
 			var dstp := Vector2i(roundi(p.x)+x,roundi(p.y)+y)
 			var srcp := dstp+source_offset
 			if not _inside(dstp) or not _inside(srcp): continue
-			var amount := (1.0-smoothstep(0.2,1.0,d))*0.22
+			var amount := (1.0-smoothstep(0.2,1.0,d))*0.22*opacity
 			var mixed := raster.get_pixelv(dstp).lerp(raster.get_pixelv(srcp),amount)
 			changes.append({"p":dstp,"c":mixed})
 	for change in changes:
