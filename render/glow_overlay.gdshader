@@ -1,5 +1,8 @@
 shader_type canvas_item;
-render_mode unshaded;
+render_mode unshaded, blend_disabled;
+
+uniform sampler2D source_texture : filter_linear;
+uniform vec2 source_pixel_size = vec2(0.001, 0.001);
 
 uniform float blur : hint_range(0.0, 12.0) = 0.0;
 uniform float glow_strength : hint_range(0.0, 3.0) = 0.0;
@@ -18,10 +21,10 @@ uniform float monochrome : hint_range(0.0, 1.0) = 0.0;
 
 vec3 sample_base(vec2 uv) {
 	if (blur <= 0.001) {
-		return texture(TEXTURE, uv).rgb;
+		return texture(source_texture, uv).rgb;
 	}
-	vec2 px = TEXTURE_PIXEL_SIZE * blur;
-	vec3 c = texture(TEXTURE, uv).rgb * 0.227027;
+	vec2 px = source_pixel_size * blur;
+	vec3 c = texture(source_texture, uv).rgb * 0.227027;
 	c += texture(screen_texture, uv + vec2(px.x, 0.0)).rgb * 0.1945946;
 	c += texture(screen_texture, uv - vec2(px.x, 0.0)).rgb * 0.1945946;
 	c += texture(screen_texture, uv + vec2(0.0, px.y)).rgb * 0.1945946;
@@ -30,7 +33,7 @@ vec3 sample_base(vec2 uv) {
 }
 
 vec3 extract_bright(vec2 uv) {
-	vec3 c = texture(TEXTURE, uv).rgb;
+	vec3 c = texture(source_texture, uv).rgb;
 	float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
 	float mask = smoothstep(glow_threshold, glow_threshold + 0.08, luma);
 	return c * mask;
@@ -67,7 +70,7 @@ void fragment() {
 	color = mix(color, vec3(bw), monochrome);
 
 	if (glow_strength > 0.001) {
-		vec2 px = TEXTURE_PIXEL_SIZE * glow_radius;
+		vec2 px = source_pixel_size * glow_radius;
 		vec3 bloom = vec3(0.0);
 		float weight_sum = 0.0;
 		for (int x = -3; x <= 3; x++) {
@@ -89,5 +92,5 @@ void fragment() {
 		color *= 1.0 - v * vignette;
 	}
 
-	COLOR = vec4(color, texture(TEXTURE, uv).a);
+	COLOR = vec4(color, 1.0);
 }
