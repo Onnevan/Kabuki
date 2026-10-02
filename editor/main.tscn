@@ -124,6 +124,12 @@ tooltip_text="Render the global playback range as a PNG sequence"
 unique_name_in_owner=true
 text="RENDER FRAME"
 tooltip_text="Render only the current frame as a PNG"
+[node name="AbortRenderTop" type="Button" parent="TopBar"]
+unique_name_in_owner=true
+visible=false
+disabled=true
+text="ABORT"
+tooltip_text="Abort current animation render"
 [node name="GridToggle" type="CheckButton" parent="TopBar"]
 unique_name_in_owner=true
 icon=ExtResource("13")
@@ -1375,6 +1381,15 @@ min_value=0.0
 max_value=1.0
 step=0.01
 
+[node name="NoiseAnimated" type="CheckButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+text="Animated Noise"
+button_pressed=true
+
+[node name="NoiseColored" type="CheckButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+text="Colored Noise"
+
 [node name="ResetFilters" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 text="Reset"
 [node name="KeyInterpSep" type="HSeparator" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
@@ -1574,6 +1589,8 @@ title="Render Current Frame"
 [connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/Vignette" to="." method="_on_filter_changed"]
 [connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/ChromaticAberration" to="." method="_on_filter_changed"]
 [connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/Noise" to="." method="_on_filter_changed"]
+[connection signal="toggled" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/NoiseAnimated" to="." method="_on_noise_option_toggled"]
+[connection signal="toggled" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/NoiseColored" to="." method="_on_noise_option_toggled"]
 [connection signal="value_changed" from="DrawingContextSurface/DrawingBar/FillTolerance" to="." method="_on_fill_tolerance_changed"]
 [connection signal="toggled" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/Monochrome" to="." method="_on_monochrome_toggled"]
 [connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/ResetFilters" to="." method="_on_reset_filters_pressed"]
