@@ -21,6 +21,9 @@ var fill_gradient_angle := 0.0
 var closed := false
 var stroke_id := ""
 var _sculpt_last_mouse := Vector2.ZERO
+var _sculpt_start_mouse := Vector2.ZERO
+var _sculpt_start_points := PackedVector3Array()
+var _sculpt_grab_weights := PackedFloat32Array()
 var _sculpt_has_last := false
 
 func set_points(value: PackedVector3Array) -> void:
@@ -52,12 +55,29 @@ func add_point(p: Vector3, size_pressure := 1.0, opacity_pressure := 1.0) -> voi
 	point_opacity_pressure.append(clampf(float(opacity_pressure),0.0,1.0))
 	rebuild()
 
-func begin_sculpt(mouse_pos: Vector2) -> void:
+func begin_sculpt(mouse_pos: Vector2, camera: Camera3D, brush_radius_px: float) -> void:
 	_sculpt_last_mouse = mouse_pos
+	_sculpt_start_mouse = mouse_pos
+	_sculpt_start_points = points.duplicate()
+	_sculpt_grab_weights = PackedFloat32Array()
+	_sculpt_grab_weights.resize(points.size())
+	for i in range(points.size()):
+		var world_point := to_global(points[i])
+		if camera.is_position_behind(world_point):
+			_sculpt_grab_weights[i] = 0.0
+			continue
+		var distance_px := camera.unproject_position(world_point).distance_to(mouse_pos)
+		if distance_px > brush_radius_px:
+			_sculpt_grab_weights[i] = 0.0
+			continue
+		var falloff := 1.0-distance_px/maxf(brush_radius_px,1.0)
+		_sculpt_grab_weights[i] = falloff*falloff*(3.0-2.0*falloff)
 	_sculpt_has_last = true
 
 func end_sculpt() -> void:
 	_sculpt_has_last = false
+	_sculpt_start_points = PackedVector3Array()
+	_sculpt_grab_weights = PackedFloat32Array()
 
 func sculpt_screen(brush_pos: Vector2, camera: Camera3D, brush_radius_px: float, strength: float, mode: String) -> bool:
 	var local_view := (global_transform.basis.inverse() * -camera.global_transform.basis.z).normalized()
@@ -107,8 +127,13 @@ func sculpt_screen(brush_pos: Vector2, camera: Camera3D, brush_radius_px: float,
 
 		match mode:
 			"move":
-				if drag.length_squared() > 0.0:
-					points[i] += (local_right*drag.x-local_up*drag.y)*local_per_px*influence
+				# Grab: lock the affected points at mouse-down and translate that
+				# same patch by the total drag in viewport X/Y.
+				if _sculpt_start_points.size() == points.size() and _sculpt_grab_weights.size() == points.size():
+					var grab_weight := _sculpt_grab_weights[i] * amount_strength
+					if grab_weight > 0.0:
+						var total_drag := brush_pos-_sculpt_start_mouse
+						points[i] = _sculpt_start_points[i] + (local_right*total_drag.x-local_up*total_drag.y)*local_per_px*grab_weight
 
 			"pinch":
 				var toward_cursor := cursor_local-original[i]
@@ -126,7 +151,10 @@ func sculpt_screen(brush_pos: Vector2, camera: Camera3D, brush_radius_px: float,
 				var radial := original[i]-cursor_local
 				radial -= local_view*radial.dot(local_view)
 				if radial.length_squared()>0.000001:
-					points[i] += radial.normalized()*brush_radius_local*0.22*influence*signf(strength if not is_zero_approx(strength) else 1.0)
+					# Expand/contract the curve away from the brush center in the
+					# current viewport plane. Stronger than push so its effect is
+					# visually obvious even on sparse strokes.
+					points[i] += radial.normalized()*brush_radius_local*0.42*influence*signf(strength if not is_zero_approx(strength) else 1.0)
 
 			_:
 				# Push is intentionally the depth sculpt tool.
