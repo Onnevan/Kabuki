@@ -597,6 +597,7 @@ tooltip_text="Stroke end: Flat, Round or Point"
 custom_minimum_size=Vector2(8,0)
 
 [node name="ActiveColorLabel" type="Label" parent="DrawingContextSurface/DrawingBar"]
+unique_name_in_owner=true
 text="COLOR"
 [node name="ActiveColor" type="ColorPickerButton" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
