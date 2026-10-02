@@ -2411,12 +2411,16 @@ func _update_drawing_tool_ui() -> void:
 		control.visible = bitmap
 	%StrokeTool.button_pressed = drawing_3d_active
 	%BrushMenuSurface.visible = workspace == "drawing" and drawing_3d_active
-	%BitmapTool.button_pressed = bitmap
+	# BitmapTool is a mode-entry button, not a second active drawing tool.
+	# The selected state belongs exclusively to the active bitmap subtool.
+	%BitmapTool.button_pressed = false
 	%EraseTool.button_pressed = drawing_erase_active
 	%SculptTool.button_pressed = drawing_sculpt_active
 	var bitmap_buttons: Array[Button] = [%BitmapBrush,%BitmapPencil,%BitmapEraser,%BitmapLine,%BitmapRect,%BitmapEllipse,%BitmapFillTool,%BitmapSmudge,%BitmapLassoFill]
-	for i in range(bitmap_buttons.size()):
-		bitmap_buttons[i].button_pressed = bitmap and current_tool == i
+	for button in bitmap_buttons:
+		button.button_pressed = false
+	if bitmap and current_tool >= 0 and current_tool < bitmap_buttons.size():
+		bitmap_buttons[current_tool].button_pressed = true
 
 	# Destructive/action controls belong to context, not the primary tool rail.
 	# Clear is an action, not a drawing tool. Show it only when bitmap editing
