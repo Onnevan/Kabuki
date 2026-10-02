@@ -58,6 +58,7 @@ var local_play_accumulator := 0.0
 var local_play_direction := 1
 var local_hold_counter := 0
 var render_in_progress := false
+var render_cancel_requested := false
 var drag_offset := Vector3.ZERO
 var last_mouse := Vector2.ZERO
 var scene_object_controller: RefCounted = SceneObjectControllerClass.new()
@@ -210,6 +211,7 @@ func _ready() -> void:
 	%RedoPaint.pressed.connect(_redo_drawing)
 	%RenderAnimationTop.pressed.connect(_on_render_animation_pressed)
 	%RenderFrameTop.pressed.connect(_on_render_frame_pressed)
+	%AbortRenderTop.pressed.connect(_on_abort_render_pressed)
 	%RenderFrameDialog.file_selected.connect(_on_render_frame_file_selected)
 	%ViewX.pressed.connect(func(): _align_view_axis(Vector3.RIGHT, "X"))
 	%ViewY.pressed.connect(func(): _align_view_axis(Vector3.UP, "Y"))
@@ -1723,10 +1725,11 @@ func _screen_to_plane(pos: Vector2, z_plane: float) -> Vector3:
 
 func _on_frame_changed(frame: int) -> void:
 	frame_label.text = "%03d" % frame
+	var noise_seed_value := float(frame) if %NoiseAnimated.button_pressed else 0.0
 	if effects_display != null and effects_display.effect_material != null:
-		effects_display.effect_material.set_shader_parameter("noise_seed",float(frame))
+		effects_display.effect_material.set_shader_parameter("noise_seed",noise_seed_value)
 	if render_composite != null and render_composite.effect_material != null:
-		render_composite.effect_material.set_shader_parameter("noise_seed",float(frame))
+		render_composite.effect_material.set_shader_parameter("noise_seed",noise_seed_value)
 	frame_slider.set_value_no_signal(frame)
 	timeline.set_frame(frame)
 	for r in runtime_objects: r.apply_frame(frame)
@@ -2307,11 +2310,14 @@ func _render_current_frame_png(output_path: String) -> void:
 	if camera_obj == null: return
 
 	render_in_progress = true
+	render_cancel_requested = false
 	playing = false
 	_stop_local_playback()
 	%RenderAnimation.disabled = true
 	%RenderAnimationTop.disabled = true
 	%RenderFrameTop.disabled = true
+	%AbortRenderTop.visible = false
+	%AbortRenderTop.disabled = true
 
 	var frame := ProjectStore.current_frame
 	var previous_viewport_size := viewport.size
@@ -2404,9 +2410,14 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	if camera_obj == null: return
 
 	render_in_progress = true
+	render_cancel_requested = false
 	playing = false
 	_stop_local_playback()
 	%RenderAnimation.disabled = true
+	%RenderAnimationTop.disabled = true
+	%RenderFrameTop.disabled = true
+	%AbortRenderTop.visible = true
+	%AbortRenderTop.disabled = false
 
 	var previous_frame := ProjectStore.current_frame
 	var previous_viewport_size := viewport.size
@@ -2450,15 +2461,23 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	if not current_project_path.is_empty():
 		base_name = current_project_path.get_file().get_basename()
 	var failed := false
+	var aborted := false
 
 	for frame in range(start_frame,end_frame+1):
+		if render_cancel_requested:
+			aborted = true
+			break
 		status.text = "Rendering %d / %d · frame %d" % [frame-start_frame+1,total,frame]
 		ProjectStore.set_frame(frame)
-		# Render the complete SceneViewport first (including transparent drawings),
-		# then run the color stack over that final texture in a 2D pass.
 		await RenderingServer.frame_post_draw
+		if render_cancel_requested:
+			aborted = true
+			break
 		render_compositor.render_target_update_mode = SubViewport.UPDATE_ONCE
 		await RenderingServer.frame_post_draw
+		if render_cancel_requested:
+			aborted = true
+			break
 		var image := render_compositor.get_texture().get_image()
 		if image == null or image.is_empty():
 			failed = true
@@ -2488,8 +2507,18 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	if not camera_view_active:
 		_set_render_camera_gizmo_visible(true)
 	%RenderAnimation.disabled = false
+	%RenderAnimationTop.disabled = false
+	%RenderFrameTop.disabled = false
+	%AbortRenderTop.visible = false
+	%AbortRenderTop.disabled = true
+	render_cancel_requested = false
 	render_in_progress = false
-	status.text = "Render failed" if failed else "Animation rendered · %d PNG frames · %dx%d" % [total,rx,ry]
+	if aborted:
+		status.text = "Render aborted"
+	elif failed:
+		status.text = "Render failed"
+	else:
+		status.text = "Animation rendered · %d PNG frames · %dx%d" % [total,rx,ry]
 
 func _on_material_color_changed(value: Color) -> void:
 	if selected: selected.set_material_color(value)
@@ -2555,7 +2584,8 @@ func _apply_global_filters() -> void:
 		"chromatic_aberration": %ChromaticAberration.value,
 		"monochrome": 1.0 if %Monochrome.button_pressed else 0.0,
 		"noise_amount": %Noise.value,
-		"noise_seed": float(ProjectStore.current_frame)
+		"noise_seed": float(ProjectStore.current_frame) if %NoiseAnimated.button_pressed else 0.0,
+		"noise_colored": 1.0 if %NoiseColored.button_pressed else 0.0
 	}
 	effects_display.set_filters(values)
 	render_composite.set_filters(values)
@@ -2565,6 +2595,15 @@ func _on_filter_changed(_value: float) -> void:
 
 func _on_monochrome_toggled(_enabled: bool) -> void:
 	_apply_global_filters()
+
+func _on_noise_option_toggled(_enabled: bool) -> void:
+	_apply_global_filters()
+
+func _on_abort_render_pressed() -> void:
+	if not render_in_progress:
+		return
+	render_cancel_requested = true
+	status.text = "Aborting render…"
 
 func _on_reset_filters_pressed() -> void:
 	%Blur.value=0.0
@@ -2580,6 +2619,8 @@ func _on_reset_filters_pressed() -> void:
 	%ChromaticAberration.value=0.0
 	%Monochrome.set_pressed_no_signal(false)
 	%Noise.value=0.0
+	%NoiseAnimated.set_pressed_no_signal(true)
+	%NoiseColored.set_pressed_no_signal(false)
 	_apply_global_filters()
 
 func _setup_workspace_tabs() -> void:
