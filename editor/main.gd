@@ -88,6 +88,10 @@ var drawing_data_by_object: Dictionary:
 	get: return drawing_controller.data_by_object
 var vector_onion_roots: Dictionary = {}
 var sculpt_mode := "push"
+var gp_opacity := 1.0
+var tool_feedback_active := false
+var tool_feedback_kind := ""
+var tool_feedback_value := 0.0
 var drawing_planes: Array[ReferenceCanvas]:
 	get: return drawing_controller.reference_canvases
 var selected_stroke: Stroke3D
@@ -2405,6 +2409,13 @@ func _setup_drawing_menus() -> void:
 	%BrushPreset.item_selected.connect(func(index: int): %DrawingCanvas.set_brush_preset(index))
 	%BrushOpacity.value_changed.connect(func(value: float): %DrawingCanvas.opacity = value)
 	%BrushHardness.value_changed.connect(func(value: float): %DrawingCanvas.hardness = value)
+	%PrimarySlider.value_changed.connect(_on_primary_tool_param_changed)
+	%SecondarySlider.value_changed.connect(_on_secondary_tool_param_changed)
+	%PrimarySlider.drag_started.connect(func(): _begin_tool_feedback("primary"))
+	%PrimarySlider.drag_ended.connect(func(_changed): _end_tool_feedback())
+	%SecondarySlider.drag_started.connect(func(): _begin_tool_feedback("secondary"))
+	%SecondarySlider.drag_ended.connect(func(_changed): _end_tool_feedback())
+	%ToolFeedbackOverlay.draw.connect(_draw_tool_feedback)
 	%DrawingCanvas.fill_tolerance = %FillTolerance.value
 	var cel_popup: PopupMenu = %CelMenu.get_popup()
 	cel_popup.clear()
@@ -2507,6 +2518,124 @@ func _apply_stroke_brush(stroke: Stroke3D) -> void:
 	# Stable for the life of this stroke, different for each newly drawn stroke.
 	stroke.brush_seed = int(Time.get_ticks_usec() % 2147483647)
 
+func _tool_param_profile() -> Dictionary:
+	if drawing_sculpt_active:
+		return {"primary":"SIZE","primary_min":1.0,"primary_max":500.0,"primary_step":1.0,"primary_value":%BrushSize.value,
+			"secondary":"STRENGTH","secondary_min":0.0,"secondary_max":1.0,"secondary_step":0.01,"secondary_value":absf(%SculptStrength.value)}
+	if drawing_erase_active:
+		return {"primary":"SIZE","primary_min":1.0,"primary_max":500.0,"primary_step":1.0,"primary_value":%BrushSize.value,
+			"secondary":"OPACITY","secondary_min":0.0,"secondary_max":1.0,"secondary_step":0.01,"secondary_value":1.0}
+	if drawing_3d_active:
+		return {"primary":"SIZE","primary_min":1.0,"primary_max":500.0,"primary_step":1.0,"primary_value":%BrushSize.value,
+			"secondary":"OPACITY","secondary_min":0.0,"secondary_max":1.0,"secondary_step":0.01,"secondary_value":gp_opacity}
+	if %DrawingCanvas.bitmap_mode:
+		var tool: int = int(%DrawingCanvas.tool)
+		if tool == 6:
+			return {"primary":"TOLERANCE","primary_min":0.0,"primary_max":1.0,"primary_step":0.01,"primary_value":%FillTolerance.value,
+				"secondary":"OPACITY","secondary_min":0.0,"secondary_max":1.0,"secondary_step":0.01,"secondary_value":%BrushOpacity.value}
+		if tool == 7:
+			return {"primary":"SIZE","primary_min":1.0,"primary_max":500.0,"primary_step":1.0,"primary_value":%BrushSize.value,
+				"secondary":"STRENGTH","secondary_min":0.0,"secondary_max":1.0,"secondary_step":0.01,"secondary_value":%BrushOpacity.value}
+		if tool == 8:
+			return {"primary":"OPACITY","primary_min":0.0,"primary_max":1.0,"primary_step":0.01,"primary_value":%BrushOpacity.value,
+				"secondary":"ANGLE","secondary_min":-180.0,"secondary_max":180.0,"secondary_step":1.0,"secondary_value":%LassoGradientAngle.value}
+		return {"primary":"SIZE","primary_min":1.0,"primary_max":500.0,"primary_step":1.0,"primary_value":%BrushSize.value,
+			"secondary":"OPACITY","secondary_min":0.0,"secondary_max":1.0,"secondary_step":0.01,"secondary_value":%BrushOpacity.value}
+	return {}
+
+func _sync_tool_param_sliders() -> void:
+	var profile: Dictionary = _tool_param_profile()
+	var active: bool = workspace == "drawing" and not profile.is_empty()
+	%ToolParamSurface.visible = active
+	if not active: return
+	%PrimaryLabel.text = String(profile["primary"])
+	%PrimarySlider.min_value = float(profile["primary_min"])
+	%PrimarySlider.max_value = float(profile["primary_max"])
+	%PrimarySlider.step = float(profile["primary_step"])
+	%PrimarySlider.set_value_no_signal(float(profile["primary_value"]))
+	%SecondaryLabel.text = String(profile["secondary"])
+	%SecondarySlider.min_value = float(profile["secondary_min"])
+	%SecondarySlider.max_value = float(profile["secondary_max"])
+	%SecondarySlider.step = float(profile["secondary_step"])
+	%SecondarySlider.set_value_no_signal(float(profile["secondary_value"]))
+
+func _on_primary_tool_param_changed(value: float) -> void:
+	var profile: Dictionary = _tool_param_profile()
+	if profile.is_empty(): return
+	var kind := String(profile["primary"])
+	match kind:
+		"SIZE":
+			%BrushSize.set_value_no_signal(value)
+			_on_brush_size_changed(value)
+		"TOLERANCE":
+			%FillTolerance.set_value_no_signal(value)
+			_on_fill_tolerance_changed(value)
+		"OPACITY":
+			%BrushOpacity.set_value_no_signal(value)
+			%DrawingCanvas.opacity = value
+	if tool_feedback_active:
+		tool_feedback_value = value
+		%ToolFeedbackOverlay.queue_redraw()
+
+func _on_secondary_tool_param_changed(value: float) -> void:
+	var profile: Dictionary = _tool_param_profile()
+	if profile.is_empty(): return
+	var kind := String(profile["secondary"])
+	match kind:
+		"OPACITY":
+			if drawing_3d_active:
+				gp_opacity = value
+				_apply_selected_stroke_style()
+			else:
+				%BrushOpacity.set_value_no_signal(value)
+				%DrawingCanvas.opacity = value
+		"STRENGTH":
+			if drawing_sculpt_active:
+				%SculptStrength.set_value_no_signal(value)
+			else:
+				%BrushOpacity.set_value_no_signal(value)
+				%DrawingCanvas.opacity = value
+		"ANGLE":
+			%LassoGradientAngle.set_value_no_signal(value)
+			%DrawingCanvas.set_lasso_gradient_angle(value)
+	if tool_feedback_active:
+		tool_feedback_value = value
+		%ToolFeedbackOverlay.queue_redraw()
+
+func _begin_tool_feedback(which: String) -> void:
+	var profile: Dictionary = _tool_param_profile()
+	if profile.is_empty(): return
+	tool_feedback_active = true
+	tool_feedback_kind = String(profile["primary"] if which == "primary" else profile["secondary"])
+	tool_feedback_value = float(%PrimarySlider.value if which == "primary" else %SecondarySlider.value)
+	%ToolFeedbackOverlay.visible = true
+	%ToolFeedbackOverlay.queue_redraw()
+
+func _end_tool_feedback() -> void:
+	tool_feedback_active = false
+	%ToolFeedbackOverlay.visible = false
+
+func _draw_tool_feedback() -> void:
+	if not tool_feedback_active: return
+	var overlay: Control = %ToolFeedbackOverlay
+	var center := overlay.size * 0.5
+	var radius := 56.0
+	var alpha := 0.32
+	match tool_feedback_kind:
+		"SIZE":
+			radius = clampf(tool_feedback_value * 0.5,4.0,minf(overlay.size.x,overlay.size.y)*0.42)
+		"OPACITY","STRENGTH":
+			alpha = clampf(tool_feedback_value,0.05,1.0)
+		"TOLERANCE":
+			radius = lerpf(24.0,minf(overlay.size.x,overlay.size.y)*0.35,clampf(tool_feedback_value,0.0,1.0))
+			alpha = 0.22
+		"ANGLE":
+			var dir := Vector2.RIGHT.rotated(deg_to_rad(tool_feedback_value))
+			overlay.draw_line(center-dir*70.0,center+dir*70.0,Color(1,1,1,0.9),3.0)
+			return
+	overlay.draw_circle(center,radius,Color(0.3,0.65,1.0,alpha))
+	overlay.draw_arc(center,radius,0.0,TAU,64,Color(1,1,1,0.95),2.0)
+
 func _update_drawing_tool_ui() -> void:
 	var bitmap: bool = bool(%DrawingCanvas.bitmap_mode)
 	var current_tool: int = int(%DrawingCanvas.tool)
@@ -2537,15 +2666,15 @@ func _update_drawing_tool_ui() -> void:
 	var brush_active: bool = bitmap and (current_tool == 0 or current_tool == 1 or current_tool == 2)
 	var lasso_active: bool = bitmap and current_tool == 8
 	var gradient_active: bool = lasso_active and %LassoFillMode.selected == 1
-	%BrushSizeLabel.visible = size_active
-	%BrushSize.visible = size_active
+	%BrushSizeLabel.visible = false
+	%BrushSize.visible = false
 	%BrushPreset.visible = brush_active and current_tool != 2
-	%BrushOpacityLabel.visible = opacity_active
-	%BrushOpacity.visible = opacity_active
+	%BrushOpacityLabel.visible = false
+	%BrushOpacity.visible = false
 	%BrushHardness.visible = brush_active and current_tool == 0
 	var fill_active: bool = bitmap and current_tool == 6
-	%FillToleranceLabel.visible = fill_active
-	%FillTolerance.visible = fill_active
+	%FillToleranceLabel.visible = false
+	%FillTolerance.visible = false
 	%BrushColor.visible = drawing_3d_active or (bitmap and (current_tool == 0 or current_tool == 1 or current_tool == 3 or current_tool == 4 or current_tool == 5 or current_tool == 6))
 	%ActiveColorLabel.visible = not drawing_3d_active
 	%ActiveColor.visible = not drawing_3d_active
@@ -2557,7 +2686,7 @@ func _update_drawing_tool_ui() -> void:
 	%LassoAngleLabel.visible = gradient_active
 	%LassoGradientAngle.visible = gradient_active
 	%SculptMode.visible = drawing_sculpt_active
-	%SculptStrength.visible = drawing_sculpt_active
+	%SculptStrength.visible = false
 	%Fill.visible = drawing_3d_active
 	%FillColor.visible = drawing_3d_active
 	%StartCap.visible = drawing_3d_active
@@ -3022,15 +3151,21 @@ func _apply_selected_stroke_style() -> void:
 	# Color controls edit only the selected/last stroke. With no stroke selected
 	# they are simply the style for the next stroke.
 	if selected_stroke == null or not is_instance_valid(selected_stroke): return
-	selected_stroke.set_style(gp_line_color, %Fill.button_pressed, gp_fill_color, "gradient" if %FillMode.selected == 1 else "solid", gp_fill_color_b, float(%FillGradientAngle.value))
+	var line_with_opacity := gp_line_color
+	line_with_opacity.a *= gp_opacity
+	var fill_with_opacity := gp_fill_color
+	fill_with_opacity.a *= gp_opacity
+	var fill_b_with_opacity := gp_fill_color_b
+	fill_b_with_opacity.a *= gp_opacity
+	selected_stroke.set_style(line_with_opacity, %Fill.button_pressed, fill_with_opacity, "gradient" if %FillMode.selected == 1 else "solid", fill_b_with_opacity, float(%FillGradientAngle.value))
 	var data: RefCounted = drawing_data_by_object.get(active_drawing_id)
 	if data and not selected_stroke.stroke_id.is_empty():
 		var record: Dictionary = data.strokes.get(selected_stroke.stroke_id, {})
-		record["color"] = gp_line_color
+		record["color"] = line_with_opacity
 		record["fill_enabled"] = %Fill.button_pressed
-		record["fill_color"] = gp_fill_color
+		record["fill_color"] = fill_with_opacity
 		record["fill_mode"] = "gradient" if %FillMode.selected == 1 else "solid"
-		record["fill_color_b"] = gp_fill_color_b
+		record["fill_color_b"] = fill_b_with_opacity
 		record["fill_gradient_angle"] = float(%FillGradientAngle.value)
 
 func _apply_active_drawing_style() -> void:
@@ -3331,13 +3466,13 @@ func _begin_3d_stroke(pos: Vector2) -> void:
 		_apply_drawing_frame(ProjectStore.current_frame)
 		_refresh_drawing_timeline()
 	active_stroke_3d = Stroke3DClass.new()
-	active_stroke_3d.stroke_color = gp_line_color
+	active_stroke_3d.stroke_color = Color(gp_line_color.r,gp_line_color.g,gp_line_color.b,gp_line_color.a*gp_opacity)
 	active_stroke_3d.radius = %BrushSize.value * 0.0012
 	_apply_stroke_brush(active_stroke_3d)
 	active_stroke_3d.fill_enabled = %Fill.button_pressed
-	active_stroke_3d.fill_color = gp_fill_color
+	active_stroke_3d.fill_color = Color(gp_fill_color.r,gp_fill_color.g,gp_fill_color.b,gp_fill_color.a*gp_opacity)
 	active_stroke_3d.fill_mode = "gradient" if %FillMode.selected == 1 else "solid"
-	active_stroke_3d.fill_color_b = gp_fill_color_b
+	active_stroke_3d.fill_color_b = Color(gp_fill_color_b.r,gp_fill_color_b.g,gp_fill_color_b.b,gp_fill_color_b.a*gp_opacity)
 	active_stroke_3d.fill_gradient_angle = float(%FillGradientAngle.value)
 	active_drawing_group.add_child(active_stroke_3d)
 	var world_point := _ray_to_drawing_plane(pos, active_drawing_group)
@@ -3526,6 +3661,10 @@ func _responsive_layout() -> void:
 	var plane_w: float = 272.0
 	%DrawingPlaneSurface.position=%ViewportFrame.position+Vector2(%ViewportFrame.size.x-plane_w-16.0,20.0)
 	%DrawingPlaneSurface.size=Vector2(plane_w,58.0)
+	%ToolParamSurface.position=%ViewportFrame.position+Vector2(%ViewportFrame.size.x-86.0,96.0)
+	%ToolParamSurface.size=Vector2(68.0,minf(520.0,%ViewportFrame.size.y-210.0))
+	%ToolFeedbackOverlay.position=%ViewportFrame.position
+	%ToolFeedbackOverlay.size=%ViewportFrame.size
 	var local_timeline_h: float = 112.0
 	%LocalDrawingTimeline.position=%ViewportFrame.position+Vector2(106.0,%ViewportFrame.size.y-local_timeline_h-64.0)
 	%LocalDrawingTimeline.size=Vector2(maxf(260.0,%ViewportFrame.size.x-156.0),local_timeline_h)
