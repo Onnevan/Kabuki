@@ -514,6 +514,19 @@ step=0.05
 value=0.78
 tooltip_text="Hardness"
 
+[node name="FillToleranceLabel" type="Label" parent="DrawingContextSurface/DrawingBar"]
+unique_name_in_owner=true
+text="TOL"
+tooltip_text="Flood fill color tolerance"
+[node name="FillTolerance" type="HSlider" parent="DrawingContextSurface/DrawingBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(110,0)
+min_value=0.0
+max_value=1.0
+step=0.01
+value=0.12
+tooltip_text="Flood fill tolerance"
+
 [node name="LineBlock" type="HBoxContainer" parent="DrawingContextSurface/DrawingBar"]
 theme_override_constants/separation=6
 [node name="LineColorLabel" type="Label" parent="DrawingContextSurface/DrawingBar/LineBlock"]
@@ -1443,6 +1456,7 @@ filters=PackedStringArray("*.png ; PNG Images")
 [connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/Tint" to="." method="_on_filter_changed"]
 [connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/Vignette" to="." method="_on_filter_changed"]
 [connection signal="value_changed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/ChromaticAberration" to="." method="_on_filter_changed"]
+[connection signal="value_changed" from="DrawingContextSurface/DrawingBar/FillTolerance" to="." method="_on_fill_tolerance_changed"]
 [connection signal="toggled" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/Monochrome" to="." method="_on_monochrome_toggled"]
 [connection signal="pressed" from="RightPanel/InspectorPanel/InspectorScroll/Inspector/ResetFilters" to="." method="_on_reset_filters_pressed"]
 
