@@ -13,70 +13,69 @@ uniform float vignette : hint_range(0.0, 1.0) = 0.0;
 uniform float chromatic_aberration : hint_range(0.0, 1.0) = 0.0;
 uniform float monochrome : hint_range(0.0, 1.0) = 0.0;
 
-vec3 src(vec2 uv) {
-	return texture(TEXTURE, clamp(uv, vec2(0.0), vec2(1.0))).rgb;
-}
-
-float lum(vec3 c) {
+float luminance_of(vec3 c) {
 	return dot(c, vec3(0.2126, 0.7152, 0.0722));
 }
 
-vec3 bright(vec3 c) {
-	float m = smoothstep(glow_threshold, glow_threshold + 0.08, lum(c));
-	return c * m;
+vec3 bright_part(vec3 c) {
+	float y = luminance_of(c);
+	float mask = smoothstep(glow_threshold, glow_threshold + 0.08, y);
+	return c * mask;
 }
 
 void fragment() {
-	vec2 uv = UV;
+	vec2 uv = clamp(UV, vec2(0.0), vec2(1.0));
 	vec2 px = TEXTURE_PIXEL_SIZE;
-	vec3 center = src(uv);
+	vec3 center = texture(TEXTURE, uv).rgb;
 	vec3 color = center;
 
 	if (blur > 0.001) {
 		vec2 d = px * blur;
 		vec3 b = center * 0.24;
-		b += src(uv + vec2( d.x, 0.0)) * 0.12;
-		b += src(uv + vec2(-d.x, 0.0)) * 0.12;
-		b += src(uv + vec2(0.0,  d.y)) * 0.12;
-		b += src(uv + vec2(0.0, -d.y)) * 0.12;
-		b += src(uv + vec2( d.x,  d.y)) * 0.07;
-		b += src(uv + vec2(-d.x,  d.y)) * 0.07;
-		b += src(uv + vec2( d.x, -d.y)) * 0.07;
-		b += src(uv + vec2(-d.x, -d.y)) * 0.07;
+		b += texture(TEXTURE, clamp(uv + vec2( d.x, 0.0), vec2(0.0), vec2(1.0))).rgb * 0.12;
+		b += texture(TEXTURE, clamp(uv + vec2(-d.x, 0.0), vec2(0.0), vec2(1.0))).rgb * 0.12;
+		b += texture(TEXTURE, clamp(uv + vec2(0.0,  d.y), vec2(0.0), vec2(1.0))).rgb * 0.12;
+		b += texture(TEXTURE, clamp(uv + vec2(0.0, -d.y), vec2(0.0), vec2(1.0))).rgb * 0.12;
+		b += texture(TEXTURE, clamp(uv + vec2( d.x,  d.y), vec2(0.0), vec2(1.0))).rgb * 0.07;
+		b += texture(TEXTURE, clamp(uv + vec2(-d.x,  d.y), vec2(0.0), vec2(1.0))).rgb * 0.07;
+		b += texture(TEXTURE, clamp(uv + vec2( d.x, -d.y), vec2(0.0), vec2(1.0))).rgb * 0.07;
+		b += texture(TEXTURE, clamp(uv + vec2(-d.x, -d.y), vec2(0.0), vec2(1.0))).rgb * 0.07;
 		color = mix(center, b, clamp(blur / 8.0, 0.0, 1.0));
 	}
 
 	if (chromatic_aberration > 0.001) {
 		vec2 radial = uv - vec2(0.5);
 		vec2 shift = radial * chromatic_aberration * 0.02;
-		color.r = src(uv + shift).r;
-		color.b = src(uv - shift).b;
+		color.r = texture(TEXTURE, clamp(uv + shift, vec2(0.0), vec2(1.0))).r;
+		color.b = texture(TEXTURE, clamp(uv - shift, vec2(0.0), vec2(1.0))).b;
 	}
 
 	color *= exp2(exposure);
-	float y = lum(color);
+
+	float y = luminance_of(color);
 	color = mix(vec3(y), color, saturation);
 	color = (color - vec3(0.5)) * contrast + vec3(0.5);
+
 	color.r += temperature * 0.15;
 	color.b -= temperature * 0.15;
 	color.g += color_tint * 0.10;
 	color.r -= color_tint * 0.04;
 	color.b -= color_tint * 0.04;
 
-	float gray = lum(color);
+	float gray = luminance_of(color);
 	color = mix(color, vec3(gray), monochrome);
 
 	if (glow_strength > 0.001) {
 		vec2 g = px * glow_radius;
-		vec3 bloom = bright(src(uv));
-		bloom += bright(src(uv + vec2( g.x, 0.0)));
-		bloom += bright(src(uv + vec2(-g.x, 0.0)));
-		bloom += bright(src(uv + vec2(0.0,  g.y)));
-		bloom += bright(src(uv + vec2(0.0, -g.y)));
-		bloom += bright(src(uv + vec2( g.x,  g.y)));
-		bloom += bright(src(uv + vec2(-g.x,  g.y)));
-		bloom += bright(src(uv + vec2( g.x, -g.y)));
-		bloom += bright(src(uv + vec2(-g.x, -g.y)));
+		vec3 bloom = bright_part(center);
+		bloom += bright_part(texture(TEXTURE, clamp(uv + vec2( g.x, 0.0), vec2(0.0), vec2(1.0))).rgb);
+		bloom += bright_part(texture(TEXTURE, clamp(uv + vec2(-g.x, 0.0), vec2(0.0), vec2(1.0))).rgb);
+		bloom += bright_part(texture(TEXTURE, clamp(uv + vec2(0.0,  g.y), vec2(0.0), vec2(1.0))).rgb);
+		bloom += bright_part(texture(TEXTURE, clamp(uv + vec2(0.0, -g.y), vec2(0.0), vec2(1.0))).rgb);
+		bloom += bright_part(texture(TEXTURE, clamp(uv + vec2( g.x,  g.y), vec2(0.0), vec2(1.0))).rgb);
+		bloom += bright_part(texture(TEXTURE, clamp(uv + vec2(-g.x,  g.y), vec2(0.0), vec2(1.0))).rgb);
+		bloom += bright_part(texture(TEXTURE, clamp(uv + vec2( g.x, -g.y), vec2(0.0), vec2(1.0))).rgb);
+		bloom += bright_part(texture(TEXTURE, clamp(uv + vec2(-g.x, -g.y), vec2(0.0), vec2(1.0))).rgb);
 		color += bloom * (glow_strength / 9.0);
 	}
 
