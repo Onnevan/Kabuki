@@ -2300,6 +2300,7 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	var previous_effect_enabled := kabuki_compositor_effect.enabled if kabuki_compositor_effect != null else false
 	var previous_editor_current: bool = camera.current
 	var previous_render_current: bool = render_cam.current
+	var previous_render_compositor: Compositor = render_cam.compositor
 	var previous_grid_visible: bool = world_grid.visible
 	var previous_gizmo_visible: bool = gizmo.visible
 	var previous_view_gizmo_visible: bool = bool(%ViewGizmo.visible)
@@ -2313,6 +2314,7 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	viewport.size = Vector2i(rx,ry)
 	if kabuki_compositor_effect != null:
 		kabuki_compositor_effect.enabled = true
+	render_cam.compositor = world_environment.compositor
 	camera.current = false
 	render_cam.current = true
 	world_grid.visible = false
@@ -2351,6 +2353,7 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 			break
 
 	render_cam.current = previous_render_current
+	render_cam.compositor = previous_render_compositor
 	camera.current = previous_editor_current
 	canvas.stretch = previous_stretch
 	viewport.size = previous_viewport_size
@@ -2417,7 +2420,11 @@ func _setup_native_compositor() -> void:
 	kabuki_compositor_effect.enabled = false
 	var effects: Array[CompositorEffect] = [kabuki_compositor_effect]
 	compositor.compositor_effects = effects
+	# Attach to both the world and the editor camera. A Camera3D compositor
+	# overrides the WorldEnvironment compositor, so explicit camera assignment
+	# removes any ambiguity about which pipeline the viewport is using.
 	world_environment.compositor = compositor
+	camera.compositor = compositor
 
 
 func _apply_global_filters() -> void:
