@@ -94,6 +94,7 @@ var drawing_data_by_object: Dictionary:
 var vector_onion_roots: Dictionary = {}
 var sculpt_mode := "push"
 var gp_opacity := 1.0
+var current_stylus_pressure := 1.0
 var tool_feedback_active := false
 var tool_feedback_kind := ""
 var tool_feedback_value := 0.0
@@ -806,6 +807,7 @@ func _load_project_payload(payload: Dictionary, path: String) -> void:
 				stroke.points = rec.get("points", PackedVector3Array())
 				stroke.stroke_color = rec.get("color", Color.BLACK)
 				stroke.radius = float(rec.get("radius", 0.012))
+				stroke.set_pressure_data(rec.get("point_size_pressure",[]),rec.get("point_opacity_pressure",[]))
 				stroke.brush_preset = String(rec.get("brush_preset", "clean"))
 				stroke.width_variation = float(rec.get("width_variation", 0.0))
 				stroke.width_frequency = float(rec.get("width_frequency", 1.0))
@@ -1219,6 +1221,11 @@ func _navigate_zoom(amount: float) -> void:
 
 func _on_canvas_gui_input(event: InputEvent) -> void:
 	if workspace == "drawing":
+		if event is InputEventScreenDrag:
+			var screen_drag := event as InputEventScreenDrag
+			current_stylus_pressure = _stylus_pressure_or_full(screen_drag.pressure)
+		if %DrawingCanvas.bitmap_mode:
+			%DrawingCanvas.input_pressure = current_stylus_pressure
 		if _gradient_guide_input(event): return
 		# DRAWING is deliberately a 2D editing view onto a 3D reference plane.
 		# Keep the camera orthographic and axis-locked: MMB pans, wheel zooms.
@@ -1258,6 +1265,10 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 					return
 		elif event is InputEventMouseMotion:
 			last_mouse = event.position
+			var drawing_motion := event as InputEventMouseMotion
+			current_stylus_pressure = _stylus_pressure_or_full(drawing_motion.pressure)
+			if %DrawingCanvas.bitmap_mode:
+				%DrawingCanvas.input_pressure = current_stylus_pressure
 			if orbiting:
 				_navigate_orbit(event.relative); return
 			elif panning:
@@ -1951,6 +1962,7 @@ func _add_vector_onion_pose(root: Node3D,data: RefCounted,pose: Dictionary,tint:
 		var ghost: Stroke3D = Stroke3DClass.new()
 		ghost.points = state.get("points",PackedVector3Array())
 		ghost.radius = float(record.get("radius",0.012))
+		ghost.set_pressure_data(record.get("point_size_pressure",[]),record.get("point_opacity_pressure",[]))
 		ghost.brush_preset = String(record.get("brush_preset","clean"))
 		ghost.width_variation = float(record.get("width_variation",0.0))
 		ghost.width_frequency = float(record.get("width_frequency",1.0))
@@ -3495,6 +3507,8 @@ func _on_plane_duplicate() -> void:
 			copy.points = src.points.duplicate()
 			copy.stroke_color = src.stroke_color
 			copy.radius = src.radius
+			copy.point_size_pressure = src.point_size_pressure.duplicate()
+			copy.point_opacity_pressure = src.point_opacity_pressure.duplicate()
 			copy.brush_preset = src.brush_preset
 			copy.width_variation = src.width_variation
 			copy.width_frequency = src.width_frequency
@@ -3533,6 +3547,11 @@ func _ensure_drawing_content_layer(kind: String) -> void:
 	drawing_content_layers[active_drawing_id] = layers
 	_refresh_scene_object_list()
 
+func _stylus_pressure_or_full(value: float) -> float:
+	# Mouse devices report 0.0. Treat them as full pressure so the existing
+	# desktop mouse behaviour remains unchanged.
+	return clampf(value,0.0,1.0) if value > 0.0 else 1.0
+
 func _begin_3d_stroke(pos: Vector2) -> void:
 	_ensure_drawing_group()
 	_ensure_drawing_content_layer("vector")
@@ -3553,12 +3572,12 @@ func _begin_3d_stroke(pos: Vector2) -> void:
 	active_stroke_3d.fill_gradient_angle = float(%FillGradientAngle.value)
 	active_drawing_group.add_child(active_stroke_3d)
 	var world_point := _ray_to_drawing_plane(pos, active_drawing_group)
-	active_stroke_3d.add_point(active_drawing_group.to_local(world_point))
+	active_stroke_3d.add_point(active_drawing_group.to_local(world_point),current_stylus_pressure,current_stylus_pressure)
 
 func _extend_3d_stroke(pos: Vector2) -> void:
 	if active_stroke_3d and active_drawing_group:
 		var world_point := _ray_to_drawing_plane(pos, active_drawing_group)
-		active_stroke_3d.add_point(active_drawing_group.to_local(world_point))
+		active_stroke_3d.add_point(active_drawing_group.to_local(world_point),current_stylus_pressure,current_stylus_pressure)
 
 func _finish_3d_stroke() -> void:
 	if active_stroke_3d == null: return
