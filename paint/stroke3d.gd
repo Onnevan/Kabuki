@@ -63,13 +63,12 @@ func sculpt_screen(brush_pos: Vector2, camera: Camera3D, brush_radius_px: float,
 	# Convert screen-space interaction into a stable local-space scale.
 	# A 100 px brush should produce a clearly visible deformation regardless of zoom.
 	var reference_world := global_position
+	var world_radius: float = maxf(0.001,brush_radius_px * 0.002)
 	if not camera.is_position_behind(reference_world):
-		var a := camera.project_position(brush_pos, camera.global_position.distance_to(reference_world))
-		var b := camera.project_position(brush_pos + Vector2(maxf(1.0,brush_radius_px),0.0), camera.global_position.distance_to(reference_world))
-		var world_radius := a.distance_to(b)
-		if world_radius <= 0.00001: world_radius = maxf(0.001,brush_radius_px * 0.002)
-	else:
-		var world_radius := maxf(0.001,brush_radius_px * 0.002)
+		var depth_to_canvas: float = camera.global_position.distance_to(reference_world)
+		var a := camera.project_position(brush_pos,depth_to_canvas)
+		var b := camera.project_position(brush_pos + Vector2(maxf(1.0,brush_radius_px),0.0),depth_to_canvas)
+		world_radius = maxf(0.001,a.distance_to(b))
 
 	var changed := false
 	var original := points.duplicate()
