@@ -2574,16 +2574,27 @@ func _on_draw_stroke3d_pressed() -> void:
 
 func _on_draw_bitmap_pressed() -> void:
 	_lock_drawing_view_to_canvas()
+	if active_drawing_id.is_empty():
+		_ensure_drawing_group()
+	if not active_drawing_id.is_empty():
+		%DrawingCanvas.switch_canvas(active_drawing_id)
 	var data: RefCounted = _active_drawing_data()
-	if data != null: %DrawingCanvas.set_local_frame(data.local_frame)
+	if data != null:
+		%DrawingCanvas.set_local_frame(data.local_frame)
+		data.ensure_flipbook_cel(_drawing_edit_frame())
+	_ensure_drawing_content_layer("bitmap")
+	if not %DrawingCanvas.has_keyed_cel(_drawing_edit_frame()):
+		%DrawingCanvas.begin_new_flipbook_cel()
+		%DrawingCanvas.key_current_cel()
 	drawing_3d_active = false
 	drawing_sculpt_active = false
 	drawing_erase_active = false
 	%DrawingCanvas.bitmap_mode = true
 	%DrawingCanvas.visible = true
 	%DrawingCanvas.queue_redraw()
+	_refresh_drawing_timeline()
 	_update_drawing_tool_ui()
-	status.text = "Bitmap paint · true raster layer on active reference canvas"
+	status.text = "Bitmap paint · persistent raster cel on active canvas"
 
 func _on_draw_sculpt_pressed() -> void:
 	drawing_3d_active = false
