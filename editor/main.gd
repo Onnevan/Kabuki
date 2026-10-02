@@ -2563,10 +2563,7 @@ func _sync_tool_param_sliders() -> void:
 	var primary_kind := String(profile["primary"])
 	%PrimaryIcon.texture = _tool_param_icon(primary_kind)
 	%PrimaryIcon.tooltip_text = primary_kind.capitalize()
-	%PrimarySlider.min_value = float(profile["primary_min"])
-	%PrimarySlider.max_value = float(profile["primary_max"])
-	%PrimarySlider.step = float(profile["primary_step"])
-	%PrimarySlider.set_value_no_signal(float(profile["primary_value"]))
+	_configure_tool_slider(%PrimarySlider, primary_kind, profile, "primary")
 	var secondary_enabled: bool = bool(profile.get("secondary_enabled",true))
 	var secondary_kind := String(profile["secondary"])
 	%SecondaryIcon.visible = secondary_enabled
@@ -2575,10 +2572,43 @@ func _sync_tool_param_sliders() -> void:
 	if secondary_enabled:
 		%SecondaryIcon.texture = _tool_param_icon(secondary_kind)
 		%SecondaryIcon.tooltip_text = secondary_kind.capitalize()
-		%SecondarySlider.min_value = float(profile["secondary_min"])
-		%SecondarySlider.max_value = float(profile["secondary_max"])
-		%SecondarySlider.step = float(profile["secondary_step"])
-		%SecondarySlider.set_value_no_signal(float(profile["secondary_value"]))
+		_configure_tool_slider(%SecondarySlider, secondary_kind, profile, "secondary")
+
+func _configure_tool_slider(slider: Range, kind: String, profile: Dictionary, prefix: String) -> void:
+	var parameter_min := float(profile[prefix + "_min"])
+	var parameter_max := float(profile[prefix + "_max"])
+	var parameter_step := float(profile[prefix + "_step"])
+	var parameter_value := float(profile[prefix + "_value"])
+	if kind == "SIZE":
+		# Size uses a logarithmic/exponential response: roughly half of the
+		# physical slider travel is devoted to the commonly used 1-22 px range.
+		slider.min_value = 0.0
+		slider.max_value = 1.0
+		slider.step = 0.001
+		slider.set_value_no_signal(_size_to_slider(parameter_value,parameter_min,parameter_max))
+	else:
+		slider.min_value = parameter_min
+		slider.max_value = parameter_max
+		slider.step = parameter_step
+		slider.set_value_no_signal(parameter_value)
+
+func _size_from_slider(slider_value: float, minimum: float, maximum: float) -> float:
+	if maximum <= minimum or minimum <= 0.0: return minimum
+	var t := clampf(slider_value,0.0,1.0)
+	return minimum * pow(maximum / minimum,t)
+
+func _size_to_slider(size_value: float, minimum: float, maximum: float) -> float:
+	if maximum <= minimum or minimum <= 0.0: return 0.0
+	var clamped_size := clampf(size_value,minimum,maximum)
+	return log(clamped_size / minimum) / log(maximum / minimum)
+
+func _tool_slider_parameter_value(which: String, profile: Dictionary) -> float:
+	var kind := String(profile["primary"] if which == "primary" else profile["secondary"])
+	var slider: Range = %PrimarySlider if which == "primary" else %SecondarySlider
+	if kind == "SIZE":
+		var prefix := "primary" if which == "primary" else "secondary"
+		return _size_from_slider(float(slider.value),float(profile[prefix + "_min"]),float(profile[prefix + "_max"]))
+	return float(slider.value)
 
 func _tool_param_icon(kind: String) -> Texture2D:
 	match kind:
@@ -2598,10 +2628,13 @@ func _on_primary_tool_param_changed(value: float) -> void:
 	var profile: Dictionary = _tool_param_profile()
 	if profile.is_empty(): return
 	var kind := String(profile["primary"])
+	var parameter_value := value
+	if kind == "SIZE":
+		parameter_value = _size_from_slider(value,float(profile["primary_min"]),float(profile["primary_max"]))
 	match kind:
 		"SIZE":
-			%BrushSize.set_value_no_signal(value)
-			_on_brush_size_changed(value)
+			%BrushSize.set_value_no_signal(parameter_value)
+			_on_brush_size_changed(parameter_value)
 		"TOLERANCE":
 			%FillTolerance.set_value_no_signal(value)
 			_on_fill_tolerance_changed(value)
@@ -2609,7 +2642,7 @@ func _on_primary_tool_param_changed(value: float) -> void:
 			%BrushOpacity.set_value_no_signal(value)
 			%DrawingCanvas.opacity = value
 	if tool_feedback_active:
-		tool_feedback_value = value
+		tool_feedback_value = parameter_value
 		%ToolFeedbackOverlay.queue_redraw()
 
 func _on_secondary_tool_param_changed(value: float) -> void:
@@ -2643,7 +2676,7 @@ func _begin_tool_feedback(which: String) -> void:
 	if which == "secondary" and not bool(profile.get("secondary_enabled",true)): return
 	tool_feedback_active = true
 	tool_feedback_kind = String(profile["primary"] if which == "primary" else profile["secondary"])
-	tool_feedback_value = float(%PrimarySlider.value if which == "primary" else %SecondarySlider.value)
+	tool_feedback_value = _tool_slider_parameter_value(which,profile)
 	%ToolFeedbackOverlay.visible = true
 	%ToolFeedbackOverlay.queue_redraw()
 
