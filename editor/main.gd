@@ -2292,14 +2292,14 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	var previous_frame := ProjectStore.current_frame
 	var previous_viewport_size := viewport.size
 	var previous_stretch := canvas.stretch
-	var previous_editor_current := camera.current
-	var previous_render_current := render_cam.current
-	var previous_grid_visible := world_grid.visible
-	var previous_gizmo_visible := gizmo.visible
-	var previous_view_gizmo_visible := %ViewGizmo.visible
-	var previous_camera_frame_visible := %CameraFrame.visible
-	var previous_ik_visible := %IKGuide.visible
-	var previous_gradient_visible := %GradientGuide.visible
+	var previous_editor_current: bool = camera.current
+	var previous_render_current: bool = render_cam.current
+	var previous_grid_visible: bool = world_grid.visible
+	var previous_gizmo_visible: bool = gizmo.visible
+	var previous_view_gizmo_visible: bool = bool(%ViewGizmo.visible)
+	var previous_camera_frame_visible: bool = bool(%CameraFrame.visible)
+	var previous_ik_visible: bool = bool(%IKGuide.visible)
+	var previous_gradient_visible: bool = bool(%GradientGuide.visible)
 
 	var rx := maxi(64,int(camera_obj.properties.get("camera.resolution_x",1920)))
 	var ry := maxi(64,int(camera_obj.properties.get("camera.resolution_y",1080)))
