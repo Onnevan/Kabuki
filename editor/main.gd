@@ -2856,13 +2856,17 @@ func _gradient_guide_input(event: InputEvent) -> bool:
 
 func _on_brush_color_changed(value: Color) -> void:
 	_paint_color_swatch(%BrushColor,value)
-	%ActiveColor.color = value
-	_paint_color_swatch(%ActiveColor,value)
+	if active_color_target == "line":
+		%ActiveColor.set_pick_color(value)
+		_paint_color_swatch(%ActiveColor,value)
 	%DrawingCanvas.brush_color = value
 	_apply_selected_stroke_style()
 
-func _on_fill_color_changed(_value: Color) -> void:
-	_refresh_color_swatches()
+func _on_fill_color_changed(value: Color) -> void:
+	_paint_color_swatch(%FillColor,value)
+	if active_color_target == "fill_a":
+		%ActiveColor.set_pick_color(value)
+		_paint_color_swatch(%ActiveColor,value)
 	_refresh_gradient_preview()
 	_apply_selected_stroke_style()
 
