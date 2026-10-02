@@ -116,6 +116,10 @@ icon=ExtResource("12")
 [node name="PreviewMode" type="CheckButton" parent="TopBar"]
 unique_name_in_owner=true
 text="Preview"
+[node name="RenderAnimationTop" type="Button" parent="TopBar"]
+unique_name_in_owner=true
+text="RENDER PNG"
+tooltip_text="Render the global playback range as a PNG sequence"
 [node name="GridToggle" type="CheckButton" parent="TopBar"]
 unique_name_in_owner=true
 icon=ExtResource("13")
@@ -866,13 +870,34 @@ visible=false
 script=ExtResource("5")
 custom_minimum_size=Vector2(0,112)
 
-[node name="EffectsEngine" type="Control" parent="."]
+[node name="EffectsEngine" type="TextureRect" parent="."]
 unique_name_in_owner=true
+visible=false
 offset_left=294.0
 offset_top=66.0
 offset_right=1046.0
 offset_bottom=650.0
 mouse_filter=2
+expand_mode=1
+stretch_mode=0
+script=ExtResource("6")
+
+[node name="RenderCompositorViewport" type="SubViewport" parent="."]
+unique_name_in_owner=true
+size=Vector2i(1920,1080)
+render_target_update_mode=4
+transparent_bg=true
+
+[node name="RenderComposite" type="TextureRect" parent="RenderCompositorViewport"]
+unique_name_in_owner=true
+anchors_preset=15
+anchor_right=1.0
+anchor_bottom=1.0
+grow_horizontal=2
+grow_vertical=2
+mouse_filter=2
+expand_mode=1
+stretch_mode=0
 script=ExtResource("6")
 
 [node name="ViewportTop" type="HBoxContainer" parent="."]
