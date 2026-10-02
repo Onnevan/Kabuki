@@ -37,6 +37,8 @@ const ToolAngleIcon = preload("res://assets/icons/lucide/rotate-cw.svg")
 @onready var camera_rig: EditorCameraRig = %EditorCameraRig
 @onready var world_grid: WorldGrid = %WorldGrid
 @onready var effects_engine: EffectsEngine = %EffectsEngine
+@onready var render_compositor: SubViewport = %RenderCompositorViewport
+@onready var render_composite: EffectsEngine = %RenderComposite
 var selected: RuntimeObject
 var runtime_objects: Array[RuntimeObject] = []
 var playing := false
@@ -205,6 +207,7 @@ func _ready() -> void:
 	%LoadProject.pressed.connect(_on_load_project_pressed)
 	%UndoPaint.pressed.connect(_undo_drawing)
 	%RedoPaint.pressed.connect(_redo_drawing)
+	%RenderAnimationTop.pressed.connect(_on_render_animation_pressed)
 	%ViewX.pressed.connect(func(): _align_view_axis(Vector3.RIGHT, "X"))
 	%ViewY.pressed.connect(func(): _align_view_axis(Vector3.UP, "Y"))
 	%ViewZ.pressed.connect(func(): _align_view_axis(Vector3.BACK, "Z"))
@@ -246,6 +249,9 @@ func _ready() -> void:
 		%SculptMode.add_item(label)
 	%SculptMode.select(0)
 	%SculptMode.item_selected.connect(_on_sculpt_mode_selected)
+	effects_engine.set_source_texture(viewport.get_texture())
+	render_composite.set_source_texture(viewport.get_texture())
+	_apply_global_filters()
 	_update_preview_mode()
 	_on_frame_changed(0)
 	_responsive_layout()
@@ -2291,6 +2297,8 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 
 	var previous_frame := ProjectStore.current_frame
 	var previous_viewport_size := viewport.size
+	var previous_compositor_size := render_compositor.size
+	var previous_compositor_update := render_compositor.render_target_update_mode
 	var previous_stretch := canvas.stretch
 	var previous_editor_current: bool = camera.current
 	var previous_render_current: bool = render_cam.current
@@ -2305,6 +2313,9 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	var ry := maxi(64,int(camera_obj.properties.get("camera.resolution_y",1080)))
 	canvas.stretch = false
 	viewport.size = Vector2i(rx,ry)
+	render_compositor.size = Vector2i(rx,ry)
+	render_composite.set_source_texture(viewport.get_texture())
+	render_compositor.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	camera.current = false
 	render_cam.current = true
 	world_grid.visible = false
@@ -2329,8 +2340,12 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	for frame in range(start_frame,end_frame+1):
 		status.text = "Rendering %d / %d · frame %d" % [frame-start_frame+1,total,frame]
 		ProjectStore.set_frame(frame)
+		# First render the 3D scene, then render the compositor from that fresh
+		# texture. Two explicit passes guarantee exported PNGs match RENDER mode.
 		await RenderingServer.frame_post_draw
-		var image := viewport.get_texture().get_image()
+		render_compositor.render_target_update_mode = SubViewport.UPDATE_ONCE
+		await RenderingServer.frame_post_draw
+		var image := render_compositor.get_texture().get_image()
 		if image == null or image.is_empty():
 			failed = true
 			break
@@ -2344,6 +2359,9 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	camera.current = previous_editor_current
 	canvas.stretch = previous_stretch
 	viewport.size = previous_viewport_size
+	render_compositor.size = previous_compositor_size
+	render_compositor.render_target_update_mode = previous_compositor_update
+	render_composite.set_source_texture(viewport.get_texture())
 	ProjectStore.set_frame(previous_frame)
 	world_grid.visible = previous_grid_visible
 	gizmo.visible = previous_gizmo_visible
@@ -2398,7 +2416,7 @@ func _on_light_type_selected(index: int) -> void:
 	status.text = "Light type: " + ["Directional", "Point", "Spot"][index]
 
 func _apply_global_filters() -> void:
-	effects_engine.set_filters({
+	var values := {
 		"blur": %Blur.value,
 		"glow_strength": %Glow.value,
 		"glow_threshold": %GlowThreshold.value,
@@ -2411,7 +2429,9 @@ func _apply_global_filters() -> void:
 		"vignette": %Vignette.value,
 		"chromatic_aberration": %ChromaticAberration.value,
 		"monochrome": 1.0 if %Monochrome.button_pressed else 0.0
-	})
+	}
+	effects_engine.set_filters(values)
+	render_composite.set_filters(values)
 
 func _on_filter_changed(_value: float) -> void:
 	_apply_global_filters()
@@ -3925,6 +3945,10 @@ func _on_preview_mode_toggled(render_mode: bool) -> void:
 
 func _update_preview_mode() -> void:
 	%PreviewMode.text = "◉  RENDER" if render_preview else "◐  PREVIEW"
+	# Compositor effects are intentionally bypassed in Preview/edit modes.
+	# RENDER displays the exact post-processed SceneViewport output.
+	effects_engine.visible = render_preview
+	%PreviewChip.text = "RENDER" if render_preview else "PREVIEW"
 	for r in runtime_objects:
 		if r.material:
 			r.material.set_shader_parameter("render_quality", 1.0 if render_preview else 0.0)
