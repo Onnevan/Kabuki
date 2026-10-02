@@ -95,6 +95,9 @@ var vector_onion_roots: Dictionary = {}
 var sculpt_mode := "push"
 var gp_opacity := 1.0
 var current_stylus_pressure := 1.0
+var vector_undo_history: Dictionary = {}
+var vector_redo_history: Dictionary = {}
+const MAX_VECTOR_UNDO := 48
 var tool_feedback_active := false
 var tool_feedback_kind := ""
 var tool_feedback_value := 0.0
@@ -195,8 +198,8 @@ func _ready() -> void:
 	%SaveProject.pressed.connect(_on_save_project_pressed)
 	%SaveProjectAs.pressed.connect(_on_save_project_as_pressed)
 	%LoadProject.pressed.connect(_on_load_project_pressed)
-	%UndoPaint.pressed.connect(%DrawingCanvas.undo_paint)
-	%RedoPaint.pressed.connect(%DrawingCanvas.redo_paint)
+	%UndoPaint.pressed.connect(_undo_drawing)
+	%RedoPaint.pressed.connect(_redo_drawing)
 	%ViewX.pressed.connect(func(): _align_view_axis(Vector3.RIGHT, "X"))
 	%ViewY.pressed.connect(func(): _align_view_axis(Vector3.UP, "Y"))
 	%ViewZ.pressed.connect(func(): _align_view_axis(Vector3.BACK, "Z"))
@@ -253,11 +256,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		status.text = "New bone chain · click its root point"
 		return
 	if key_event.ctrl_pressed and key_event.keycode == KEY_Z:
-		if key_event.shift_pressed: %DrawingCanvas.redo_paint()
-		else: %DrawingCanvas.undo_paint()
+		if key_event.shift_pressed: _redo_drawing()
+		else: _undo_drawing()
 		get_viewport().set_input_as_handled()
 	elif key_event.ctrl_pressed and key_event.keycode == KEY_Y:
-		%DrawingCanvas.redo_paint()
+		_redo_drawing()
 		get_viewport().set_input_as_handled()
 
 func _process(delta: float) -> void:
@@ -1259,10 +1262,13 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 					else: _finish_3d_stroke()
 					return
 				elif drawing_erase_active:
-					if event.pressed: _erase_drawing(event.position)
+					if event.pressed:
+						_push_vector_undo()
+						_erase_drawing(event.position)
 					return
 				elif drawing_sculpt_active:
 					if event.pressed:
+						_push_vector_undo()
 						for child in active_drawing_group.get_children() if active_drawing_group else []:
 							if child is Stroke3D: (child as Stroke3D).begin_sculpt(event.position,camera,maxf(12.0,%BrushSize.value*2.5))
 						_sculpt_drawing(event.position)
@@ -1894,6 +1900,7 @@ func _refresh_drawing_timeline() -> void:
 func _on_drawing_new_cel() -> void:
 	var data: RefCounted = _active_drawing_data()
 	if data == null: return
+	_push_vector_undo()
 	var empty_pose: Dictionary = {}
 	for stroke_id in data.stroke_order:
 		empty_pose[stroke_id] = {"points": (data.strokes[stroke_id]["points"] as PackedVector3Array).duplicate(), "visible": false}
@@ -1906,6 +1913,7 @@ func _on_drawing_new_cel() -> void:
 func _on_drawing_duplicate_cel() -> void:
 	var data: RefCounted = _active_drawing_data()
 	if data == null: return
+	_push_vector_undo()
 	if data.duplicate_previous_exposure(_drawing_edit_frame()):
 		_apply_drawing_frame(ProjectStore.current_frame)
 		_refresh_drawing_timeline()
@@ -1914,6 +1922,7 @@ func _on_drawing_duplicate_cel() -> void:
 func _on_drawing_delete_cel() -> void:
 	var data: RefCounted = _active_drawing_data()
 	if data == null: return
+	_push_vector_undo()
 	data.remove_exposure(_drawing_edit_frame())
 	_apply_drawing_frame(ProjectStore.current_frame)
 	_refresh_drawing_timeline()
@@ -2062,6 +2071,99 @@ func _key_active_flipbook_cel() -> void:
 	_apply_drawing_frame(ProjectStore.current_frame)
 	_refresh_drawing_timeline()
 	status.text = "Flipbook cel keyed · local frame %d" % frame
+
+func _push_vector_undo() -> void:
+	if active_drawing_id.is_empty(): return
+	var data: RefCounted = _active_drawing_data()
+	if data == null: return
+	var stack: Array = vector_undo_history.get(active_drawing_id,[])
+	stack.append(data.to_dict().duplicate(true))
+	while stack.size() > MAX_VECTOR_UNDO:
+		stack.pop_front()
+	vector_undo_history[active_drawing_id] = stack
+	vector_redo_history[active_drawing_id] = []
+
+func _undo_drawing() -> void:
+	if workspace == "drawing" and not %DrawingCanvas.bitmap_mode:
+		_undo_vector_drawing()
+	else:
+		%DrawingCanvas.undo_paint()
+		if workspace == "drawing":
+			_refresh_drawing_timeline()
+
+func _redo_drawing() -> void:
+	if workspace == "drawing" and not %DrawingCanvas.bitmap_mode:
+		_redo_vector_drawing()
+	else:
+		%DrawingCanvas.redo_paint()
+		if workspace == "drawing":
+			_refresh_drawing_timeline()
+
+func _undo_vector_drawing() -> void:
+	if active_drawing_id.is_empty(): return
+	var data: RefCounted = _active_drawing_data()
+	if data == null: return
+	var undo_stack: Array = vector_undo_history.get(active_drawing_id,[])
+	if undo_stack.is_empty(): return
+	var redo_stack: Array = vector_redo_history.get(active_drawing_id,[])
+	redo_stack.append(data.to_dict().duplicate(true))
+	vector_redo_history[active_drawing_id] = redo_stack
+	var state: Dictionary = undo_stack.pop_back()
+	vector_undo_history[active_drawing_id] = undo_stack
+	_restore_vector_drawing_state(active_drawing_id,state)
+	status.text = "Undo drawing"
+
+func _redo_vector_drawing() -> void:
+	if active_drawing_id.is_empty(): return
+	var data: RefCounted = _active_drawing_data()
+	if data == null: return
+	var redo_stack: Array = vector_redo_history.get(active_drawing_id,[])
+	if redo_stack.is_empty(): return
+	var undo_stack: Array = vector_undo_history.get(active_drawing_id,[])
+	undo_stack.append(data.to_dict().duplicate(true))
+	vector_undo_history[active_drawing_id] = undo_stack
+	var state: Dictionary = redo_stack.pop_back()
+	vector_redo_history[active_drawing_id] = redo_stack
+	_restore_vector_drawing_state(active_drawing_id,state)
+	status.text = "Redo drawing"
+
+func _restore_vector_drawing_state(canvas_id: String, state: Dictionary) -> void:
+	if not drawing_data_by_object.has(canvas_id) or not scene_nodes.has(canvas_id): return
+	var data: RefCounted = drawing_data_by_object[canvas_id]
+	var group := scene_nodes[canvas_id] as ReferenceCanvas
+	if group == null: return
+	data.load_dict(state)
+	drawing_controller.invalidate(canvas_id)
+	selected_stroke = null
+	for child in group.get_children():
+		if child is Stroke3D:
+			group.remove_child(child)
+			child.queue_free()
+	for stroke_id in data.stroke_order:
+		if not data.strokes.has(stroke_id): continue
+		var rec: Dictionary = data.strokes[stroke_id]
+		var stroke: Stroke3D = Stroke3DClass.new()
+		stroke.stroke_id = stroke_id
+		stroke.points = rec.get("points",PackedVector3Array())
+		stroke.stroke_color = rec.get("color",Color.BLACK)
+		stroke.radius = float(rec.get("radius",0.012))
+		stroke.set_pressure_data(rec.get("point_size_pressure",[]),rec.get("point_opacity_pressure",[]))
+		stroke.brush_preset = String(rec.get("brush_preset","clean"))
+		stroke.width_variation = float(rec.get("width_variation",0.0))
+		stroke.width_frequency = float(rec.get("width_frequency",1.0))
+		stroke.brush_seed = int(rec.get("brush_seed",1))
+		stroke.start_cap = String(rec.get("start_cap","flat"))
+		stroke.end_cap = String(rec.get("end_cap","flat"))
+		stroke.fill_enabled = bool(rec.get("fill_enabled",false))
+		stroke.fill_color = rec.get("fill_color",Color.TRANSPARENT)
+		stroke.fill_mode = String(rec.get("fill_mode","solid"))
+		stroke.fill_color_b = rec.get("fill_color_b",Color.TRANSPARENT)
+		stroke.fill_gradient_angle = float(rec.get("fill_gradient_angle",0.0))
+		group.add_child(stroke)
+		stroke.rebuild()
+	_apply_drawing_frame(ProjectStore.current_frame)
+	_refresh_drawing_timeline()
+	_refresh_vector_onion_skin(group,data,_drawing_edit_frame())
 
 func _on_material_color_changed(value: Color) -> void:
 	if selected: selected.set_material_color(value)
@@ -3567,6 +3669,7 @@ func _stylus_pressure_or_full(value: float) -> float:
 
 func _begin_3d_stroke(pos: Vector2) -> void:
 	_ensure_drawing_group()
+	_push_vector_undo()
 	_ensure_drawing_content_layer("vector")
 	var data: RefCounted = _active_drawing_data()
 	var frame: int = _drawing_edit_frame()
