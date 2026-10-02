@@ -567,11 +567,12 @@ func _flood_fill(seed: Vector2i,replacement: Color) -> void:
 		for x in range(x_left,x_right+1):
 			_blend_pixel(x,y,replacement,1.0)
 
-		for ny in [y-1,y+1]:
+		var neighbor_rows: Array[int] = [y-1,y+1]
+		for ny: int in neighbor_rows:
 			if ny < 0 or ny >= height: continue
-			var x := x_left
+			var x: int = x_left
 			while x <= x_right:
-				var idx := ny*width+x
+				var idx: int = ny*width+x
 				if queued[idx] == 0 and _color_distance(raster.get_pixel(x,ny),target) <= threshold:
 					stack.append(Vector2i(x,ny))
 					queued[idx] = 1
@@ -579,7 +580,8 @@ func _flood_fill(seed: Vector2i,replacement: Color) -> void:
 					# expanded horizontally when popped from the stack.
 					x += 1
 					while x <= x_right and _color_distance(raster.get_pixel(x,ny),target) <= threshold:
-						queued[ny*width+x] = 1
+						var run_idx: int = ny*width+x
+						queued[run_idx] = 1
 						x += 1
 				else:
 					x += 1
