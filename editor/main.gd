@@ -2306,12 +2306,17 @@ func _setup_drawing_menus() -> void:
 	%BrushPreset.item_selected.connect(func(index: int): %DrawingCanvas.set_brush_preset(index))
 	%BrushOpacity.value_changed.connect(func(value: float): %DrawingCanvas.opacity = value)
 	%BrushHardness.value_changed.connect(func(value: float): %DrawingCanvas.hardness = value)
+	%DrawingCanvas.fill_tolerance = %FillTolerance.value
 	var cel_popup: PopupMenu = %CelMenu.get_popup()
 	cel_popup.clear()
 	for label in ["New Empty Cel", "Duplicate Previous Cel", "Delete Cel", "Hold", "Morph"]:
 		cel_popup.add_item(label)
 	cel_popup.id_pressed.connect(_on_drawing_cel_menu)
 	_update_drawing_tool_ui()
+
+func _on_fill_tolerance_changed(value: float) -> void:
+	%DrawingCanvas.fill_tolerance = clampf(value,0.0,1.0)
+	status.text = "Fill tolerance · %d%%" % roundi(value*100.0)
 
 func _set_bitmap_tool(tool: int) -> void:
 	_on_draw_bitmap_pressed()
@@ -2422,6 +2427,9 @@ func _update_drawing_tool_ui() -> void:
 	%BrushPreset.visible = brush_active and current_tool != 2
 	%BrushOpacity.visible = brush_active
 	%BrushHardness.visible = brush_active and current_tool == 0
+	var fill_active: bool = bitmap and current_tool == 6
+	%FillToleranceLabel.visible = fill_active
+	%FillTolerance.visible = fill_active
 	%BrushColor.visible = drawing_3d_active or (bitmap and (current_tool == 0 or current_tool == 1 or current_tool == 3 or current_tool == 4 or current_tool == 5 or current_tool == 6))
 	%LassoFillMode.visible = lasso_active
 	%LassoColorALabel.visible = lasso_active
@@ -2438,7 +2446,7 @@ func _update_drawing_tool_ui() -> void:
 	%EndCap.visible = drawing_3d_active
 	%CapSeparator.visible = drawing_3d_active
 	# Floating chrome is content-sized. Never leave an empty or stretched bar.
-	var context_controls: Array[Control] = [%BitmapClear,%LassoFillMode,%LassoColorALabel,%LassoColorA,%LassoColorBLabel,%LassoColorB,%LassoAngleLabel,%LassoGradientAngle,%SculptMode,%SculptStrength,%BrushSize,%BrushPreset,%BrushOpacity,%BrushHardness,%BrushColor,%Fill,%FillColor]
+	var context_controls: Array[Control] = [%BitmapClear,%LassoFillMode,%LassoColorALabel,%LassoColorA,%LassoColorBLabel,%LassoColorB,%LassoAngleLabel,%LassoGradientAngle,%SculptMode,%SculptStrength,%BrushSize,%BrushPreset,%BrushOpacity,%BrushHardness,%FillToleranceLabel,%FillTolerance,%BrushColor,%Fill,%FillColor]
 	var has_context: bool = false
 	for control: Control in context_controls:
 		if control.visible:
