@@ -267,7 +267,9 @@ func add_stroke_to_cel(frame: int, stroke_id: String) -> void:
 	set_exposure(frame, pose, "hold")
 
 func flipbook_pose(frame: int) -> Dictionary:
-	# Playback holds the most recent authored cel, but each cel remains discrete.
+	# Playback holds the most recent authored cel, but geometry belongs to that
+	# exposure. Never rebuild an authored cel from canonical stroke geometry:
+	# sculpting one keyframe must not leak into every other keyframe.
 	if exposures.is_empty(): return {}
 	var source_frame: int = -1
 	for exposure in exposures:
@@ -275,6 +277,11 @@ func flipbook_pose(frame: int) -> Dictionary:
 		if ef <= frame: source_frame = ef
 		else: break
 	if source_frame < 0: source_frame = int(exposures[0]["frame"])
+	var authored_pose := current_cel_pose(source_frame)
+	if not authored_pose.is_empty():
+		return authored_pose
+	# Compatibility fallback for older/incomplete files that have cel ownership
+	# but no stored pose for that cel.
 	if cel_strokes.has(source_frame):
 		var pose: Dictionary = snapshot_pose([], true)
 		for member_id in cel_strokes[source_frame]:
@@ -283,7 +290,7 @@ func flipbook_pose(frame: int) -> Dictionary:
 			var stroke: Dictionary = strokes[id]
 			pose[id] = {"points": (stroke["points"] as PackedVector3Array).duplicate(), "visible": true}
 		return pose
-	return current_cel_pose(source_frame)
+	return {}
 
 
 func _decode_points(raw: Variant) -> PackedVector3Array:
