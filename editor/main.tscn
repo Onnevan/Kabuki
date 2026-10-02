@@ -481,12 +481,12 @@ unique_name_in_owner=true
 tooltip_text="Sculpt subtool: Push, Move, Pinch, Smooth or Inflate"
 [node name="SculptStrength" type="HSlider" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
-custom_minimum_size=Vector2(90,0)
-min_value=-0.08
-max_value=0.08
-step=0.002
-value=0.025
-tooltip_text="Depth sculpt strength. Negative values pull toward the camera."
+custom_minimum_size=Vector2(120,0)
+min_value=-1.0
+max_value=1.0
+step=0.01
+value=0.45
+tooltip_text="Sculpt strength. Move/Pinch/Smooth use magnitude; Push/Inflate use sign for direction."
 [node name="BrushSizeLabel" type="Label" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 text="SIZE"
