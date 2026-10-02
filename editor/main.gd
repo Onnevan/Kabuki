@@ -13,6 +13,8 @@ const DrawingControllerClass = preload("res://drawing/drawing_controller.gd")
 const RiggingControllerClass = preload("res://rigging/rigging_controller.gd")
 const RigRuntimeClass = preload("res://rigging/rig_runtime.gd")
 const SceneObjectControllerClass = preload("res://editor/scene_object_controller.gd")
+const EyeIcon = preload("res://assets/icons/lucide/eye.svg")
+const EyeOffIcon = preload("res://assets/icons/lucide/eye-off.svg")
 
 @onready var viewport: SubViewport = %SceneViewport
 @onready var world_root: Node3D = %WorldRoot
@@ -151,6 +153,8 @@ func _ready() -> void:
 	_setup_color_swatches()
 	_refresh_gradient_preview()
 	theme = KabukiThemeBuilder.build()
+	%ObjectList.gui_input.connect(_on_object_list_gui_input)
+	%DrawingPlaneList.gui_input.connect(_on_drawing_plane_list_gui_input)
 	ProjectStore.frame_changed.connect(_on_frame_changed)
 	ProjectStore.key_changed.connect(timeline.refresh_keys)
 	timeline.key_selected.connect(_on_timeline_key_selected)
@@ -374,7 +378,9 @@ func _register_scene_object(obj: MotionObject, node: Node3D) -> void:
 func _refresh_scene_object_list() -> void:
 	object_list.clear()
 	for object_id in scene_object_controller.ordered_ids():
-		object_list.add_item(scene_object_controller.display_name(object_id))
+		var obj: MotionObject = ProjectStore.objects.get(object_id)
+		var visibility_icon: Texture2D = EyeIcon if obj == null or obj.visible else EyeOffIcon
+		object_list.add_item(scene_object_controller.display_name(object_id),visibility_icon)
 		object_list.set_item_metadata(object_list.item_count - 1, object_id)
 		if object_id == selected_object_id: object_list.select(object_list.item_count - 1)
 		var obj: MotionObject = ProjectStore.objects.get(object_id)
@@ -390,6 +396,70 @@ func _refresh_scene_object_list() -> void:
 					cursor = int(rig.bones[cursor].get("parent",-1))
 				object_list.add_item("  ".repeat(bone_depth) + "◇ " + String(bone.get("name","Bone")))
 				object_list.set_item_metadata(object_list.item_count - 1,"bone::%s::%d" % [object_id,bone_index])
+
+func _set_visual_visibility_recursive(node: Node, visible_state: bool) -> void:
+	if node is VisualInstance3D:
+		(node as VisualInstance3D).visible = visible_state
+	for child in node.get_children():
+		_set_visual_visibility_recursive(child,visible_state)
+
+func _apply_object_visibility(object_id: String) -> void:
+	if not ProjectStore.objects.has(object_id): return
+	var obj: MotionObject = ProjectStore.objects[object_id]
+	if not scene_nodes.has(object_id): return
+	var node: Node3D = scene_nodes[object_id]
+	if not obj.visible:
+		_set_visual_visibility_recursive(node,false)
+		return
+	# Restore through normal evaluation so animated stroke/cel visibility is not
+	# flattened when an object is made visible again.
+	if node is ReferenceCanvas:
+		(node as ReferenceCanvas).set_guide_visible(workspace == "scene")
+		drawing_controller.invalidate(object_id)
+		_apply_drawing_frame(ProjectStore.current_frame)
+	else:
+		_set_visual_visibility_recursive(node,true)
+
+func _set_object_visible(object_id: String, visible_state: bool) -> void:
+	if not ProjectStore.objects.has(object_id): return
+	var obj: MotionObject = ProjectStore.objects[object_id]
+	obj.visible = visible_state
+	_apply_object_visibility(object_id)
+	ProjectStore.project_changed.emit()
+	_refresh_scene_object_list()
+	_refresh_drawing_planes()
+	status.text = ("%s visible" if visible_state else "%s hidden") % obj.name
+
+func _toggle_object_visibility(object_id: String) -> void:
+	if not ProjectStore.objects.has(object_id): return
+	var obj: MotionObject = ProjectStore.objects[object_id]
+	_set_object_visible(object_id,not obj.visible)
+
+func _visibility_icon_hit(list: ItemList,event: InputEvent) -> int:
+	if not event is InputEventMouseButton: return -1
+	var mb := event as InputEventMouseButton
+	if mb.button_index != MOUSE_BUTTON_LEFT or not mb.pressed: return -1
+	if mb.position.x > 34.0: return -1
+	return list.get_item_at_position(mb.position,true)
+
+func _on_object_list_gui_input(event: InputEvent) -> void:
+	var index := _visibility_icon_hit(object_list,event)
+	if index < 0: return
+	var object_id: String = String(object_list.get_item_metadata(index))
+	if object_id.begins_with("bone::"): return
+	_toggle_object_visibility(object_id)
+	object_list.accept_event()
+
+func _on_drawing_plane_list_gui_input(event: InputEvent) -> void:
+	var list: ItemList = %DrawingPlaneList
+	var index := _visibility_icon_hit(list,event)
+	if index < 0: return
+	var plane: ReferenceCanvas = list.get_item_metadata(index)
+	if plane == null: return
+	var object_id := _reference_canvas_id(plane)
+	if object_id.is_empty(): return
+	_toggle_object_visibility(object_id)
+	list.accept_event()
 
 func _on_add_object_type(id: int) -> void:
 	match id:
@@ -1617,7 +1687,11 @@ func _on_frame_changed(frame: int) -> void:
 func _apply_drawing_frame(frame: int) -> void:
 	for object_id in drawing_data_by_object.keys():
 		if not scene_nodes.has(object_id): continue
+		var model: MotionObject = ProjectStore.objects.get(object_id)
 		var group: Node3D = scene_nodes[object_id]
+		if model != null and not model.visible:
+			_set_visual_visibility_recursive(group,false)
+			continue
 		var data: RefCounted = drawing_data_by_object[object_id]
 		var evaluation_frame: int = drawing_controller.local_frame(object_id, frame, workspace == "drawing" and object_id == active_drawing_id)
 		var pose: Dictionary = drawing_controller.pose(object_id, evaluation_frame)
@@ -2620,6 +2694,8 @@ func _create_companion_canvas_for_engine(engine: String, source: ReferenceCanvas
 		model.transform = active_drawing_group.transform
 		active_drawing_group.name = source_name + (" · Bitmap" if engine == "bitmap" else " · Grease Pencil")
 		model.name = active_drawing_group.name
+	for loaded_object_id in scene_nodes.keys():
+		_apply_object_visibility(String(loaded_object_id))
 	_refresh_drawing_planes()
 	_refresh_scene_object_list()
 
@@ -3096,7 +3172,10 @@ func _refresh_drawing_planes() -> void:
 	%DrawingPlaneList.clear()
 	for plane in drawing_planes:
 		if not is_instance_valid(plane): continue
-		%DrawingPlaneList.add_item("▱  " + plane.name)
+		var canvas_id: String = _reference_canvas_id(plane)
+		var model: MotionObject = ProjectStore.objects.get(canvas_id)
+		var visibility_icon: Texture2D = EyeIcon if model == null or model.visible else EyeOffIcon
+		%DrawingPlaneList.add_item("▱  " + plane.name,visibility_icon)
 		%DrawingPlaneList.set_item_metadata(%DrawingPlaneList.item_count - 1, plane)
 
 func _on_drawing_plane_selected(index: int) -> void:
