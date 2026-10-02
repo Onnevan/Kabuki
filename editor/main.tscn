@@ -808,6 +808,10 @@ text="MORPH"
 [node name="LocalTimelineLabel" type="Label" parent="DrawingAnimBar"]
 unique_name_in_owner=true
 text="CANVAS"
+[node name="LocalPlay" type="Button" parent="DrawingAnimBar"]
+unique_name_in_owner=true
+icon=ExtResource("32")
+tooltip_text="Play / Pause local canvas animation"
 [node name="ClipMode" type="OptionButton" parent="DrawingAnimBar"]
 unique_name_in_owner=true
 tooltip_text="Local clip playback: Loop, Ping-Pong, Hold, Reverse or Once"
@@ -1428,6 +1432,10 @@ tooltip_text="Zoom timeline out"
 unique_name_in_owner=true
 icon=ExtResource("36")
 tooltip_text="Zoom timeline in"
+[node name="RenderAnimation" type="Button" parent="Bottom/TransportPanel/Transport"]
+unique_name_in_owner=true
+text="RENDER"
+tooltip_text="Render playback range as PNG sequence"
 [node name="TransportGrow" type="Control" parent="Bottom/TransportPanel/Transport"]
 size_flags_horizontal=3
 [node name="FrameText" type="Label" parent="Bottom/TransportPanel/Transport"]
@@ -1483,6 +1491,12 @@ unique_name_in_owner=true
 file_mode=0
 access=2
 filters=PackedStringArray("*.png ; PNG Images")
+
+[node name="RenderOutputDialog" type="FileDialog" parent="."]
+unique_name_in_owner=true
+file_mode=2
+access=2
+title="Choose Render Output Folder"
 
 [connection signal="tab_changed" from="TopBar/WorkspaceTabs" to="." method="_on_workspace_tab_changed"]
 [connection signal="toggled" from="TopBar/PreviewMode" to="." method="_on_preview_mode_toggled"]
