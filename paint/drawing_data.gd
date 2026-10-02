@@ -266,10 +266,44 @@ func add_stroke_to_cel(frame: int, stroke_id: String) -> void:
 		}
 	set_exposure(frame, pose, "hold")
 
+func _sanitize_cel_pose(frame: int, pose: Dictionary) -> Dictionary:
+	var result: Dictionary = pose.duplicate(true)
+	if not cel_strokes.has(frame):
+		return result
+	var members: Array = cel_strokes[frame]
+	# Cel ownership is authoritative. Historical poses created with snapshot_pose()
+	# may contain strokes from other keyframes marked visible; never allow those
+	# records to leak into this cel.
+	for stroke_id in stroke_order:
+		var id := String(stroke_id)
+		if not result.has(id):
+			if strokes.has(id):
+				result[id] = {
+					"points": (strokes[id]["points"] as PackedVector3Array).duplicate(),
+					"visible": false
+				}
+			continue
+		var state: Dictionary = result[id]
+		state["visible"] = members.has(id) and bool(state.get("visible",true))
+		result[id] = state
+	return result
+
+func cel_pose(frame: int) -> Dictionary:
+	var pose := current_cel_pose(frame)
+	if pose.is_empty() and cel_strokes.has(frame):
+		pose = snapshot_pose([],true)
+		for member_id in cel_strokes[frame]:
+			var id := String(member_id)
+			if not strokes.has(id): continue
+			pose[id] = {
+				"points": (strokes[id]["points"] as PackedVector3Array).duplicate(),
+				"visible": true
+			}
+	return _sanitize_cel_pose(frame,pose)
+
 func flipbook_pose(frame: int) -> Dictionary:
-	# Playback holds the most recent authored cel, but geometry belongs to that
-	# exposure. Never rebuild an authored cel from canonical stroke geometry:
-	# sculpting one keyframe must not leak into every other keyframe.
+	# Playback holds the most recent authored cel, but geometry and visibility
+	# belong exclusively to that exposure.
 	if exposures.is_empty(): return {}
 	var source_frame: int = -1
 	for exposure in exposures:
@@ -277,20 +311,7 @@ func flipbook_pose(frame: int) -> Dictionary:
 		if ef <= frame: source_frame = ef
 		else: break
 	if source_frame < 0: source_frame = int(exposures[0]["frame"])
-	var authored_pose := current_cel_pose(source_frame)
-	if not authored_pose.is_empty():
-		return authored_pose
-	# Compatibility fallback for older/incomplete files that have cel ownership
-	# but no stored pose for that cel.
-	if cel_strokes.has(source_frame):
-		var pose: Dictionary = snapshot_pose([], true)
-		for member_id in cel_strokes[source_frame]:
-			var id: String = String(member_id)
-			if not strokes.has(id): continue
-			var stroke: Dictionary = strokes[id]
-			pose[id] = {"points": (stroke["points"] as PackedVector3Array).duplicate(), "visible": true}
-		return pose
-	return {}
+	return cel_pose(source_frame)
 
 
 func _decode_points(raw: Variant) -> PackedVector3Array:
