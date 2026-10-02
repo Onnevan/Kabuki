@@ -321,6 +321,44 @@ unique_name_in_owner=true
 visible=false
 mouse_filter=2
 
+[node name="ToolParamSurface" type="PanelContainer" parent="."]
+unique_name_in_owner=true
+visible=false
+
+[node name="ToolParamBox" type="VBoxContainer" parent="ToolParamSurface"]
+theme_override_constants/separation=10
+
+[node name="PrimaryLabel" type="Label" parent="ToolParamSurface/ToolParamBox"]
+unique_name_in_owner=true
+text="SIZE"
+horizontal_alignment=1
+
+[node name="PrimarySlider" type="VSlider" parent="ToolParamSurface/ToolParamBox"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(42,190)
+min_value=1.0
+max_value=500.0
+step=1.0
+value=40.0
+
+[node name="SecondaryLabel" type="Label" parent="ToolParamSurface/ToolParamBox"]
+unique_name_in_owner=true
+text="OPACITY"
+horizontal_alignment=1
+
+[node name="SecondarySlider" type="VSlider" parent="ToolParamSurface/ToolParamBox"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(42,190)
+min_value=0.0
+max_value=1.0
+step=0.01
+value=1.0
+
+[node name="ToolFeedbackOverlay" type="Control" parent="."]
+unique_name_in_owner=true
+visible=false
+mouse_filter=2
+
 [node name="DrawingToolRail" type="VBoxContainer" parent="."]
 unique_name_in_owner=true
 visible=false
