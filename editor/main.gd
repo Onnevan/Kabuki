@@ -16,7 +16,7 @@ const SceneObjectControllerClass = preload("res://editor/scene_object_controller
 const EyeIcon = preload("res://assets/icons/lucide/eye.svg")
 const EyeOffIcon = preload("res://assets/icons/lucide/eye-off.svg")
 const ToolSizeIcon = preload("res://assets/icons/lucide/circle.svg")
-const ToolOpacityIcon = preload("res://assets/icons/lucide/droplet.svg")
+const ToolOpacityIcon = preload("res://assets/icons/lucide/wine.svg")
 const ToolStrengthIcon = preload("res://assets/icons/lucide/blend.svg")
 const ToolToleranceIcon = preload("res://assets/icons/lucide/paint-bucket.svg")
 const ToolAngleIcon = preload("res://assets/icons/lucide/rotate-cw.svg")
@@ -890,6 +890,9 @@ func _select_scene_node(id: String, node: Node3D) -> void:
 	%SelectionLabel.text = node.name
 	_show_transform(node)
 	gizmo.attach(node)
+	# Drawing is a canvas-locked 2D editor: keep the canvas selected internally
+	# but never show its 3D transform manipulator over the artwork.
+	gizmo.visible = workspace != "drawing" and workspace != "rigging" and workspace != "animation"
 	timeline.set_object(id)
 	%ObjectProperties.visible = node is MeshInstance3D
 	%LightProperties.visible = node is Light3D
@@ -2836,6 +2839,7 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	%DrawingToolSurface.visible = workspace == "drawing"
 	%DrawingToolRail.visible = workspace == "drawing"
 	%DrawingPlaneSurface.visible = workspace == "drawing"
+	gizmo.visible = workspace != "drawing" and workspace != "rigging" and workspace != "animation" and selected_scene_node != null
 	# Drawing manipulators are editor overlays, never scene content. Scene and
 	# every other workspace expose only their own gizmos/overlays.
 	var drawing_overlay_visible: bool = workspace == "drawing"
@@ -3600,7 +3604,7 @@ func _update_preview_mode() -> void:
 		_set_render_camera_gizmo_visible(false)
 	else:
 		world_grid.visible = %GridToggle.button_pressed
-		gizmo.visible = workspace != "rigging" and workspace != "animation" and selected_scene_node != null
+		gizmo.visible = workspace != "drawing" and workspace != "rigging" and workspace != "animation" and selected_scene_node != null
 		%ViewGizmo.visible = workspace != "drawing" and workspace != "animation"
 		for reference_canvas in drawing_planes:
 			if is_instance_valid(reference_canvas):
