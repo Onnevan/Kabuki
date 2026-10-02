@@ -810,6 +810,8 @@ func _load_project_payload(payload: Dictionary, path: String) -> void:
 			world_root.add_child(loaded_light)
 			loaded_light.transform = obj.transform
 			scene_nodes[obj.id] = loaded_light
+	for loaded_object_id in scene_nodes.keys():
+		_apply_object_visibility(String(loaded_object_id))
 	_refresh_scene_object_list()
 	_refresh_drawing_planes()
 	_apply_drawing_frame(ProjectStore.current_frame)
@@ -2694,8 +2696,6 @@ func _create_companion_canvas_for_engine(engine: String, source: ReferenceCanvas
 		model.transform = active_drawing_group.transform
 		active_drawing_group.name = source_name + (" · Bitmap" if engine == "bitmap" else " · Grease Pencil")
 		model.name = active_drawing_group.name
-	for loaded_object_id in scene_nodes.keys():
-		_apply_object_visibility(String(loaded_object_id))
 	_refresh_drawing_planes()
 	_refresh_scene_object_list()
 
