@@ -137,7 +137,6 @@ func _ready() -> void:
 	_setup_world_controls()
 	%FillColor.pressed.connect(func(): _set_active_color_target("fill_a"))
 	%FillColorB.pressed.connect(func(): _set_active_color_target("fill_b"))
-	%ActiveColor.color_changed.connect(_on_active_color_changed)
 	%GradientGuide.draw.connect(_draw_gradient_guide)
 	_setup_drawing_palette()
 	_setup_color_swatches()
@@ -2445,6 +2444,8 @@ func _update_drawing_tool_ui() -> void:
 	%FillToleranceLabel.visible = fill_active
 	%FillTolerance.visible = fill_active
 	%BrushColor.visible = drawing_3d_active or (bitmap and (current_tool == 0 or current_tool == 1 or current_tool == 3 or current_tool == 4 or current_tool == 5 or current_tool == 6))
+	%ActiveColorLabel.visible = not drawing_3d_active
+	%ActiveColor.visible = not drawing_3d_active
 	%LassoFillMode.visible = lasso_active
 	%LassoColorALabel.visible = lasso_active
 	%LassoColorA.visible = lasso_active
@@ -2794,8 +2795,13 @@ func _set_active_color_target(target: String) -> void:
 	%PalettePopup.popup(Rect2i(Vector2i(%ActiveColor.global_position)+Vector2i(0,36),Vector2i(300,118)))
 
 func _apply_palette_color(color: Color) -> void:
-	%ActiveColor.color = color
-	_on_active_color_changed(color)
+	match active_color_target:
+		"fill_a":
+			%FillColor.color = color
+		"fill_b":
+			%FillColorB.color = color
+		_:
+			%BrushColor.color = color
 	%PalettePopup.hide()
 
 func _on_active_color_changed(color: Color) -> void:
