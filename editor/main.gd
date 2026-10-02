@@ -36,7 +36,7 @@ const ToolAngleIcon = preload("res://assets/icons/lucide/rotate-cw.svg")
 @onready var gizmo: TransformGizmo = %TransformGizmo
 @onready var camera_rig: EditorCameraRig = %EditorCameraRig
 @onready var world_grid: WorldGrid = %WorldGrid
-@onready var effects_display: TextureRect = %EffectsDisplay
+@onready var effects_display: EffectsEngine = %EffectsDisplay
 @onready var render_compositor: SubViewport = %RenderCompositorViewport
 @onready var render_composite: EffectsEngine = %RenderComposite
 var selected: RuntimeObject
@@ -252,7 +252,7 @@ func _ready() -> void:
 	# Explicit compositor path:
 	# SceneViewport -> RenderComposite(shader) -> RenderCompositorViewport -> EffectsDisplay.
 	render_composite.set_source_texture(viewport.get_texture())
-	effects_display.texture = render_compositor.get_texture()
+	effects_display.set_source_texture(viewport.get_texture())
 	render_compositor.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_sync_render_compositor_rect()
 	_apply_global_filters()
@@ -2320,7 +2320,6 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	render_compositor.size = Vector2i(rx,ry)
 	_sync_render_compositor_rect()
 	render_composite.set_source_texture(viewport.get_texture())
-	effects_display.texture = render_compositor.get_texture()
 	render_compositor.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	camera.current = false
 	render_cam.current = true
@@ -2369,7 +2368,7 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	render_compositor.render_target_update_mode = previous_compositor_update
 	_sync_render_compositor_rect()
 	render_composite.set_source_texture(viewport.get_texture())
-	effects_display.texture = render_compositor.get_texture()
+	effects_display.set_source_texture(viewport.get_texture())
 	ProjectStore.set_frame(previous_frame)
 	world_grid.visible = previous_grid_visible
 	gizmo.visible = previous_gizmo_visible
@@ -2447,6 +2446,7 @@ func _apply_global_filters() -> void:
 		"monochrome": 1.0 if %Monochrome.button_pressed else 0.0
 	}
 	render_composite.set_filters(values)
+	effects_display.set_filters(values)
 
 func _on_filter_changed(_value: float) -> void:
 	_apply_global_filters()
@@ -3236,6 +3236,7 @@ func _on_workspace_tab_changed(tab: int) -> void:
 		%LookTitle.text = "◇  EFFECT STACK  ·  Scene Output"
 	else:
 		%LookTitle.text = "◇  LOOK / FILTERS"
+	_update_preview_mode()
 
 func _canvas_has_vector_content(canvas_id: String) -> bool:
 	var data: RefCounted = drawing_data_by_object.get(canvas_id)
@@ -3962,8 +3963,12 @@ func _update_preview_mode() -> void:
 	%PreviewMode.text = "◉  RENDER" if render_preview else "◐  PREVIEW"
 	# PREVIEW bypasses post effects completely. RENDER shows the exact texture
 	# produced by the offscreen compositor, which is also used for PNG export.
-	effects_display.visible = render_preview
-	render_compositor.render_target_update_mode = SubViewport.UPDATE_ALWAYS if render_preview else SubViewport.UPDATE_DISABLED
+	var compositor_render_visible := render_preview and workspace == "compositor"
+	effects_display.visible = compositor_render_visible
+	# The offscreen compositor is only needed while exporting PNGs. Live REND
+	# is processed directly by EffectsDisplay from SceneViewport.
+	if not render_in_progress:
+		render_compositor.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_sync_render_compositor_rect()
 	%PreviewChip.text = "RENDER" if render_preview else "PREVIEW"
 	for r in runtime_objects:
