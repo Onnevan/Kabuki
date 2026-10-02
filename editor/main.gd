@@ -1249,6 +1249,7 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 							if child is Stroke3D: (child as Stroke3D).end_sculpt()
 					return
 		elif event is InputEventMouseMotion:
+			last_mouse = event.position
 			if orbiting:
 				_navigate_orbit(event.relative); return
 			elif panning:
@@ -2524,8 +2525,10 @@ func _tool_param_profile() -> Dictionary:
 		return {"primary":"SIZE","primary_min":1.0,"primary_max":500.0,"primary_step":1.0,"primary_value":%BrushSize.value,
 			"secondary":"STRENGTH","secondary_min":-1.0,"secondary_max":1.0,"secondary_step":0.01,"secondary_value":%SculptStrength.value}
 	if drawing_erase_active:
+		# Vector eraser removes complete strokes; it has no meaningful opacity/
+		# strength parameter, so never expose a slider that does nothing.
 		return {"primary":"SIZE","primary_min":1.0,"primary_max":500.0,"primary_step":1.0,"primary_value":%BrushSize.value,
-			"secondary":"OPACITY","secondary_min":0.0,"secondary_max":1.0,"secondary_step":0.01,"secondary_value":1.0}
+			"secondary":"—","secondary_min":0.0,"secondary_max":1.0,"secondary_step":0.01,"secondary_value":0.0,"secondary_enabled":false}
 	if drawing_3d_active:
 		return {"primary":"SIZE","primary_min":1.0,"primary_max":500.0,"primary_step":1.0,"primary_value":%BrushSize.value,
 			"secondary":"OPACITY","secondary_min":0.0,"secondary_max":1.0,"secondary_step":0.01,"secondary_value":gp_opacity}
@@ -2538,8 +2541,11 @@ func _tool_param_profile() -> Dictionary:
 			return {"primary":"SIZE","primary_min":1.0,"primary_max":500.0,"primary_step":1.0,"primary_value":%BrushSize.value,
 				"secondary":"STRENGTH","secondary_min":0.0,"secondary_max":1.0,"secondary_step":0.01,"secondary_value":%BrushOpacity.value}
 		if tool == 8:
+			if %LassoFillMode.selected == 1:
+				return {"primary":"OPACITY","primary_min":0.0,"primary_max":1.0,"primary_step":0.01,"primary_value":%BrushOpacity.value,
+					"secondary":"ANGLE","secondary_min":-180.0,"secondary_max":180.0,"secondary_step":1.0,"secondary_value":%LassoGradientAngle.value}
 			return {"primary":"OPACITY","primary_min":0.0,"primary_max":1.0,"primary_step":0.01,"primary_value":%BrushOpacity.value,
-				"secondary":"ANGLE","secondary_min":-180.0,"secondary_max":180.0,"secondary_step":1.0,"secondary_value":%LassoGradientAngle.value}
+				"secondary":"—","secondary_min":0.0,"secondary_max":1.0,"secondary_step":0.01,"secondary_value":0.0,"secondary_enabled":false}
 		return {"primary":"SIZE","primary_min":1.0,"primary_max":500.0,"primary_step":1.0,"primary_value":%BrushSize.value,
 			"secondary":"OPACITY","secondary_min":0.0,"secondary_max":1.0,"secondary_step":0.01,"secondary_value":%BrushOpacity.value}
 	return {}
@@ -2554,7 +2560,11 @@ func _sync_tool_param_sliders() -> void:
 	%PrimarySlider.max_value = float(profile["primary_max"])
 	%PrimarySlider.step = float(profile["primary_step"])
 	%PrimarySlider.set_value_no_signal(float(profile["primary_value"]))
+	var secondary_enabled: bool = bool(profile.get("secondary_enabled",true))
 	%SecondaryLabel.text = String(profile["secondary"])
+	%SecondaryLabel.modulate = Color.WHITE if secondary_enabled else Color(1.0,1.0,1.0,0.32)
+	%SecondarySlider.editable = secondary_enabled
+	%SecondarySlider.modulate = Color.WHITE if secondary_enabled else Color(1.0,1.0,1.0,0.22)
 	%SecondarySlider.min_value = float(profile["secondary_min"])
 	%SecondarySlider.max_value = float(profile["secondary_max"])
 	%SecondarySlider.step = float(profile["secondary_step"])
@@ -2606,6 +2616,7 @@ func _on_secondary_tool_param_changed(value: float) -> void:
 func _begin_tool_feedback(which: String) -> void:
 	var profile: Dictionary = _tool_param_profile()
 	if profile.is_empty(): return
+	if which == "secondary" and not bool(profile.get("secondary_enabled",true)): return
 	tool_feedback_active = true
 	tool_feedback_kind = String(profile["primary"] if which == "primary" else profile["secondary"])
 	tool_feedback_value = float(%PrimarySlider.value if which == "primary" else %SecondarySlider.value)
@@ -2619,7 +2630,11 @@ func _end_tool_feedback() -> void:
 func _draw_tool_feedback() -> void:
 	if not tool_feedback_active: return
 	var overlay: Control = %ToolFeedbackOverlay
-	var center := overlay.size * 0.5
+	# Preview at the last drawing cursor position, not in the middle of the image.
+	# Canvas input coordinates and this overlay share the viewport-frame space.
+	var center := last_mouse
+	if center.x < 0.0 or center.y < 0.0 or center.x > overlay.size.x or center.y > overlay.size.y:
+		center = overlay.size * 0.5
 	var radius := 56.0
 	var alpha := 0.32
 	match tool_feedback_kind:
@@ -2702,6 +2717,9 @@ func _update_drawing_tool_ui() -> void:
 			break
 	%DrawingContextSurface.visible = workspace == "drawing" and has_context
 	%DrawingBar.visible = %DrawingContextSurface.visible
+	# The right-hand parameter bank is the canonical Size/Opacity/Strength/etc.
+	# control surface for every drawing tool.
+	_sync_tool_param_sliders()
 	call_deferred("_fit_drawing_floating_chrome")
 
 func _fit_drawing_floating_chrome() -> void:
