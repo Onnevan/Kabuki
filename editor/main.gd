@@ -36,7 +36,7 @@ const ToolAngleIcon = preload("res://assets/icons/lucide/rotate-cw.svg")
 @onready var gizmo: TransformGizmo = %TransformGizmo
 @onready var camera_rig: EditorCameraRig = %EditorCameraRig
 @onready var world_grid: WorldGrid = %WorldGrid
-@onready var effects_engine: EffectsEngine = %EffectsEngine
+@onready var effects_display: TextureRect = %EffectsDisplay
 @onready var render_compositor: SubViewport = %RenderCompositorViewport
 @onready var render_composite: EffectsEngine = %RenderComposite
 var selected: RuntimeObject
@@ -249,12 +249,12 @@ func _ready() -> void:
 		%SculptMode.add_item(label)
 	%SculptMode.select(0)
 	%SculptMode.item_selected.connect(_on_sculpt_mode_selected)
-	# One compositor path only:
-	# SceneViewport -> RenderComposite(shader) -> RenderCompositorViewport -> EffectsEngine(display)
+	# Explicit compositor path:
+	# SceneViewport -> RenderComposite(shader) -> RenderCompositorViewport -> EffectsDisplay.
 	render_composite.set_source_texture(viewport.get_texture())
-	effects_engine.material = null
-	effects_engine.set_source_texture(render_compositor.get_texture())
+	effects_display.texture = render_compositor.get_texture()
 	render_compositor.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	_sync_render_compositor_rect()
 	_apply_global_filters()
 	_update_preview_mode()
 	_on_frame_changed(0)
@@ -2318,8 +2318,9 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	canvas.stretch = false
 	viewport.size = Vector2i(rx,ry)
 	render_compositor.size = Vector2i(rx,ry)
+	_sync_render_compositor_rect()
 	render_composite.set_source_texture(viewport.get_texture())
-	effects_engine.set_source_texture(render_compositor.get_texture())
+	effects_display.texture = render_compositor.get_texture()
 	render_compositor.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	camera.current = false
 	render_cam.current = true
@@ -2366,8 +2367,9 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	viewport.size = previous_viewport_size
 	render_compositor.size = previous_compositor_size
 	render_compositor.render_target_update_mode = previous_compositor_update
+	_sync_render_compositor_rect()
 	render_composite.set_source_texture(viewport.get_texture())
-	effects_engine.set_source_texture(render_compositor.get_texture())
+	effects_display.texture = render_compositor.get_texture()
 	ProjectStore.set_frame(previous_frame)
 	world_grid.visible = previous_grid_visible
 	gizmo.visible = previous_gizmo_visible
@@ -2420,6 +2422,14 @@ func _on_light_type_selected(index: int) -> void:
 	selected_scene_node = replacement
 	_show_transform(replacement)
 	status.text = "Light type: " + ["Directional", "Point", "Spot"][index]
+
+func _sync_render_compositor_rect() -> void:
+	if render_composite == null or render_compositor == null: return
+	var s := render_compositor.size
+	render_composite.position = Vector2.ZERO
+	render_composite.size = Vector2(float(s.x),float(s.y))
+	render_composite.set_source_texture(viewport.get_texture())
+
 
 func _apply_global_filters() -> void:
 	var values := {
@@ -3952,8 +3962,9 @@ func _update_preview_mode() -> void:
 	%PreviewMode.text = "◉  RENDER" if render_preview else "◐  PREVIEW"
 	# PREVIEW bypasses post effects completely. RENDER shows the exact texture
 	# produced by the offscreen compositor, which is also used for PNG export.
-	effects_engine.visible = render_preview
+	effects_display.visible = render_preview
 	render_compositor.render_target_update_mode = SubViewport.UPDATE_ALWAYS if render_preview else SubViewport.UPDATE_DISABLED
+	_sync_render_compositor_rect()
 	%PreviewChip.text = "RENDER" if render_preview else "PREVIEW"
 	for r in runtime_objects:
 		if r.material:
@@ -4069,10 +4080,11 @@ func _responsive_layout() -> void:
 	%RightPanel.size=Vector2(right_w,content_h)
 	%ViewportFrame.position=Vector2(center_left,content_top)
 	%ViewportFrame.size=Vector2(maxf(360.0,center_right-center_left),content_h)
-	%EffectsEngine.position=%ViewportFrame.position
-	%EffectsEngine.size=%ViewportFrame.size
+	%EffectsDisplay.position=%ViewportFrame.position
+	%EffectsDisplay.size=%ViewportFrame.size
 	if not render_in_progress:
-		render_compositor.size = Vector2i(maxi(1,int(%ViewportFrame.size.x)),maxi(1,int(%ViewportFrame.size.y)))
+		render_compositor.size = Vector2i(maxi(2,int(%ViewportFrame.size.x)),maxi(2,int(%ViewportFrame.size.y)))
+		_sync_render_compositor_rect()
 
 	%ViewportTop.position=%ViewportFrame.position+Vector2(22.0,20.0)
 	%ViewportTop.size=Vector2(maxf(100.0,%ViewportFrame.size.x-44.0),48.0)
