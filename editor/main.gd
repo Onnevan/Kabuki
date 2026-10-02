@@ -37,9 +37,9 @@ const ToolAngleIcon = preload("res://assets/icons/lucide/rotate-cw.svg")
 @onready var camera_rig: EditorCameraRig = %EditorCameraRig
 @onready var world_grid: WorldGrid = %WorldGrid
 @onready var world_environment: WorldEnvironment = %WorldEnvironment
-@onready var effects_display: FinalPostProcess = %EffectsDisplay
+@onready var effects_display = %EffectsDisplay
 @onready var render_compositor: SubViewport = %RenderCompositorViewport
-@onready var render_composite: FinalPostProcess = %RenderComposite
+@onready var render_composite = %RenderComposite
 var selected: RuntimeObject
 var runtime_objects: Array[RuntimeObject] = []
 var playing := false
