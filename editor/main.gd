@@ -1779,6 +1779,7 @@ func _apply_drawing_frame(frame: int) -> void:
 		if same_drawing_frame and not editing_active_vector: continue
 		for child in group.get_children():
 			if not child is Stroke3D: continue
+			if child.has_meta("onion_ghost") and bool(child.get_meta("onion_ghost")): continue
 			var stroke := child as Stroke3D
 			if stroke.stroke_id.is_empty(): continue
 			if not pose.has(stroke.stroke_id):
@@ -1952,7 +1953,9 @@ func _on_onion_skin_toggled(enabled: bool) -> void:
 	if not enabled:
 		for object_id in vector_onion_roots.keys():
 			var root = vector_onion_roots[object_id]
-			if is_instance_valid(root): root.visible = false
+			if is_instance_valid(root):
+				root.visible = false
+				_clear_vector_onion_root(root)
 	status.text = "Onion skin on" if enabled else "Onion skin off"
 
 func _vector_onion_root(group: Node3D,object_id: String) -> Node3D:
@@ -1966,7 +1969,10 @@ func _vector_onion_root(group: Node3D,object_id: String) -> Node3D:
 	return root
 
 func _clear_vector_onion_root(root: Node3D) -> void:
+	# Ghosts are transient editor-only geometry. Remove them synchronously so a
+	# frame change can never render both the stale and newly generated copies.
 	for child in root.get_children():
+		root.remove_child(child)
 		child.free()
 
 func _add_vector_onion_pose(root: Node3D,data: RefCounted,pose: Dictionary,tint: Color) -> void:
@@ -1976,6 +1982,8 @@ func _add_vector_onion_pose(root: Node3D,data: RefCounted,pose: Dictionary,tint:
 		if not bool(state.get("visible",false)): continue
 		var record: Dictionary = data.strokes[stroke_id]
 		var ghost: Stroke3D = Stroke3DClass.new()
+		ghost.name = "__OnionGhost_" + String(stroke_id)
+		ghost.set_meta("onion_ghost",true)
 		ghost.points = state.get("points",PackedVector3Array())
 		ghost.radius = float(record.get("radius",0.012))
 		ghost.set_pressure_data(record.get("point_size_pressure",[]),record.get("point_opacity_pressure",[]))
@@ -1996,9 +2004,12 @@ func _add_vector_onion_pose(root: Node3D,data: RefCounted,pose: Dictionary,tint:
 
 func _refresh_vector_onion_skin(group: Node3D,data: RefCounted,frame: int) -> void:
 	var root := _vector_onion_root(group,active_drawing_id)
-	root.visible = %OnionSkin.button_pressed and workspace == "drawing"
-	if not root.visible: return
+	# Always clear first. Hidden stale ghosts must never survive a frame change.
+	root.visible = false
 	_clear_vector_onion_root(root)
+	if not %OnionSkin.button_pressed or workspace != "drawing":
+		return
+	root.visible = true
 	var previous_frame: int = data.previous_exposure_frame(frame)
 	var next_frame: int = data.next_exposure_frame(frame)
 	if previous_frame >= 0:
