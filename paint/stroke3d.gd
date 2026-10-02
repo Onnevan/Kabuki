@@ -69,32 +69,12 @@ func sculpt_screen(brush_pos: Vector2, camera: Camera3D, brush_radius_px: float,
 	if points.is_empty(): return false
 
 	var viewport_size := camera.get_viewport().get_visible_rect().size
-	var world_per_px: float
-	if camera.projection == Camera3D.PROJECTION_ORTHOGONAL:
-		world_per_px = camera.size / maxf(1.0,viewport_size.y)
-	else:
-		var depth := maxf(0.01,camera.global_position.distance_to(global_position))
-		world_per_px = 2.0 * depth * tan(deg_to_rad(camera.fov) * 0.5) / maxf(1.0,viewport_size.y)
-
 	var basis_scale := global_transform.basis.get_scale()
 	var local_scale_ref := maxf(0.0001,(basis_scale.x+basis_scale.y+basis_scale.z)/3.0)
-	var local_per_px := world_per_px / local_scale_ref
-	var brush_radius_local := brush_radius_px * local_per_px
 	var amount_strength := clampf(absf(strength),0.0,1.0)
-
-	# Brush center projected onto the stroke's drawing plane.
-	var plane_origin := global_position
-	var plane_normal := global_transform.basis.z.normalized()
-	var ray_origin := camera.project_ray_origin(brush_pos)
-	var ray_dir := camera.project_ray_normal(brush_pos)
-	var denom := ray_dir.dot(plane_normal)
-	var brush_local := Vector3.ZERO
-	if absf(denom) > 0.00001:
-		var hit_distance := (plane_origin-ray_origin).dot(plane_normal)/denom
-		brush_local = to_local(ray_origin+ray_dir*hit_distance)
-
 	var changed := false
 	var original := points.duplicate()
+	var camera_inverse := camera.global_transform.affine_inverse()
 
 	for i in range(points.size()):
 		var world_point := to_global(original[i])
@@ -107,26 +87,49 @@ func sculpt_screen(brush_pos: Vector2, camera: Camera3D, brush_radius_px: float,
 		falloff = falloff*falloff*(3.0-2.0*falloff)
 		var influence := amount_strength*falloff
 
+		# Convert screen pixels to local units at this point's actual camera depth.
+		# This keeps sculpt behaviour stable while orbiting in perspective.
+		var camera_space_point: Vector3 = camera_inverse * world_point
+		var point_depth := maxf(0.01,-camera_space_point.z)
+		var world_per_px: float
+		if camera.projection == Camera3D.PROJECTION_ORTHOGONAL:
+			world_per_px = camera.size / maxf(1.0,viewport_size.y)
+		else:
+			world_per_px = 2.0 * point_depth * tan(deg_to_rad(camera.fov) * 0.5) / maxf(1.0,viewport_size.y)
+		var local_per_px := world_per_px / local_scale_ref
+		var brush_radius_local := brush_radius_px * local_per_px
+
+		# Cursor position projected onto a view-parallel plane at this point's
+		# depth. Move/Pinch/Smooth/Inflate therefore deform in viewport X/Y,
+		# irrespective of the original ReferenceCanvas plane orientation.
+		var cursor_world: Vector3 = camera.project_position(brush_pos,point_depth)
+		var cursor_local: Vector3 = to_local(cursor_world)
+
 		match mode:
 			"move":
 				if drag.length_squared() > 0.0:
 					points[i] += (local_right*drag.x-local_up*drag.y)*local_per_px*influence
 
 			"pinch":
-				points[i] = points[i].lerp(brush_local,clampf(influence*0.65,0.0,0.95))
+				var toward_cursor := cursor_local-original[i]
+				toward_cursor -= local_view*toward_cursor.dot(local_view)
+				points[i] += toward_cursor*clampf(influence*0.65,0.0,0.95)
 
 			"smooth":
 				if i>0 and i<original.size()-1:
 					var avg := (original[i-1]+original[i+1])*0.5
-					points[i] = points[i].lerp(avg,clampf(influence*0.8,0.0,0.98))
+					var smooth_delta := avg-original[i]
+					smooth_delta -= local_view*smooth_delta.dot(local_view)
+					points[i] += smooth_delta*clampf(influence*0.8,0.0,0.98)
 
 			"inflate":
-				var radial := original[i]-brush_local
+				var radial := original[i]-cursor_local
 				radial -= local_view*radial.dot(local_view)
 				if radial.length_squared()>0.000001:
 					points[i] += radial.normalized()*brush_radius_local*0.22*influence*signf(strength if not is_zero_approx(strength) else 1.0)
 
 			_:
+				# Push is intentionally the depth sculpt tool.
 				points[i] += local_view*brush_radius_local*0.25*influence*signf(strength if not is_zero_approx(strength) else 1.0)
 
 		changed = true
