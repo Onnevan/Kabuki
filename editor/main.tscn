@@ -1390,6 +1390,22 @@ button_pressed=true
 unique_name_in_owner=true
 text="Colored Noise"
 
+[node name="AASep" type="HSeparator" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+
+[node name="AALabel" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+text="Antialiasing"
+
+[node name="AntialiasingMode" type="OptionButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+tooltip_text="Realtime multisample antialiasing for scene and drawings"
+
+[node name="RenderSamplingLabel" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+text="Render Sampling"
+
+[node name="RenderSampling" type="OptionButton" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+tooltip_text="Render above target resolution and downsample for cleaner final edges"
+
 [node name="ResetFilters" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 text="Reset"
 [node name="KeyInterpSep" type="HSeparator" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
