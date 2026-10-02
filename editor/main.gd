@@ -2857,7 +2857,9 @@ func _gradient_guide_input(event: InputEvent) -> bool:
 func _on_brush_color_changed(value: Color) -> void:
 	_paint_color_swatch(%BrushColor,value)
 	if active_color_target == "line":
-		%ActiveColor.set_pick_color(value)
+		%ActiveColor.set_block_signals(true)
+		%ActiveColor.color = value
+		%ActiveColor.set_block_signals(false)
 		_paint_color_swatch(%ActiveColor,value)
 	%DrawingCanvas.brush_color = value
 	_apply_selected_stroke_style()
