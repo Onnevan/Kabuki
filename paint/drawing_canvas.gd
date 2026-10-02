@@ -45,6 +45,7 @@ var lasso_fill_mode := 0
 var lasso_color_a := Color(0.08,0.08,0.08,1.0)
 var lasso_color_b := Color(0.92,0.92,0.92,1.0)
 var lasso_gradient_angle := 90.0
+var fill_tolerance := 0.12
 var undo_stack: Array[Image] = []
 var redo_stack: Array[Image] = []
 var onion_skin_enabled := false
@@ -508,22 +509,36 @@ func _fill_polygon_gradient(poly: PackedVector2Array,color_a: Color,color_b: Col
 				var t: float = clampf((sample.dot(direction)-min_projection)/projection_span,0.0,1.0)
 				_blend_pixel(x,y,start_color.lerp(end_color,t),1.0)
 
+func _color_distance(a: Color,b: Color) -> float:
+	# Alpha is weighted more strongly so transparent background does not bleed
+	# through semi-transparent antialiasing as easily as a plain RGBA sum.
+	var dr:=a.r-b.r
+	var dg:=a.g-b.g
+	var db:=a.b-b.b
+	var da:=(a.a-b.a)*1.5
+	return sqrt(dr*dr+dg*dg+db*db+da*da)
+
 func _flood_fill(seed: Vector2i,replacement: Color) -> void:
 	if not _inside(seed): return
 	var target: Color=raster.get_pixelv(seed)
-	if target.is_equal_approx(replacement): return
-	var stack: Array[Vector2i]=[seed]; var seen: Dictionary={}
+	if _color_distance(target,replacement) < 0.001: return
+	var threshold: float = clampf(fill_tolerance,0.0,1.0) * 1.75
+	var stack: Array[Vector2i]=[seed]
+	var seen: Dictionary={}
+	raster_texture_dirty = true
 	while not stack.is_empty():
 		var p: Vector2i=stack.pop_back()
 		if not _inside(p): continue
 		var key: int=p.y*raster.get_width()+p.x
 		if seen.has(key): continue
 		seen[key]=true
-		var c: Color=raster.get_pixelv(p)
-		if absf(c.r-target.r)+absf(c.g-target.g)+absf(c.b-target.b)+absf(c.a-target.a)>0.12: continue
-		raster.set_pixelv(p,replacement)
-		stack.append(p+Vector2i.LEFT); stack.append(p+Vector2i.RIGHT)
-		stack.append(p+Vector2i.UP); stack.append(p+Vector2i.DOWN)
+		var sample: Color=raster.get_pixelv(p)
+		if _color_distance(sample,target)>threshold: continue
+		_blend_pixel(p.x,p.y,replacement,1.0)
+		stack.append(p+Vector2i.LEFT)
+		stack.append(p+Vector2i.RIGHT)
+		stack.append(p+Vector2i.UP)
+		stack.append(p+Vector2i.DOWN)
 
 
 func export_bitmap_cels() -> Dictionary:
