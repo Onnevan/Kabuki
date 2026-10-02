@@ -783,7 +783,7 @@ func _kab_to_variant(encoded: String) -> Variant:
 func _serialize_world_state() -> Dictionary:
 	var image_data := ""
 	if %WorldBackdrop.texture != null:
-		var image := (%WorldBackdrop.texture as Texture2D).get_image()
+		var image: Image = (%WorldBackdrop.texture as Texture2D).get_image()
 		image_data = _image_to_kab(image)
 	return {
 		"mode": world_mode,
@@ -807,7 +807,7 @@ func _restore_world_state(data: Dictionary) -> void:
 	%WorldColor.visible = world_mode == "solid"
 	%WorldGradientBox.visible = world_mode == "gradient"
 	%WorldImageBox.visible = world_mode == "image"
-	var image := _kab_to_image(String(data.get("image_png","")))
+	var image: Image = _kab_to_image(String(data.get("image_png","")))
 	%WorldBackdrop.texture = ImageTexture.create_from_image(image) if image != null else null
 	_refresh_world()
 
@@ -897,7 +897,7 @@ func _restore_rig_data(payload: Dictionary) -> void:
 		var raw: Variant = _kab_to_variant(String(payload[rig_id_value]))
 		if not raw is Dictionary: continue
 		var record: Dictionary = raw
-		var rig = rigging_controller.create_rig(rig_id)
+		var rig: RefCounted = rigging_controller.create_rig(rig_id)
 		rig.bones.clear()
 		for bone_value in record.get("bones",[]):
 			if bone_value is Dictionary: rig.bones.append((bone_value as Dictionary).duplicate(true))
@@ -1050,12 +1050,12 @@ func _load_project_payload(payload: Dictionary, path: String) -> void:
 		var state: Dictionary = runtime_payload.get(obj.id,{})
 		match obj.technical_type:
 			"camera":
-				var camera_rig_node := _build_scene_camera(obj)
+				var camera_rig_node: Node3D = _build_scene_camera(obj)
 				world_root.add_child(camera_rig_node)
 				camera_rig_node.transform = obj.transform
 				scene_nodes[obj.id] = camera_rig_node
 			"light":
-				var light_type := String(state.get("light_type","directional"))
+				var light_type: String = String(state.get("light_type","directional"))
 				var loaded_light: Light3D
 				if light_type == "omni": loaded_light = OmniLight3D.new()
 				elif light_type == "spot": loaded_light = SpotLight3D.new()
@@ -1067,7 +1067,7 @@ func _load_project_payload(payload: Dictionary, path: String) -> void:
 				loaded_light.shadow_enabled = bool(state.get("shadow",false))
 				scene_nodes[obj.id] = loaded_light
 			"plane":
-				var runtime_plane := RuntimeObject.new()
+				var runtime_plane: RuntimeObject = RuntimeObject.new()
 				world_root.add_child(runtime_plane)
 				runtime_plane.setup_plane(obj)
 				runtime_plane.transform = obj.transform
@@ -1075,9 +1075,9 @@ func _load_project_payload(payload: Dictionary, path: String) -> void:
 				runtime_objects.append(runtime_plane)
 				scene_nodes[obj.id] = runtime_plane
 			"image_mesh":
-				var image := _kab_to_image(String(state.get("image_png","")))
+				var image: Image = _kab_to_image(String(state.get("image_png","")))
 				if image != null:
-					var runtime_image := RuntimeObject.new()
+					var runtime_image: RuntimeObject = RuntimeObject.new()
 					world_root.add_child(runtime_image)
 					runtime_image.setup(obj,image)
 					runtime_image.transform = obj.transform
@@ -1085,20 +1085,20 @@ func _load_project_payload(payload: Dictionary, path: String) -> void:
 					runtime_objects.append(runtime_image)
 					scene_nodes[obj.id] = runtime_image
 				else:
-					var missing_anchor := Node3D.new()
+					var missing_anchor: Node3D = Node3D.new()
 					missing_anchor.name = obj.name
 					world_root.add_child(missing_anchor)
 					missing_anchor.transform = obj.transform
 					scene_nodes[obj.id] = missing_anchor
 			"rig":
 				if rigging_controller.rigs.has(obj.id):
-					var rig_runtime := RigRuntimeClass.new()
+					var rig_runtime: RigRuntime = RigRuntimeClass.new()
 					world_root.add_child(rig_runtime)
 					rig_runtime.transform = obj.transform
 					rig_runtime.setup(rigging_controller.rigs[obj.id])
 					scene_nodes[obj.id] = rig_runtime
 			_:
-				var anchor := Node3D.new()
+				var anchor: Node3D = Node3D.new()
 				anchor.name = obj.name
 				world_root.add_child(anchor)
 				anchor.transform = obj.transform
@@ -1107,7 +1107,8 @@ func _load_project_payload(payload: Dictionary, path: String) -> void:
 	_restore_scene_hierarchy()
 	_restore_rig_bindings()
 
-	var requested_render_camera := String((payload.get("render",{}) as Dictionary).get("camera_id",""))
+	var render_state: Dictionary = payload.get("render",{})
+	var requested_render_camera: String = String(render_state.get("camera_id",""))
 	if not requested_render_camera.is_empty() and scene_nodes.has(requested_render_camera):
 		render_camera_id = requested_render_camera
 	else:
