@@ -2415,7 +2415,8 @@ func _setup_native_compositor() -> void:
 	var compositor := Compositor.new()
 	kabuki_compositor_effect = KabukiCompositorEffectClass.new()
 	kabuki_compositor_effect.enabled = false
-	compositor.compositor_effects = [kabuki_compositor_effect]
+	var effects: Array[CompositorEffect] = [kabuki_compositor_effect]
+	compositor.compositor_effects = effects
 	world_environment.compositor = compositor
 
 
