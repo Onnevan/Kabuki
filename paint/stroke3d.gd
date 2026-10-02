@@ -2,6 +2,8 @@ class_name Stroke3D
 extends MeshInstance3D
 
 var points := PackedVector3Array()
+var point_size_pressure := PackedFloat32Array()
+var point_opacity_pressure := PackedFloat32Array()
 var stroke_color := Color(0.08, 0.08, 0.08, 1.0)
 var radius := 0.012
 var sides := 10
@@ -36,12 +38,18 @@ func _points_equal(a: PackedVector3Array, b: PackedVector3Array) -> bool:
 	return true
 
 func style_dict() -> Dictionary:
-	return {"radius": radius, "color": stroke_color, "fill_enabled": fill_enabled, "fill_color": fill_color, "fill_mode": fill_mode, "fill_color_b": fill_color_b, "fill_gradient_angle": fill_gradient_angle, "brush_preset": brush_preset, "width_variation": width_variation, "width_frequency": width_frequency, "brush_seed": brush_seed, "start_cap": start_cap, "end_cap": end_cap}
+	return {"radius": radius, "color": stroke_color, "fill_enabled": fill_enabled, "fill_color": fill_color, "fill_mode": fill_mode, "fill_color_b": fill_color_b, "fill_gradient_angle": fill_gradient_angle, "brush_preset": brush_preset, "width_variation": width_variation, "width_frequency": width_frequency, "brush_seed": brush_seed, "start_cap": start_cap, "end_cap": end_cap, "point_size_pressure": Array(point_size_pressure), "point_opacity_pressure": Array(point_opacity_pressure)}
 
-func add_point(p: Vector3) -> void:
+func set_pressure_data(size_values, opacity_values) -> void:
+	point_size_pressure = PackedFloat32Array(size_values)
+	point_opacity_pressure = PackedFloat32Array(opacity_values)
+
+func add_point(p: Vector3, size_pressure := 1.0, opacity_pressure := 1.0) -> void:
 	if not points.is_empty() and points[-1].distance_to(p) < 0.006:
 		return
 	points.append(p)
+	point_size_pressure.append(clampf(float(size_pressure),0.0,1.0))
+	point_opacity_pressure.append(clampf(float(opacity_pressure),0.0,1.0))
 	rebuild()
 
 func begin_sculpt(mouse_pos: Vector2) -> void:
@@ -178,14 +186,27 @@ func _smoothed_points() -> PackedVector3Array:
 	out.append(points[-1])
 	return out
 
+func _pressure_sample(values: PackedFloat32Array, index: int, count: int) -> float:
+	if values.is_empty(): return 1.0
+	if values.size() == 1 or count <= 1: return clampf(values[0],0.0,1.0)
+	var t := clampf(float(index) / float(count - 1),0.0,1.0) * float(values.size() - 1)
+	var i0 := clampi(int(floor(t)),0,values.size()-1)
+	var i1 := mini(i0+1,values.size()-1)
+	return lerpf(values[i0],values[i1],t-float(i0))
+
 func _radius_at(index: int, count: int) -> float:
-	if width_variation <= 0.0001 or count <= 1: return radius
+	var size_factor := lerpf(0.12,1.0,pow(_pressure_sample(point_size_pressure,index,count),0.72))
+	var result := radius * size_factor
+	if width_variation <= 0.0001 or count <= 1: return result
 	var t := float(index) / float(count - 1)
 	# Two smooth harmonics produce coherent ink wobble rather than per-point jitter.
 	var phase := float(brush_seed % 997) * 0.017
 	var wave := sin(t * TAU * width_frequency + phase) * 0.68
 	wave += sin(t * TAU * width_frequency * 0.47 + phase * 1.91) * 0.32
-	return radius * maxf(0.18, 1.0 + wave * width_variation)
+	return result * maxf(0.18, 1.0 + wave * width_variation)
+
+func _opacity_at(index: int, count: int) -> float:
+	return lerpf(0.08,1.0,_pressure_sample(point_opacity_pressure,index,count))
 
 func _build_line_surface(result: ArrayMesh) -> void:
 	var curve_points := _smoothed_points()
@@ -230,8 +251,10 @@ func _build_line_surface(result: ArrayMesh) -> void:
 			var r01: Vector3 = ring_side[i] * cos(a1) * radius_a + ring_up[i] * sin(a1) * radius_a
 			var r10: Vector3 = ring_side[i + 1] * cos(a0) * radius_b + ring_up[i + 1] * sin(a0) * radius_b
 			var r11: Vector3 = ring_side[i + 1] * cos(a1) * radius_b + ring_up[i + 1] * sin(a1) * radius_b
-			_tri(st, curve_points[i] + r00, curve_points[i + 1] + r10, curve_points[i + 1] + r11)
-			_tri(st, curve_points[i] + r00, curve_points[i + 1] + r11, curve_points[i] + r01)
+			var alpha_a := _opacity_at(i,curve_points.size())
+			var alpha_b := _opacity_at(i+1,curve_points.size())
+			_tri_colored(st, curve_points[i] + r00, curve_points[i + 1] + r10, curve_points[i + 1] + r11, alpha_a, alpha_b, alpha_b)
+			_tri_colored(st, curve_points[i] + r00, curve_points[i + 1] + r11, curve_points[i] + r01, alpha_a, alpha_b, alpha_a)
 	var start_center := curve_points[0]
 	var end_center := curve_points[-1]
 	var start_radius := _radius_at(0, curve_points.size())
@@ -247,16 +270,21 @@ func _build_line_surface(result: ArrayMesh) -> void:
 		var e1: Vector3 = ring_side[-1] * cos(a1) * end_radius + ring_up[-1] * sin(a1) * end_radius
 		var sc := start_tip if start_cap == "point" else start_center
 		var ec := end_tip if end_cap == "point" else end_center
-		_tri(st, sc, start_center + s1, start_center + s0)
-		_tri(st, ec, end_center + e0, end_center + e1)
+		var start_alpha := _opacity_at(0,curve_points.size())
+		var end_alpha := _opacity_at(curve_points.size()-1,curve_points.size())
+		_tri_colored(st, sc, start_center + s1, start_center + s0, start_alpha, start_alpha, start_alpha)
+		_tri_colored(st, ec, end_center + e0, end_center + e1, end_alpha, end_alpha, end_alpha)
 		if start_cap == "round":
 			var half := start_center - tangents[0] * start_radius * 0.55
-			_tri(st, half, start_center + s1, start_center + s0)
+			_tri_colored(st, half, start_center + s1, start_center + s0, start_alpha, start_alpha, start_alpha)
 		if end_cap == "round":
 			var half_end := end_center + tangents[-1] * end_radius * 0.55
-			_tri(st, half_end, end_center + e0, end_center + e1)
+			_tri_colored(st, half_end, end_center + e0, end_center + e1, end_alpha, end_alpha, end_alpha)
 	st.commit(result)
-	result.surface_set_material(result.get_surface_count() - 1, _base_material(stroke_color))
+	var line_material := _base_material(stroke_color)
+	line_material.vertex_color_use_as_albedo = true
+	line_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	result.surface_set_material(result.get_surface_count() - 1, line_material)
 
 func _build_fill_surface(result: ArrayMesh) -> void:
 	var flat := PackedVector2Array()
@@ -295,3 +323,9 @@ func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
 	st.set_normal(n); st.add_vertex(a)
 	st.set_normal(n); st.add_vertex(b)
 	st.set_normal(n); st.add_vertex(c)
+
+func _tri_colored(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, alpha_a: float, alpha_b: float, alpha_c: float) -> void:
+	var n := (b - a).cross(c - a).normalized()
+	st.set_color(Color(1,1,1,alpha_a)); st.set_normal(n); st.add_vertex(a)
+	st.set_color(Color(1,1,1,alpha_b)); st.set_normal(n); st.add_vertex(b)
+	st.set_color(Color(1,1,1,alpha_c)); st.set_normal(n); st.add_vertex(c)
