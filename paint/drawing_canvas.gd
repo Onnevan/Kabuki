@@ -294,12 +294,15 @@ func _gui_input(event: InputEvent) -> void:
 			stroke_start = mb.position
 			last_point = mb.position
 			if tool == TOOL_FILL:
-				_flood_fill(Vector2i(mb.position), _paint_color()); painting = false
+				_flood_fill(Vector2i(mb.position), _paint_color())
+				painting = false
+				key_current_cel()
 			elif tool == TOOL_LASSO_FILL:
 				lasso_points = PackedVector2Array([mb.position])
 			elif tool == TOOL_BRUSH or tool == TOOL_PENCIL or tool == TOOL_ERASER:
 				_paint_segment(mb.position, mb.position)
 		else:
+			var changed: bool = painting
 			if painting and (tool == TOOL_LINE or tool == TOOL_RECT or tool == TOOL_ELLIPSE):
 				_commit_shape(stroke_start, mb.position)
 			elif painting and tool == TOOL_LASSO_FILL and lasso_points.size() >= 3:
@@ -307,6 +310,8 @@ func _gui_input(event: InputEvent) -> void:
 				else: _fill_polygon(lasso_points,lasso_color_a)
 			painting = false
 			lasso_points.clear()
+			if changed:
+				key_current_cel()
 		queue_redraw()
 		return
 	if event is InputEventMouseMotion and painting:
