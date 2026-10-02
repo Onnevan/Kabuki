@@ -542,25 +542,47 @@ func _color_distance(a: Color,b: Color) -> float:
 
 func _flood_fill(seed: Vector2i,replacement: Color) -> void:
 	if not _inside(seed): return
-	var target: Color=raster.get_pixelv(seed)
+	var target: Color = raster.get_pixelv(seed)
 	if _color_distance(target,replacement) < 0.001: return
 	var threshold: float = clampf(fill_tolerance,0.0,1.0) * 1.75
-	var stack: Array[Vector2i]=[seed]
-	var seen: Dictionary={}
+	var width: int = raster.get_width()
+	var height: int = raster.get_height()
+	var queued := PackedByteArray()
+	queued.resize(width*height)
+	var stack: Array[Vector2i] = [seed]
+	queued[seed.y*width+seed.x] = 1
 	raster_texture_dirty = true
+
 	while not stack.is_empty():
-		var p: Vector2i=stack.pop_back()
-		if not _inside(p): continue
-		var key: int=p.y*raster.get_width()+p.x
-		if seen.has(key): continue
-		seen[key]=true
-		var sample: Color=raster.get_pixelv(p)
-		if _color_distance(sample,target)>threshold: continue
-		_blend_pixel(p.x,p.y,replacement,1.0)
-		stack.append(p+Vector2i.LEFT)
-		stack.append(p+Vector2i.RIGHT)
-		stack.append(p+Vector2i.UP)
-		stack.append(p+Vector2i.DOWN)
+		var p: Vector2i = stack.pop_back()
+		var y: int = p.y
+		var x_left: int = p.x
+		var x_right: int = p.x
+
+		while x_left-1 >= 0 and _color_distance(raster.get_pixel(x_left-1,y),target) <= threshold:
+			x_left -= 1
+		while x_right+1 < width and _color_distance(raster.get_pixel(x_right+1,y),target) <= threshold:
+			x_right += 1
+
+		for x in range(x_left,x_right+1):
+			_blend_pixel(x,y,replacement,1.0)
+
+		for ny in [y-1,y+1]:
+			if ny < 0 or ny >= height: continue
+			var x := x_left
+			while x <= x_right:
+				var idx := ny*width+x
+				if queued[idx] == 0 and _color_distance(raster.get_pixel(x,ny),target) <= threshold:
+					stack.append(Vector2i(x,ny))
+					queued[idx] = 1
+					# Skip the rest of this contiguous matching run; it will be
+					# expanded horizontally when popped from the stack.
+					x += 1
+					while x <= x_right and _color_distance(raster.get_pixel(x,ny),target) <= threshold:
+						queued[ny*width+x] = 1
+						x += 1
+				else:
+					x += 1
 
 
 func export_bitmap_cels() -> Dictionary:
