@@ -1618,19 +1618,22 @@ func _apply_drawing_frame(frame: int) -> void:
 		# sequence on the ReferenceCanvas plane. No tessellation is required.
 		if group is ReferenceCanvas:
 			var reference_canvas := group as ReferenceCanvas
-			if %DrawingCanvas.is_animated_bitmap(object_id):
-				# The active bitmap is already drawn by the full-size DrawingCanvas
-				# editor overlay. Showing its 3D flipbook quad at the same time
-				# produces a second, smaller copy at the ReferenceCanvas origin.
+			var has_bitmap: bool = %DrawingCanvas.has_flipbook(object_id)
+			if has_bitmap:
+				# Every persisted bitmap cel has a scene representation. A single
+				# static cel must remain visible when the bitmap editor overlay is hidden.
 				var editing_active_bitmap: bool = workspace == "drawing" and object_id == active_drawing_id and %DrawingCanvas.bitmap_mode
+				var static_is_current: bool = static_bitmap_runtime.has(object_id) and not %DrawingCanvas.is_bitmap_dirty(object_id) and %DrawingCanvas.keyed_cel_count(object_id) <= 1
 				if editing_active_bitmap:
+					reference_canvas.hide_flipbook_image()
+				elif static_is_current:
 					reference_canvas.hide_flipbook_image()
 				else:
 					var bitmap_image: Image = %DrawingCanvas.flipbook_image(object_id, evaluation_frame)
 					reference_canvas.show_flipbook_image(bitmap_image)
 				if static_bitmap_runtime.has(object_id):
 					var cached_static: RuntimeObject = static_bitmap_runtime[object_id]
-					if is_instance_valid(cached_static): cached_static.visible = false
+					if is_instance_valid(cached_static): cached_static.visible = static_is_current and not editing_active_bitmap
 			else:
 				reference_canvas.hide_flipbook_image()
 				if static_bitmap_runtime.has(object_id):
@@ -2573,18 +2576,62 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	else:
 		%LookTitle.text = "◇  LOOK / FILTERS"
 
+func _canvas_has_vector_content(canvas_id: String) -> bool:
+	var data: RefCounted = drawing_data_by_object.get(canvas_id)
+	return data != null and data.stroke_order.size() > 0
+
+func _canvas_has_bitmap_content(canvas_id: String) -> bool:
+	return not canvas_id.is_empty() and %DrawingCanvas.has_flipbook(canvas_id)
+
+func _persist_active_bitmap_editor() -> void:
+	if active_drawing_id.is_empty() or not %DrawingCanvas.bitmap_mode: return
+	%DrawingCanvas.key_current_cel()
+	_ensure_drawing_content_layer("bitmap")
+	%DrawingCanvas.bitmap_mode = false
+	%DrawingCanvas.visible = false
+	_apply_drawing_frame(ProjectStore.current_frame)
+
+func _create_companion_canvas_for_engine(engine: String, source: ReferenceCanvas) -> void:
+	if source == null or not is_instance_valid(source):
+		_on_add_drawing_plane()
+		return
+	var source_transform: Transform3D = source.global_transform
+	var source_name: String = source.name
+	_on_add_drawing_plane()
+	if active_drawing_group == null: return
+	var normal: Vector3 = source_transform.basis.z.normalized()
+	active_drawing_group.global_transform = Transform3D(source_transform.basis,source_transform.origin-normal*DRAWING_PLANE_SPACING)
+	var model: MotionObject = ProjectStore.objects.get(active_drawing_id)
+	if model != null:
+		model.transform = active_drawing_group.transform
+		active_drawing_group.name = source_name + (" · Bitmap" if engine == "bitmap" else " · Grease Pencil")
+		model.name = active_drawing_group.name
+	_refresh_drawing_planes()
+	_refresh_scene_object_list()
+
 func _on_draw_stroke3d_pressed() -> void:
 	_lock_drawing_view_to_canvas()
+	var source_canvas: ReferenceCanvas = active_drawing_group
+	var switching_from_bitmap: bool = %DrawingCanvas.bitmap_mode
+	if switching_from_bitmap:
+		_persist_active_bitmap_editor()
+	if _canvas_has_bitmap_content(active_drawing_id) and not _canvas_has_vector_content(active_drawing_id):
+		_create_companion_canvas_for_engine("vector",source_canvas)
 	drawing_3d_active = true
 	drawing_sculpt_active = false
 	drawing_erase_active = false
 	%DrawingCanvas.bitmap_mode = false
 	%DrawingCanvas.visible = false
+	_ensure_drawing_content_layer("vector")
+	_apply_drawing_frame(ProjectStore.current_frame)
 	_update_drawing_tool_ui()
-	status.text = "Spatial stroke · active reference canvas"
+	status.text = "Grease Pencil · vector canvas active"
 
 func _on_draw_bitmap_pressed() -> void:
 	_lock_drawing_view_to_canvas()
+	var source_canvas: ReferenceCanvas = active_drawing_group
+	if not %DrawingCanvas.bitmap_mode and _canvas_has_vector_content(active_drawing_id) and not _canvas_has_bitmap_content(active_drawing_id):
+		_create_companion_canvas_for_engine("bitmap",source_canvas)
 	if active_drawing_id.is_empty():
 		_ensure_drawing_group()
 	if not active_drawing_id.is_empty():
