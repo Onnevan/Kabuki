@@ -13,7 +13,7 @@ const DrawingControllerClass = preload("res://drawing/drawing_controller.gd")
 const RiggingControllerClass = preload("res://rigging/rigging_controller.gd")
 const RigRuntimeClass = preload("res://rigging/rig_runtime.gd")
 const SceneObjectControllerClass = preload("res://editor/scene_object_controller.gd")
-const KabukiCompositorEffectClass = preload("res://render/kabuki_compositor_effect.gd")
+const KabukiPostProcessShader = preload("res://render/kabuki_postprocess.gdshader")
 const EyeIcon = preload("res://assets/icons/lucide/eye.svg")
 const EyeOffIcon = preload("res://assets/icons/lucide/eye-off.svg")
 const ToolSizeIcon = preload("res://assets/icons/lucide/circle.svg")
@@ -38,7 +38,8 @@ const ToolAngleIcon = preload("res://assets/icons/lucide/rotate-cw.svg")
 @onready var camera_rig: EditorCameraRig = %EditorCameraRig
 @onready var world_grid: WorldGrid = %WorldGrid
 @onready var world_environment: WorldEnvironment = %WorldEnvironment
-var kabuki_compositor_effect: CompositorEffect
+var postprocess_quad: MeshInstance3D
+var postprocess_material: ShaderMaterial
 var selected: RuntimeObject
 var runtime_objects: Array[RuntimeObject] = []
 var playing := false
@@ -249,7 +250,7 @@ func _ready() -> void:
 		%SculptMode.add_item(label)
 	%SculptMode.select(0)
 	%SculptMode.item_selected.connect(_on_sculpt_mode_selected)
-	_setup_native_compositor()
+	_setup_postprocess_quad()
 	_apply_global_filters()
 	_update_preview_mode()
 	_on_frame_changed(0)
@@ -2297,10 +2298,9 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	var previous_frame := ProjectStore.current_frame
 	var previous_viewport_size := viewport.size
 	var previous_stretch := canvas.stretch
-	var previous_effect_enabled := kabuki_compositor_effect.enabled if kabuki_compositor_effect != null else false
 	var previous_editor_current: bool = camera.current
 	var previous_render_current: bool = render_cam.current
-	var previous_render_compositor: Compositor = render_cam.compositor
+	var previous_postprocess_visible: bool = postprocess_quad.visible if postprocess_quad != null else false
 	var previous_grid_visible: bool = world_grid.visible
 	var previous_gizmo_visible: bool = gizmo.visible
 	var previous_view_gizmo_visible: bool = bool(%ViewGizmo.visible)
@@ -2312,9 +2312,8 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	var ry := maxi(64,int(camera_obj.properties.get("camera.resolution_y",1080)))
 	canvas.stretch = false
 	viewport.size = Vector2i(rx,ry)
-	if kabuki_compositor_effect != null:
-		kabuki_compositor_effect.enabled = true
-	render_cam.compositor = world_environment.compositor
+	if postprocess_quad != null:
+		postprocess_quad.visible = true
 	camera.current = false
 	render_cam.current = true
 	world_grid.visible = false
@@ -2353,12 +2352,11 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 			break
 
 	render_cam.current = previous_render_current
-	render_cam.compositor = previous_render_compositor
 	camera.current = previous_editor_current
+	if postprocess_quad != null:
+		postprocess_quad.visible = previous_postprocess_visible
 	canvas.stretch = previous_stretch
 	viewport.size = previous_viewport_size
-	if kabuki_compositor_effect != null:
-		kabuki_compositor_effect.enabled = previous_effect_enabled
 	ProjectStore.set_frame(previous_frame)
 	world_grid.visible = previous_grid_visible
 	gizmo.visible = previous_gizmo_visible
@@ -2412,19 +2410,22 @@ func _on_light_type_selected(index: int) -> void:
 	_show_transform(replacement)
 	status.text = "Light type: " + ["Directional", "Point", "Spot"][index]
 
-func _setup_native_compositor() -> void:
-	if world_environment == null:
+func _setup_postprocess_quad() -> void:
+	if postprocess_quad != null and is_instance_valid(postprocess_quad):
 		return
-	var compositor := Compositor.new()
-	kabuki_compositor_effect = KabukiCompositorEffectClass.new()
-	kabuki_compositor_effect.enabled = false
-	var effects: Array[CompositorEffect] = [kabuki_compositor_effect]
-	compositor.compositor_effects = effects
-	# Attach to both the world and the editor camera. A Camera3D compositor
-	# overrides the WorldEnvironment compositor, so explicit camera assignment
-	# removes any ambiguity about which pipeline the viewport is using.
-	world_environment.compositor = compositor
-	camera.compositor = compositor
+	postprocess_quad = MeshInstance3D.new()
+	postprocess_quad.name = "__KabukiPostProcess"
+	var quad := QuadMesh.new()
+	quad.size = Vector2(2.0,2.0)
+	postprocess_quad.mesh = quad
+	postprocess_quad.extra_cull_margin = 16384.0
+	postprocess_quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	postprocess_material = ShaderMaterial.new()
+	postprocess_material.shader = KabukiPostProcessShader
+	postprocess_material.render_priority = 127
+	postprocess_quad.material_override = postprocess_material
+	postprocess_quad.visible = false
+	world_root.add_child(postprocess_quad)
 
 
 func _apply_global_filters() -> void:
@@ -2442,8 +2443,9 @@ func _apply_global_filters() -> void:
 		"chromatic_aberration": %ChromaticAberration.value,
 		"monochrome": 1.0 if %Monochrome.button_pressed else 0.0
 	}
-	if kabuki_compositor_effect != null and kabuki_compositor_effect.has_method("set_parameters"):
-		kabuki_compositor_effect.call("set_parameters",values)
+	if postprocess_material != null:
+		for key in values:
+			postprocess_material.set_shader_parameter(StringName(key),values[key])
 
 func _on_filter_changed(_value: float) -> void:
 	_apply_global_filters()
@@ -3958,10 +3960,10 @@ func _on_preview_mode_toggled(render_mode: bool) -> void:
 
 func _update_preview_mode() -> void:
 	%PreviewMode.text = "◉  RENDER" if render_preview else "◐  PREVIEW"
-	# PREVIEW bypasses post effects. RENDER enables the native compositor inside
-	# SceneViewport itself, so editor overlays remain outside the processed image.
-	if kabuki_compositor_effect != null and not render_in_progress:
-		kabuki_compositor_effect.enabled = render_preview
+	# PREVIEW bypasses post effects. RENDER enables a fullscreen pass inside the
+	# SceneViewport itself; editor UI remains outside the processed image.
+	if postprocess_quad != null and not render_in_progress:
+		postprocess_quad.visible = render_preview
 	%PreviewChip.text = "RENDER" if render_preview else "PREVIEW"
 	for r in runtime_objects:
 		if r.material:
