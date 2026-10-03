@@ -4448,7 +4448,8 @@ func _raycast_projectable_surface(screen_pos: Vector2) -> Dictionary:
 			best = hit
 	if not best.is_empty():
 		var normal: Vector3 = best["normal"]
-		best["position"] = (best["position"] as Vector3)+normal*0.0008
+		var hit_position: Vector3 = best["position"]
+		best["position"] = hit_position+normal*0.0008
 	return best
 
 func _grease_world_point(screen_pos: Vector2) -> Dictionary:
