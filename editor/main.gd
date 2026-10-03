@@ -526,6 +526,7 @@ func _on_add_object_type(id: int) -> void:
 func _create_primitive_3d(primitive_type: String, display_name: String) -> void:
 	var obj := MotionObject.new(display_name,"primitive_3d","prop")
 	obj.properties["primitive.type"] = primitive_type
+	obj.properties["paint.surface_projectable"] = true
 	var runtime := RuntimeObject.new()
 	world_root.add_child(runtime)
 	runtime.setup_primitive(obj,primitive_type)
@@ -538,6 +539,7 @@ func _create_primitive_3d(primitive_type: String, display_name: String) -> void:
 
 func _create_plane() -> void:
 	var obj := MotionObject.new("Plane", "plane", "prop")
+	obj.properties["paint.surface_projectable"] = true
 	var runtime := RuntimeObject.new()
 	world_root.add_child(runtime)
 	runtime.setup_plane(obj)
@@ -1217,6 +1219,7 @@ func _import_glb_file(path: String) -> void:
 		status.text = "Could not import GLB"
 		return
 	var obj := MotionObject.new(path.get_file().get_basename(),"gltf_scene","prop")
+	obj.properties["paint.surface_projectable"] = true
 	obj.properties["asset.glb_base64"] = Marshalls.raw_to_base64(bytes)
 	obj.properties["asset.source_name"] = path.get_file()
 	world_root.add_child(holder)
