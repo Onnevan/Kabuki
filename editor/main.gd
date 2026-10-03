@@ -103,6 +103,7 @@ var drawing_data_by_object: Dictionary:
 var vector_onion_roots: Dictionary = {}
 var sculpt_mode := "push"
 var gp_opacity := 1.0
+var gp_projection_mode := "canvas"
 var current_stylus_pressure := 1.0
 var vector_undo_history: Dictionary = {}
 var vector_redo_history: Dictionary = {}
@@ -1604,7 +1605,7 @@ func _navigate_pan(delta: Vector2) -> void:
 	_commit_camera_view_navigation()
 
 func _navigate_zoom(amount: float) -> void:
-	if workspace == "drawing" and not drawing_sculpt_active and camera.projection == Camera3D.PROJECTION_ORTHOGONAL:
+	if workspace == "drawing" and not drawing_sculpt_active and not (drawing_3d_active and gp_projection_mode == "surface") and camera.projection == Camera3D.PROJECTION_ORTHOGONAL:
 		# Orthographic cameras do not zoom by changing distance. Adjust the
 		# orthographic view height so artwork, bitmap and canvas scale together.
 		var factor: float = 0.88 if amount < 0.0 else 1.0 / 0.88
@@ -1628,7 +1629,7 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 		if _gradient_guide_input(event): return
 		# Normal Drawing is a canvas-locked 2D editor. Sculpt is the exception:
 		# it operates in a freely navigable 3D view so stroke depth is visible.
-		if not drawing_sculpt_active and camera.projection != Camera3D.PROJECTION_ORTHOGONAL:
+		if not drawing_sculpt_active and not (drawing_3d_active and gp_projection_mode == "surface") and camera.projection != Camera3D.PROJECTION_ORTHOGONAL:
 			camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 		if event is InputEventMouseButton:
 			last_mouse = event.position
@@ -1637,7 +1638,7 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
 				_navigate_zoom(1.0); return
 			elif event.button_index == MOUSE_BUTTON_MIDDLE:
-				if drawing_sculpt_active:
+				if drawing_sculpt_active or (drawing_3d_active and gp_projection_mode == "surface"):
 					if Input.is_key_pressed(KEY_SHIFT):
 						panning = event.pressed
 						orbiting = false
@@ -3356,6 +3357,11 @@ func _setup_drawing_menus() -> void:
 	for preset_name in ["Ink", "Soft", "Airbrush", "Chalk", "Graphite HB", "Graphite 4B"]:
 		%BrushPreset.add_item(preset_name)
 	%BrushPreset.item_selected.connect(func(index: int): %DrawingCanvas.set_brush_preset(index))
+	%GPProjectionMode.clear()
+	%GPProjectionMode.add_item("Canvas")
+	%GPProjectionMode.add_item("Surface")
+	%GPProjectionMode.select(0)
+	%GPProjectionMode.item_selected.connect(_on_gp_projection_mode_selected)
 	%BrushOpacity.value_changed.connect(func(value: float): %DrawingCanvas.opacity = value)
 	%BrushHardness.value_changed.connect(func(value: float): %DrawingCanvas.hardness = value)
 	%PrimarySlider.value_changed.connect(_on_primary_tool_param_changed)
@@ -3684,6 +3690,7 @@ func _update_drawing_tool_ui() -> void:
 	%BrushSizeLabel.visible = false
 	%BrushSize.visible = false
 	%BrushPreset.visible = brush_active and current_tool != 2
+	%GPProjectionMode.visible = drawing_3d_active
 	%BrushOpacityLabel.visible = false
 	%BrushOpacity.visible = false
 	%BrushHardness.visible = brush_active and current_tool == 0
@@ -3708,7 +3715,7 @@ func _update_drawing_tool_ui() -> void:
 	%EndCap.visible = drawing_3d_active
 	%CapSeparator.visible = drawing_3d_active
 	# Floating chrome is content-sized. Never leave an empty or stretched bar.
-	var context_controls: Array[Control] = [%BitmapClear,%LassoFillMode,%LassoColorALabel,%LassoColorA,%LassoColorBLabel,%LassoColorB,%LassoAngleLabel,%LassoGradientAngle,%SculptMode,%SculptStrength,%BrushSizeLabel,%BrushSize,%BrushPreset,%BrushOpacityLabel,%BrushOpacity,%BrushHardness,%FillToleranceLabel,%FillTolerance,%BrushColor,%Fill,%FillColor]
+	var context_controls: Array[Control] = [%BitmapClear,%LassoFillMode,%LassoColorALabel,%LassoColorA,%LassoColorBLabel,%LassoColorB,%LassoAngleLabel,%LassoGradientAngle,%SculptMode,%SculptStrength,%BrushSizeLabel,%BrushSize,%BrushPreset,%GPProjectionMode,%BrushOpacityLabel,%BrushOpacity,%BrushHardness,%FillToleranceLabel,%FillTolerance,%BrushColor,%Fill,%FillColor]
 	var has_context: bool = false
 	for control: Control in context_controls:
 		if control.visible:
@@ -3768,9 +3775,11 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	else:
 		workspace_camera_states[workspace] = camera_rig.get_state()
 	if workspace == "drawing":
-		# Drawing is a true 2D editor onto the selected ReferenceCanvas.
-		# Always look straight at that canvas after restoring workspace state.
-		_lock_drawing_view_to_canvas()
+		if gp_projection_mode == "surface" and drawing_3d_active:
+			camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+		else:
+			# Canvas drawing is a true 2D editor onto the selected ReferenceCanvas.
+			_lock_drawing_view_to_canvas()
 	else:
 		# Orthographic projection belongs only to the 2D Drawing editor.
 		# Scene/Animation/Rigging must use perspective so camera dolly changes
@@ -3865,8 +3874,21 @@ func _create_companion_canvas_for_engine(engine: String, source: ReferenceCanvas
 	_refresh_drawing_planes()
 	_refresh_scene_object_list()
 
+func _on_gp_projection_mode_selected(index: int) -> void:
+	gp_projection_mode = "surface" if index == 1 else "canvas"
+	if gp_projection_mode == "surface":
+		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+		status.text = "Grease Pencil · Surface projection · MMB orbit · Shift+MMB pan"
+	else:
+		_lock_drawing_view_to_canvas()
+		status.text = "Grease Pencil · Canvas projection"
+	_update_drawing_tool_ui()
+
 func _on_draw_stroke3d_pressed() -> void:
-	_lock_drawing_view_to_canvas()
+	if gp_projection_mode == "canvas":
+		_lock_drawing_view_to_canvas()
+	else:
+		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	var source_canvas: ReferenceCanvas = active_drawing_group
 	var switching_from_bitmap: bool = %DrawingCanvas.bitmap_mode
 	if switching_from_bitmap:
@@ -4303,6 +4325,153 @@ func _commit_bitmap_to_canvas(target_canvas: ReferenceCanvas, canvas_id: String,
 	runtime.setup_bitmap(obj, image, local_corners, int(%TessellationSamples.value))
 	runtime_objects.append(runtime)
 
+
+func _ray_triangle_hit(ray_origin: Vector3, ray_direction: Vector3, a: Vector3, b: Vector3, c_point: Vector3) -> float:
+	var edge1: Vector3 = b-a
+	var edge2: Vector3 = c_point-a
+	var pvec: Vector3 = ray_direction.cross(edge2)
+	var det: float = edge1.dot(pvec)
+	if absf(det) < 0.0000001:
+		return -1.0
+	var inv_det: float = 1.0/det
+	var tvec: Vector3 = ray_origin-a
+	var u: float = tvec.dot(pvec)*inv_det
+	if u < 0.0 or u > 1.0:
+		return -1.0
+	var qvec: Vector3 = tvec.cross(edge1)
+	var v: float = ray_direction.dot(qvec)*inv_det
+	if v < 0.0 or u+v > 1.0:
+		return -1.0
+	var t: float = edge2.dot(qvec)*inv_det
+	return t if t > 0.000001 else -1.0
+
+func _raycast_projectable_mesh(mesh_node: MeshInstance3D, ray_origin: Vector3, ray_direction: Vector3, best_distance: float) -> Dictionary:
+	if mesh_node.mesh == null:
+		return {}
+	var inverse: Transform3D = mesh_node.global_transform.affine_inverse()
+	var local_origin: Vector3 = inverse*ray_origin
+	var world_end: Vector3 = ray_origin+ray_direction*10000.0
+	var local_end: Vector3 = inverse*world_end
+	var local_direction: Vector3 = (local_end-local_origin).normalized()
+	var best: Dictionary = {}
+	var mesh: Mesh = mesh_node.mesh
+	for surface_index in range(mesh.get_surface_count()):
+		var arrays: Array = mesh.surface_get_arrays(surface_index)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		if vertices.is_empty():
+			continue
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		if indices.is_empty():
+			for tri_start in range(0,vertices.size()-2,3):
+				var a: Vector3 = vertices[tri_start]
+				var b: Vector3 = vertices[tri_start+1]
+				var cc: Vector3 = vertices[tri_start+2]
+				var t: float = _ray_triangle_hit(local_origin,local_direction,a,b,cc)
+				if t < 0.0:
+					continue
+				var local_hit: Vector3 = local_origin+local_direction*t
+				var world_hit: Vector3 = mesh_node.global_transform*local_hit
+				var distance: float = ray_origin.distance_to(world_hit)
+				if distance >= best_distance:
+					continue
+				var local_normal: Vector3 = (b-a).cross(cc-a).normalized()
+				var normal_basis: Basis = mesh_node.global_transform.basis.inverse().transposed()
+				var world_normal: Vector3 = (normal_basis*local_normal).normalized()
+				if world_normal.dot(ray_direction) > 0.0:
+					world_normal = -world_normal
+				best_distance = distance
+				best = {"position":world_hit,"normal":world_normal,"distance":distance}
+		else:
+			for tri_start in range(0,indices.size()-2,3):
+				var ia: int = indices[tri_start]
+				var ib: int = indices[tri_start+1]
+				var ic: int = indices[tri_start+2]
+				if ia < 0 or ib < 0 or ic < 0 or ia >= vertices.size() or ib >= vertices.size() or ic >= vertices.size():
+					continue
+				var a: Vector3 = vertices[ia]
+				var b: Vector3 = vertices[ib]
+				var cc: Vector3 = vertices[ic]
+				var t: float = _ray_triangle_hit(local_origin,local_direction,a,b,cc)
+				if t < 0.0:
+					continue
+				var local_hit: Vector3 = local_origin+local_direction*t
+				var world_hit: Vector3 = mesh_node.global_transform*local_hit
+				var distance: float = ray_origin.distance_to(world_hit)
+				if distance >= best_distance:
+					continue
+				var local_normal: Vector3 = (b-a).cross(cc-a).normalized()
+				var normal_basis: Basis = mesh_node.global_transform.basis.inverse().transposed()
+				var world_normal: Vector3 = (normal_basis*local_normal).normalized()
+				if world_normal.dot(ray_direction) > 0.0:
+					world_normal = -world_normal
+				best_distance = distance
+				best = {"position":world_hit,"normal":world_normal,"distance":distance}
+	return best
+
+func _raycast_projectable_tree(node: Node, ray_origin: Vector3, ray_direction: Vector3, best_distance: float) -> Dictionary:
+	var best: Dictionary = {}
+	if node is MeshInstance3D:
+		best = _raycast_projectable_mesh(node as MeshInstance3D,ray_origin,ray_direction,best_distance)
+		if not best.is_empty():
+			best_distance = float(best["distance"])
+	for child in node.get_children():
+		var child_hit: Dictionary = _raycast_projectable_tree(child,ray_origin,ray_direction,best_distance)
+		if child_hit.is_empty():
+			continue
+		var child_distance: float = float(child_hit["distance"])
+		if child_distance < best_distance:
+			best_distance = child_distance
+			best = child_hit
+	return best
+
+func _raycast_projectable_surface(screen_pos: Vector2) -> Dictionary:
+	var ray_origin: Vector3 = camera.project_ray_origin(screen_pos)
+	var ray_direction: Vector3 = camera.project_ray_normal(screen_pos).normalized()
+	var best_distance: float = INF
+	var best: Dictionary = {}
+	for object_id_value in scene_nodes.keys():
+		var object_id: String = String(object_id_value)
+		if not ProjectStore.objects.has(object_id):
+			continue
+		var model: MotionObject = ProjectStore.objects[object_id]
+		if not bool(model.properties.get("paint.surface_projectable",false)):
+			continue
+		var root: Node3D = scene_nodes[object_id]
+		if root == null or not is_instance_valid(root) or not root.visible:
+			continue
+		var hit: Dictionary = _raycast_projectable_tree(root,ray_origin,ray_direction,best_distance)
+		if hit.is_empty():
+			continue
+		var distance: float = float(hit["distance"])
+		if distance < best_distance:
+			best_distance = distance
+			best = hit
+	if not best.is_empty():
+		var normal: Vector3 = best["normal"]
+		best["position"] = (best["position"] as Vector3)+normal*0.0008
+	return best
+
+func _grease_world_point(screen_pos: Vector2) -> Dictionary:
+	if gp_projection_mode == "surface":
+		return _raycast_projectable_surface(screen_pos)
+	if active_drawing_group == null:
+		return {}
+	return {"position":_ray_to_drawing_plane(screen_pos,active_drawing_group),"normal":active_drawing_group.global_transform.basis.z.normalized(),"distance":0.0}
+
+func _gp_radius_for_screen_size(size_px: float, world_point: Vector3, parent: Node3D) -> float:
+	var viewport_height: float = maxf(1.0,camera.get_viewport().get_visible_rect().size.y)
+	var world_per_px: float
+	if camera.projection == Camera3D.PROJECTION_ORTHOGONAL:
+		world_per_px = camera.size/viewport_height
+	else:
+		var camera_space: Vector3 = camera.global_transform.affine_inverse()*world_point
+		var depth: float = maxf(0.01,-camera_space.z)
+		world_per_px = 2.0*depth*tan(deg_to_rad(camera.fov)*0.5)/viewport_height
+	var scale_vec: Vector3 = parent.global_transform.basis.get_scale()
+	var parent_scale: float = maxf(0.0001,(absf(scale_vec.x)+absf(scale_vec.y)+absf(scale_vec.z))/3.0)
+	# Brush size is a screen-space diameter, while Stroke3D stores a radius.
+	return maxf(0.00001,size_px*0.5*world_per_px/parent_scale)
+
 func _ray_to_drawing_plane(screen_pos: Vector2, plane: Node3D) -> Vector3:
 	# Reference canvases are mathematical XY planes. They have no rendered
 	# geometry; strokes/images are projected onto this coordinate system.
@@ -4355,7 +4524,7 @@ func _on_add_drawing_plane() -> void:
 	_refresh_scene_object_list()
 	_select_scene_node(active_drawing_id, active_drawing_group)
 	_sync_canvas_axis_buttons()
-	if workspace == "drawing":
+	if workspace == "drawing" and gp_projection_mode == "canvas":
 		_lock_drawing_view_to_canvas()
 	%RightPanel.visible = true
 	status.text = "Reference canvas created · drawing is projected onto its coordinates"
@@ -4503,6 +4672,11 @@ func _stylus_pressure_or_full(value: float) -> float:
 
 func _begin_3d_stroke(pos: Vector2) -> void:
 	_ensure_drawing_group()
+	var hit: Dictionary = _grease_world_point(pos)
+	if hit.is_empty():
+		status.text = "Grease Pencil · no projectable surface under cursor"
+		return
+	var world_point: Vector3 = hit["position"]
 	_push_vector_undo()
 	_ensure_drawing_content_layer("vector")
 	var data: RefCounted = _active_drawing_data()
@@ -4513,24 +4687,30 @@ func _begin_3d_stroke(pos: Vector2) -> void:
 		_refresh_drawing_timeline()
 	active_stroke_3d = Stroke3DClass.new()
 	active_stroke_3d.stroke_color = Color(gp_line_color.r,gp_line_color.g,gp_line_color.b,gp_line_color.a*gp_opacity)
-	active_stroke_3d.radius = %BrushSize.value * 0.0012
+	active_stroke_3d.radius = _gp_radius_for_screen_size(%BrushSize.value,world_point,active_drawing_group)
 	_apply_stroke_brush(active_stroke_3d)
-	active_stroke_3d.fill_enabled = %Fill.button_pressed
+	active_stroke_3d.fill_enabled = %Fill.button_pressed and gp_projection_mode == "canvas"
 	active_stroke_3d.fill_color = Color(gp_fill_color.r,gp_fill_color.g,gp_fill_color.b,gp_fill_color.a*gp_opacity)
 	active_stroke_3d.fill_mode = "gradient" if %FillMode.selected == 1 else "solid"
 	active_stroke_3d.fill_color_b = Color(gp_fill_color_b.r,gp_fill_color_b.g,gp_fill_color_b.b,gp_fill_color_b.a*gp_opacity)
 	active_stroke_3d.fill_gradient_angle = float(%FillGradientAngle.value)
 	active_drawing_group.add_child(active_stroke_3d)
-	var world_point := _ray_to_drawing_plane(pos, active_drawing_group)
 	active_stroke_3d.add_point(active_drawing_group.to_local(world_point),current_stylus_pressure,current_stylus_pressure)
 
 func _extend_3d_stroke(pos: Vector2) -> void:
 	if active_stroke_3d and active_drawing_group:
-		var world_point := _ray_to_drawing_plane(pos, active_drawing_group)
+		var hit: Dictionary = _grease_world_point(pos)
+		if hit.is_empty():
+			return
+		var world_point: Vector3 = hit["position"]
 		active_stroke_3d.add_point(active_drawing_group.to_local(world_point),current_stylus_pressure,current_stylus_pressure)
 
 func _finish_3d_stroke() -> void:
 	if active_stroke_3d == null: return
+	if active_stroke_3d.points.size() < 2:
+		active_stroke_3d.queue_free()
+		active_stroke_3d = null
+		return
 	active_stroke_3d.name = "Stroke %02d" % active_drawing_group.get_child_count()
 	var data: RefCounted = drawing_data_by_object.get(active_drawing_id)
 	if data:
