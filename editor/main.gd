@@ -397,7 +397,7 @@ func _add_wire_edge(out: PackedVector3Array, seen: Dictionary, vertices: PackedV
 
 func _setup_add_object_menu() -> void:
 	var popup: PopupMenu = %AddObj.get_popup()
-	for label in ["Plane", "Sound", "Camera", "Light", "Drawing"]:
+	for label in ["Plane", "Cube", "Sphere", "Cylinder", "Import 3D (.glb)", "Sound", "Camera", "Light", "Drawing"]:
 		popup.add_item(label)
 	popup.id_pressed.connect(_on_add_object_type)
 
@@ -514,10 +514,27 @@ func _on_drawing_plane_list_gui_input(event: InputEvent) -> void:
 func _on_add_object_type(id: int) -> void:
 	match id:
 		0: _create_plane()
-		1: _create_sound()
-		2: _create_camera()
-		3: _create_light()
-		4: _create_drawing()
+		1: _create_primitive_3d("cube","Cube")
+		2: _create_primitive_3d("sphere","Sphere")
+		3: _create_primitive_3d("cylinder","Cylinder")
+		4: _on_import_3d_pressed()
+		5: _create_sound()
+		6: _create_camera()
+		7: _create_light()
+		8: _create_drawing()
+
+func _create_primitive_3d(primitive_type: String, display_name: String) -> void:
+	var obj := MotionObject.new(display_name,"primitive_3d","prop")
+	obj.properties["primitive.type"] = primitive_type
+	var runtime := RuntimeObject.new()
+	world_root.add_child(runtime)
+	runtime.setup_primitive(obj,primitive_type)
+	_register_scene_object(obj,runtime)
+	runtime_objects.append(runtime)
+	_select(runtime)
+	status.text = display_name + " created"
+	if %ShadingMode.selected == 1:
+		_set_wireframe_overlays(true)
 
 func _create_plane() -> void:
 	var obj := MotionObject.new("Plane", "plane", "prop")
@@ -1138,9 +1155,57 @@ func _load_project_payload(payload: Dictionary, path: String) -> void:
 	%ProjectName.text = path.get_file()
 	status.text = "Project loaded · " + path.get_file()
 
-func _on_import_pressed() -> void: %FileDialog.popup_centered_ratio(0.7)
+func _on_import_pressed() -> void:
+	%FileDialog.remove_meta("world_image_request")
+	%FileDialog.remove_meta("import_3d_request")
+	%FileDialog.filters = PackedStringArray(["*.png ; PNG Images"])
+	%FileDialog.popup_centered_ratio(0.7)
+
+func _on_import_3d_pressed() -> void:
+	%FileDialog.remove_meta("world_image_request")
+	%FileDialog.set_meta("import_3d_request",true)
+	%FileDialog.filters = PackedStringArray(["*.glb ; glTF Binary Scene"])
+	%FileDialog.popup_centered_ratio(0.7)
+
+func _build_glb_scene(bytes: PackedByteArray, base_path: String = "") -> Node3D:
+	if bytes.is_empty(): return null
+	var document := GLTFDocument.new()
+	var state := GLTFState.new()
+	state.handle_binary_image_mode = GLTFState.HANDLE_BINARY_IMAGE_MODE_EMBED_AS_UNCOMPRESSED
+	var err := document.append_from_buffer(bytes,base_path,state)
+	if err != OK:
+		return null
+	var generated: Node = document.generate_scene(state)
+	if generated == null:
+		return null
+	var holder := Node3D.new()
+	holder.add_child(generated)
+	return holder
+
+func _import_glb_file(path: String) -> void:
+	var file := FileAccess.open(path,FileAccess.READ)
+	if file == null:
+		status.text = "Could not open GLB"
+		return
+	var bytes: PackedByteArray = file.get_buffer(file.get_length())
+	var holder := _build_glb_scene(bytes,path.get_base_dir())
+	if holder == null:
+		status.text = "Could not import GLB"
+		return
+	var obj := MotionObject.new(path.get_file().get_basename(),"gltf_scene","prop")
+	obj.properties["asset.glb_base64"] = Marshalls.raw_to_base64(bytes)
+	obj.properties["asset.source_name"] = path.get_file()
+	world_root.add_child(holder)
+	holder.name = obj.name
+	_register_scene_object(obj,holder)
+	_select_scene_node(obj.id,holder)
+	status.text = "Imported 3D · " + path.get_file()
 
 func _on_file_selected(path: String) -> void:
+	if %FileDialog.has_meta("import_3d_request") and bool(%FileDialog.get_meta("import_3d_request")):
+		%FileDialog.remove_meta("import_3d_request")
+		_import_glb_file(path)
+		return
 	var img := Image.load_from_file(path)
 	if img == null or img.is_empty(): status.text = "Could not load image"; return
 	if %FileDialog.has_meta("world_image_request") and bool(%FileDialog.get_meta("world_image_request")):
@@ -3341,7 +3406,9 @@ func _refresh_world() -> void:
 	%WorldBackdrop.visible = world_mode == "image" and world_image_mode == "camera"
 
 func _on_world_image_load() -> void:
+	%FileDialog.remove_meta("import_3d_request")
 	%FileDialog.set_meta("world_image_request", true)
+	%FileDialog.filters = PackedStringArray(["*.png ; PNG Images"])
 	%FileDialog.popup_centered_ratio(0.7)
 
 func _set_stroke_brush_preset(preset: String) -> void:
