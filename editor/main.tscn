@@ -566,6 +566,12 @@ value=10.0
 unique_name_in_owner=true
 custom_minimum_size=Vector2(95,0)
 tooltip_text="Brush preset"
+
+[node name="GPProjectionMode" type="OptionButton" parent="DrawingContextSurface/DrawingBar"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(112,0)
+tooltip_text="Grease Pencil projection: draw on the active canvas or project onto visible 3D surfaces"
+
 [node name="BrushOpacityLabel" type="Label" parent="DrawingContextSurface/DrawingBar"]
 unique_name_in_owner=true
 text="OPACITY"
