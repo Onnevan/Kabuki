@@ -1097,6 +1097,30 @@ func _load_project_payload(payload: Dictionary, path: String) -> void:
 				_apply_runtime_material(runtime_plane,state)
 				runtime_objects.append(runtime_plane)
 				scene_nodes[obj.id] = runtime_plane
+			"primitive_3d":
+				var primitive_type: String = String(obj.properties.get("primitive.type","cube"))
+				var runtime_primitive: RuntimeObject = RuntimeObject.new()
+				world_root.add_child(runtime_primitive)
+				runtime_primitive.setup_primitive(obj,primitive_type)
+				runtime_primitive.transform = obj.transform
+				_apply_runtime_material(runtime_primitive,state)
+				runtime_objects.append(runtime_primitive)
+				scene_nodes[obj.id] = runtime_primitive
+			"gltf_scene":
+				var encoded_glb: String = String(obj.properties.get("asset.glb_base64",""))
+				var glb_bytes: PackedByteArray = Marshalls.base64_to_raw(encoded_glb)
+				var glb_holder: Node3D = _build_glb_scene(glb_bytes)
+				if glb_holder != null:
+					world_root.add_child(glb_holder)
+					glb_holder.name = obj.name
+					glb_holder.transform = obj.transform
+					scene_nodes[obj.id] = glb_holder
+				else:
+					var missing_glb: Node3D = Node3D.new()
+					missing_glb.name = obj.name
+					world_root.add_child(missing_glb)
+					missing_glb.transform = obj.transform
+					scene_nodes[obj.id] = missing_glb
 			"image_mesh":
 				var image: Image = _kab_to_image(String(state.get("image_png","")))
 				if image != null:
