@@ -55,6 +55,37 @@ func setup_bitmap(obj: MotionObject, img: Image, local_corners := PackedVector3A
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
 	name = obj.name
 
+func setup_primitive(obj: MotionObject, primitive_type: String) -> void:
+	model = obj
+	var primitive_mesh: PrimitiveMesh
+	match primitive_type:
+		"cube":
+			primitive_mesh = BoxMesh.new()
+			(primitive_mesh as BoxMesh).size = Vector3.ONE
+		"sphere":
+			var sphere := SphereMesh.new()
+			sphere.radius = 0.5
+			sphere.height = 1.0
+			primitive_mesh = sphere
+		"cylinder":
+			var cylinder := CylinderMesh.new()
+			cylinder.top_radius = 0.5
+			cylinder.bottom_radius = 0.5
+			cylinder.height = 1.0
+			primitive_mesh = cylinder
+		_:
+			var plane := PlaneMesh.new()
+			plane.size = Vector2(1.0,1.0)
+			primitive_mesh = plane
+	mesh = primitive_mesh
+	standard_material = StandardMaterial3D.new()
+	standard_material.albedo_color = Color(0.72,0.76,0.82,1.0)
+	standard_material.roughness = 0.8
+	standard_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material_override = standard_material
+	supports_effects = false
+	name = obj.name
+
 func setup_plane(obj: MotionObject) -> void:
 	model = obj
 	var plane := PlaneMesh.new()
