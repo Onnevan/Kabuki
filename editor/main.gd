@@ -5017,9 +5017,28 @@ func _make_rounded_viewport_material() -> ShaderMaterial:
 	return material
 
 func _setup_rounded_viewport() -> void:
-	# ViewportFrame is only the border/background shell. The actual image layers
-	# are masked independently so their pixels reach the edge without a square
-	# child rectangle showing through the rounded panel corners.
+	# The global PanelContainer style has 14 px content margins. That is useful
+	# for inspectors/cards, but on the main viewport it creates a visible
+	# passepartout. Give ViewportFrame its own zero-margin shell.
+	var frame_style := StyleBoxFlat.new()
+	frame_style.bg_color = Color("#101820")
+	frame_style.border_color = Color("#1B2A35")
+	frame_style.border_width_left = 1
+	frame_style.border_width_top = 1
+	frame_style.border_width_right = 1
+	frame_style.border_width_bottom = 1
+	frame_style.corner_radius_top_left = 16
+	frame_style.corner_radius_top_right = 16
+	frame_style.corner_radius_bottom_left = 16
+	frame_style.corner_radius_bottom_right = 16
+	frame_style.content_margin_left = 0.0
+	frame_style.content_margin_top = 0.0
+	frame_style.content_margin_right = 0.0
+	frame_style.content_margin_bottom = 0.0
+	%ViewportFrame.add_theme_stylebox_override("panel",frame_style)
+
+	# Mask every full-frame image layer. The shader provides the actual rounded
+	# pixel cutout; the panel style is only the one-pixel border/background.
 	%ViewportContainer.material = _make_rounded_viewport_material()
 	%WorldBackdrop.material = _make_rounded_viewport_material()
 	effects_display.material = _make_rounded_viewport_material()
