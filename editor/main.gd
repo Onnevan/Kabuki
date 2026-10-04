@@ -2853,7 +2853,7 @@ func _render_animation_avi(output_path: String) -> void:
 			reference_canvas.set_guide_visible(false)
 	_set_render_camera_gizmo_visible(false)
 
-	var writer: AviMjpegWriter = AviMjpegWriterClass.new()
+	var writer = AviMjpegWriterClass.new()
 	var writer_err: Error = writer.begin(output_path,rx,ry,int(ProjectStore.fps),0.92)
 	var failed := writer_err != OK
 	var aborted := false
@@ -2888,7 +2888,7 @@ func _render_animation_avi(output_path: String) -> void:
 				failed = true
 				break
 
-	if writer.frame_count() > 0:
+	if writer_err == OK:
 		var finish_err: Error = writer.finish()
 		if finish_err != OK:
 			failed = true
