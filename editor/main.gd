@@ -3561,6 +3561,18 @@ func _tool_slider_parameter_value(which: String, profile: Dictionary) -> float:
 		return _size_from_slider(float(slider.value),float(profile[prefix + "_min"]),float(profile[prefix + "_max"]))
 	return float(slider.value)
 
+func _current_gp_size_px() -> float:
+	# The vertical contextual slider is the control the artist actually sees.
+	# Use it as the source of truth when starting a vector stroke so the first
+	# stroke can never inherit a stale hidden BrushSize value.
+	if drawing_3d_active and %ToolParamSurface.visible:
+		var profile: Dictionary = _tool_param_profile()
+		if not profile.is_empty() and String(profile.get("primary","")) == "SIZE":
+			var visible_size: float = _tool_slider_parameter_value("primary",profile)
+			%BrushSize.set_value_no_signal(visible_size)
+			return visible_size
+	return float(%BrushSize.value)
+
 func _tool_param_icon(kind: String) -> Texture2D:
 	match kind:
 		"SIZE":
@@ -3903,6 +3915,7 @@ func _on_draw_stroke3d_pressed() -> void:
 	_ensure_drawing_content_layer("vector")
 	_apply_drawing_frame(ProjectStore.current_frame)
 	_update_drawing_tool_ui()
+	_sync_tool_param_sliders()
 	active_color_target = "line"
 	status.text = "Grease Pencil · vector canvas active"
 
@@ -4688,7 +4701,8 @@ func _begin_3d_stroke(pos: Vector2) -> void:
 		_refresh_drawing_timeline()
 	active_stroke_3d = Stroke3DClass.new()
 	active_stroke_3d.stroke_color = Color(gp_line_color.r,gp_line_color.g,gp_line_color.b,gp_line_color.a*gp_opacity)
-	active_stroke_3d.radius = _gp_radius_for_screen_size(%BrushSize.value,world_point,active_drawing_group)
+	var gp_size_px: float = _current_gp_size_px()
+	active_stroke_3d.radius = _gp_radius_for_screen_size(gp_size_px,world_point,active_drawing_group)
 	_apply_stroke_brush(active_stroke_3d)
 	active_stroke_3d.fill_enabled = %Fill.button_pressed and gp_projection_mode == "canvas"
 	active_stroke_3d.fill_color = Color(gp_fill_color.r,gp_fill_color.g,gp_fill_color.b,gp_fill_color.a*gp_opacity)
