@@ -2818,6 +2818,7 @@ func _render_animation_avi(output_path: String) -> void:
 	var previous_frame := ProjectStore.current_frame
 	var previous_viewport_size := viewport.size
 	var previous_stretch := canvas.stretch
+	var previous_canvas_visible: bool = canvas.visible
 	var previous_editor_current: bool = camera.current
 	var previous_render_current: bool = render_cam.current
 	var previous_compositor_size := render_compositor.size
@@ -2834,6 +2835,10 @@ func _render_animation_avi(output_path: String) -> void:
 	var sample_scale: int = _render_sampling_scale()
 	var render_rx: int = rx*sample_scale
 	var render_ry: int = ry*sample_scale
+	# Keep the high-resolution SubViewport offscreen. With stretch disabled its
+	# render-size texture would otherwise spill outside ViewportFrame and appear
+	# underneath the rest of the editor UI while the video is being encoded.
+	canvas.visible = false
 	canvas.stretch = false
 	viewport.size = Vector2i(render_rx,render_ry)
 	render_compositor.size = Vector2i(render_rx,render_ry)
@@ -2896,6 +2901,7 @@ func _render_animation_avi(output_path: String) -> void:
 	render_cam.current = previous_render_current
 	camera.current = previous_editor_current
 	canvas.stretch = previous_stretch
+	canvas.visible = previous_canvas_visible
 	viewport.size = previous_viewport_size
 	render_compositor.size = previous_compositor_size
 	render_compositor.render_target_update_mode = previous_compositor_update
