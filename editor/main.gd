@@ -13,6 +13,7 @@ const DrawingControllerClass = preload("res://drawing/drawing_controller.gd")
 const RiggingControllerClass = preload("res://rigging/rigging_controller.gd")
 const RigRuntimeClass = preload("res://rigging/rig_runtime.gd")
 const SceneObjectControllerClass = preload("res://editor/scene_object_controller.gd")
+const AviMjpegWriterClass = preload("res://render/avi_mjpeg_writer.gd")
 const EyeIcon = preload("res://assets/icons/lucide/eye.svg")
 const EyeOffIcon = preload("res://assets/icons/lucide/eye-off.svg")
 const ToolSizeIcon = preload("res://assets/icons/lucide/circle.svg")
@@ -212,8 +213,10 @@ func _ready() -> void:
 	%RedoPaint.pressed.connect(_redo_drawing)
 	%RenderAnimationTop.pressed.connect(_on_render_animation_pressed)
 	%RenderFrameTop.pressed.connect(_on_render_frame_pressed)
+	%RenderVideoTop.pressed.connect(_on_render_video_pressed)
 	%AbortRenderTop.pressed.connect(_on_abort_render_pressed)
 	%RenderFrameDialog.file_selected.connect(_on_render_frame_file_selected)
+	%RenderVideoDialog.file_selected.connect(_on_render_video_file_selected)
 	%ViewX.pressed.connect(func(): _align_view_axis(Vector3.RIGHT, "X"))
 	%ViewY.pressed.connect(func(): _align_view_axis(Vector3.UP, "Y"))
 	%ViewZ.pressed.connect(func(): _align_view_axis(Vector3.BACK, "Z"))
@@ -2689,6 +2692,7 @@ func _render_current_frame_png(output_path: String) -> void:
 	%RenderAnimation.disabled = true
 	%RenderAnimationTop.disabled = true
 	%RenderFrameTop.disabled = true
+	%RenderVideoTop.disabled = true
 	%AbortRenderTop.visible = false
 	%AbortRenderTop.disabled = true
 
@@ -2762,8 +2766,166 @@ func _render_current_frame_png(output_path: String) -> void:
 	%RenderAnimation.disabled = false
 	%RenderAnimationTop.disabled = false
 	%RenderFrameTop.disabled = false
+	%RenderVideoTop.disabled = false
 	render_in_progress = false
 	status.text = "Frame rendered · %s" % output_path.get_file() if err == OK else "Render frame failed"
+
+
+func _on_render_video_pressed() -> void:
+	if render_in_progress:
+		return
+	if render_camera_id.is_empty() or not scene_nodes.has(render_camera_id):
+		status.text = "Render video · create or select a scene camera first"
+		return
+	var base_name := "kabuki"
+	if not current_project_path.is_empty():
+		base_name = current_project_path.get_file().get_basename()
+	%RenderVideoDialog.current_file = base_name + ".avi"
+	%RenderVideoDialog.popup_centered_ratio(0.65)
+
+func _on_render_video_file_selected(path: String) -> void:
+	if render_in_progress:
+		return
+	var output_path := path
+	if not output_path.to_lower().ends_with(".avi"):
+		output_path += ".avi"
+	call_deferred("_render_animation_avi",output_path)
+
+func _render_animation_avi(output_path: String) -> void:
+	if render_in_progress:
+		return
+	if render_camera_id.is_empty() or not scene_nodes.has(render_camera_id):
+		return
+	var render_cam := _scene_camera_node(render_camera_id)
+	if render_cam == null:
+		status.text = "Render video · camera unavailable"
+		return
+	var camera_obj: MotionObject = ProjectStore.objects.get(render_camera_id)
+	if camera_obj == null:
+		return
+
+	render_in_progress = true
+	render_cancel_requested = false
+	playing = false
+	_stop_local_playback()
+	%RenderAnimation.disabled = true
+	%RenderAnimationTop.disabled = true
+	%RenderFrameTop.disabled = true
+	%RenderVideoTop.disabled = true
+	%AbortRenderTop.visible = true
+	%AbortRenderTop.disabled = false
+
+	var previous_frame := ProjectStore.current_frame
+	var previous_viewport_size := viewport.size
+	var previous_stretch := canvas.stretch
+	var previous_editor_current: bool = camera.current
+	var previous_render_current: bool = render_cam.current
+	var previous_compositor_size := render_compositor.size
+	var previous_compositor_update := render_compositor.render_target_update_mode
+	var previous_grid_visible: bool = world_grid.visible
+	var previous_gizmo_visible: bool = gizmo.visible
+	var previous_view_gizmo_visible: bool = bool(%ViewGizmo.visible)
+	var previous_camera_frame_visible: bool = bool(%CameraFrame.visible)
+	var previous_ik_visible: bool = bool(%IKGuide.visible)
+	var previous_gradient_visible: bool = bool(%GradientGuide.visible)
+
+	var rx := maxi(64,int(camera_obj.properties.get("camera.resolution_x",1920)))
+	var ry := maxi(64,int(camera_obj.properties.get("camera.resolution_y",1080)))
+	var sample_scale: int = _render_sampling_scale()
+	var render_rx: int = rx*sample_scale
+	var render_ry: int = ry*sample_scale
+	canvas.stretch = false
+	viewport.size = Vector2i(render_rx,render_ry)
+	render_compositor.size = Vector2i(render_rx,render_ry)
+	_sync_final_postprocess_rect()
+	render_composite.set_source_texture(viewport.get_texture())
+	render_compositor.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	camera.current = false
+	render_cam.current = true
+	world_grid.visible = false
+	gizmo.visible = false
+	%ViewGizmo.visible = false
+	%CameraFrame.visible = false
+	%IKGuide.visible = false
+	%GradientGuide.visible = false
+	for reference_canvas in drawing_planes:
+		if is_instance_valid(reference_canvas):
+			reference_canvas.set_guide_visible(false)
+	_set_render_camera_gizmo_visible(false)
+
+	var writer: AviMjpegWriter = AviMjpegWriterClass.new()
+	var writer_err: Error = writer.begin(output_path,rx,ry,int(ProjectStore.fps),0.92)
+	var failed := writer_err != OK
+	var aborted := false
+	var start_frame := int(ProjectStore.playback_start)
+	var end_frame := int(ProjectStore.playback_end)
+	var total := maxi(1,end_frame-start_frame+1)
+
+	if not failed:
+		for frame in range(start_frame,end_frame+1):
+			if render_cancel_requested:
+				aborted = true
+				break
+			status.text = "Rendering video %d / %d · frame %d · sampling %dx" % [frame-start_frame+1,total,frame,sample_scale]
+			ProjectStore.set_frame(frame)
+			await RenderingServer.frame_post_draw
+			if render_cancel_requested:
+				aborted = true
+				break
+			render_compositor.render_target_update_mode = SubViewport.UPDATE_ONCE
+			await RenderingServer.frame_post_draw
+			if render_cancel_requested:
+				aborted = true
+				break
+			var image := render_compositor.get_texture().get_image()
+			if image == null or image.is_empty():
+				failed = true
+				break
+			if sample_scale > 1:
+				image.resize(rx,ry,Image.INTERPOLATE_LANCZOS)
+			var append_err: Error = writer.append_frame(image)
+			if append_err != OK:
+				failed = true
+				break
+
+	if writer.frame_count() > 0:
+		var finish_err: Error = writer.finish()
+		if finish_err != OK:
+			failed = true
+
+	render_cam.current = previous_render_current
+	camera.current = previous_editor_current
+	canvas.stretch = previous_stretch
+	viewport.size = previous_viewport_size
+	render_compositor.size = previous_compositor_size
+	render_compositor.render_target_update_mode = previous_compositor_update
+	_sync_final_postprocess_rect()
+	effects_display.set_source_texture(viewport.get_texture())
+	render_composite.set_source_texture(viewport.get_texture())
+	ProjectStore.set_frame(previous_frame)
+	world_grid.visible = previous_grid_visible
+	gizmo.visible = previous_gizmo_visible
+	%ViewGizmo.visible = previous_view_gizmo_visible
+	%CameraFrame.visible = previous_camera_frame_visible
+	%IKGuide.visible = previous_ik_visible
+	%GradientGuide.visible = previous_gradient_visible
+	if not camera_view_active:
+		_set_render_camera_gizmo_visible(true)
+	%RenderAnimation.disabled = false
+	%RenderAnimationTop.disabled = false
+	%RenderFrameTop.disabled = false
+	%RenderVideoTop.disabled = false
+	%AbortRenderTop.visible = false
+	%AbortRenderTop.disabled = true
+	render_cancel_requested = false
+	render_in_progress = false
+
+	if aborted:
+		status.text = "Video render aborted · partial AVI saved · %d frames" % writer.frame_count()
+	elif failed:
+		status.text = "Video render failed"
+	else:
+		status.text = "Video rendered · %s · %d frames · %dx%d · %d fps" % [output_path.get_file(),writer.frame_count(),rx,ry,int(ProjectStore.fps)]
 
 
 func _on_render_animation_pressed() -> void:
@@ -2794,6 +2956,7 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	%RenderAnimation.disabled = true
 	%RenderAnimationTop.disabled = true
 	%RenderFrameTop.disabled = true
+	%RenderVideoTop.disabled = true
 	%AbortRenderTop.visible = true
 	%AbortRenderTop.disabled = false
 
@@ -2892,6 +3055,7 @@ func _render_animation_png_sequence(output_dir: String) -> void:
 	%RenderAnimation.disabled = false
 	%RenderAnimationTop.disabled = false
 	%RenderFrameTop.disabled = false
+	%RenderVideoTop.disabled = false
 	%AbortRenderTop.visible = false
 	%AbortRenderTop.disabled = true
 	render_cancel_requested = false
