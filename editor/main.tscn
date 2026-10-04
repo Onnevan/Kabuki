@@ -124,6 +124,10 @@ tooltip_text="Render the global playback range as a PNG sequence"
 unique_name_in_owner=true
 text="RENDER FRAME"
 tooltip_text="Render only the current frame as a PNG"
+[node name="RenderVideoTop" type="Button" parent="TopBar"]
+unique_name_in_owner=true
+text="RENDER VIDEO"
+tooltip_text="Render the global playback range as AVI / MJPEG video"
 [node name="AbortRenderTop" type="Button" parent="TopBar"]
 unique_name_in_owner=true
 visible=false
@@ -1578,6 +1582,14 @@ access=2
 filters=PackedStringArray("*.png ; PNG Images")
 current_file="frame_00000.png"
 title="Render Current Frame"
+
+[node name="RenderVideoDialog" type="FileDialog" parent="."]
+unique_name_in_owner=true
+file_mode=4
+access=2
+filters=PackedStringArray("*.avi ; AVI MJPEG Video")
+current_file="kabuki.avi"
+title="Render Video"
 
 [connection signal="tab_changed" from="TopBar/WorkspaceTabs" to="." method="_on_workspace_tab_changed"]
 [connection signal="toggled" from="TopBar/PreviewMode" to="." method="_on_preview_mode_toggled"]
