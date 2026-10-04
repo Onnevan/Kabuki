@@ -14,6 +14,7 @@ const RiggingControllerClass = preload("res://rigging/rigging_controller.gd")
 const RigRuntimeClass = preload("res://rigging/rig_runtime.gd")
 const SceneObjectControllerClass = preload("res://editor/scene_object_controller.gd")
 const AviMjpegWriterClass = preload("res://render/avi_mjpeg_writer.gd")
+const RoundedViewportShader = preload("res://render/rounded_viewport.gdshader")
 const EyeIcon = preload("res://assets/icons/lucide/eye.svg")
 const EyeOffIcon = preload("res://assets/icons/lucide/eye-off.svg")
 const ToolSizeIcon = preload("res://assets/icons/lucide/circle.svg")
@@ -259,6 +260,7 @@ func _ready() -> void:
 	%SculptMode.select(0)
 	%SculptMode.item_selected.connect(_on_sculpt_mode_selected)
 	_setup_antialiasing_controls()
+	_setup_rounded_viewport()
 	effects_display.set_source_texture(viewport.get_texture())
 	render_composite.set_source_texture(viewport.get_texture())
 	render_compositor.render_target_update_mode = SubViewport.UPDATE_DISABLED
@@ -5008,6 +5010,30 @@ func _position_brush_menu() -> void:
 	%BrushMenuSurface.position = %DrawingContextSurface.position + Vector2(%DrawingContextSurface.size.x+10.0,0.0)
 	%BrushMenuSurface.size = Vector2(126.0,%DrawingContextSurface.size.y)
 
+func _make_rounded_viewport_material() -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = RoundedViewportShader
+	material.set_shader_parameter("corner_radius",16.0)
+	return material
+
+func _setup_rounded_viewport() -> void:
+	# ViewportFrame is only the border/background shell. The actual image layers
+	# are masked independently so their pixels reach the edge without a square
+	# child rectangle showing through the rounded panel corners.
+	%ViewportContainer.material = _make_rounded_viewport_material()
+	%WorldBackdrop.material = _make_rounded_viewport_material()
+	effects_display.material = _make_rounded_viewport_material()
+	_update_rounded_viewport_materials()
+
+func _update_rounded_viewport_materials() -> void:
+	var display_size: Vector2 = %ViewportFrame.size
+	if display_size.x <= 1.0 or display_size.y <= 1.0:
+		return
+	for item in [%ViewportContainer,%WorldBackdrop,effects_display]:
+		if item != null and item.material is ShaderMaterial:
+			(item.material as ShaderMaterial).set_shader_parameter("control_size",display_size)
+			(item.material as ShaderMaterial).set_shader_parameter("corner_radius",16.0)
+
 func _responsive_layout() -> void:
 	var w: float=size.x
 	var h: float=size.y
@@ -5038,6 +5064,7 @@ func _responsive_layout() -> void:
 	%RightPanel.size=Vector2(right_w,content_h)
 	%ViewportFrame.position=Vector2(center_left,content_top)
 	%ViewportFrame.size=Vector2(maxf(360.0,center_right-center_left),content_h)
+	_update_rounded_viewport_materials()
 	%EffectsDisplay.position=%ViewportFrame.position
 	%EffectsDisplay.size=%ViewportFrame.size
 	if not render_in_progress:
