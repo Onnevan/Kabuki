@@ -20,6 +20,10 @@ var _pass_rects: Array[TextureRect] = []
 var _pass_effects: Array[String] = []
 var _pass_kinds: Array[int] = []
 var _pipeline_dirty := true
+var _pipeline_host: Node
+
+func _exit_tree() -> void:
+	_clear_pipeline()
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -124,10 +128,17 @@ func _append_pass(effect_name: String, kind: int) -> void:
 	var pass_viewport := SubViewport.new()
 	pass_viewport.name = "_FX_" + effect_name + "_" + str(_passes.size())
 	pass_viewport.disable_3d = true
+	pass_viewport.handle_input_locally = false
 	pass_viewport.transparent_bg = false
 	pass_viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
 	pass_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	add_child(pass_viewport)
+	# Keep render targets OUTSIDE this TextureRect. Making a viewport whose
+	# texture feeds a CanvasItem a child of that same CanvasItem creates a fragile
+	# dependency/visibility cycle and can leave the pass texture blank.
+	_pipeline_host = get_parent()
+	if _pipeline_host == null:
+		_pipeline_host = get_tree().current_scene
+	_pipeline_host.add_child(pass_viewport)
 
 	var rect := TextureRect.new()
 	rect.name = "_Pass"
@@ -195,6 +206,7 @@ func _refresh_pipeline_sources() -> void:
 	var previous: Texture2D = source_texture
 	for i in range(_pass_rects.size()):
 		_pass_rects[i].texture = previous
+		_passes[i].render_target_update_mode = SubViewport.UPDATE_ALWAYS
 		previous = _passes[i].get_texture()
 	texture = previous
 	queue_redraw()
