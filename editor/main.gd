@@ -2245,11 +2245,9 @@ func _screen_to_plane(pos: Vector2, z_plane: float) -> Vector3:
 
 func _on_frame_changed(frame: int) -> void:
 	frame_label.text = "%03d" % frame
-	var noise_seed_value := float(frame) if %NoiseAnimated.button_pressed else 0.0
-	if effects_display != null and effects_display.effect_material != null:
-		effects_display.effect_material.set_shader_parameter("noise_seed",noise_seed_value)
-	if render_composite != null and render_composite.effect_material != null:
-		render_composite.effect_material.set_shader_parameter("noise_seed",noise_seed_value)
+	# Noise seed now belongs to the compositor stack parameters, not to a single
+	# monolithic effect material. Re-apply the filter dictionary for this frame.
+	_apply_global_filters()
 	frame_slider.set_value_no_signal(frame)
 	timeline.set_frame(frame)
 	for r in runtime_objects: r.apply_frame(frame)
