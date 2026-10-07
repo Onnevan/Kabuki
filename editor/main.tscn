@@ -1293,8 +1293,35 @@ button_pressed=true
 [node name="Sep1" type="HSeparator" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 [node name="LookTitle" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 unique_name_in_owner=true
-text="◇  LOOK / FILTERS"
+text="◇  EFFECT STACK  ·  Scene Output"
 theme_override_font_sizes/font_size=16
+
+[node name="EffectStackHint" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+text="Top is processed first"
+theme_override_colors/font_color=Color(0.48,0.58,0.67,1)
+theme_override_font_sizes/font_size=11
+
+[node name="EffectStack" type="ItemList" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+custom_minimum_size=Vector2(0,190)
+select_mode=0
+allow_reselect=true
+
+[node name="EffectStackButtons" type="HBoxContainer" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+unique_name_in_owner=true
+theme_override_constants/separation=6
+[node name="EffectUp" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/EffectStackButtons"]
+unique_name_in_owner=true
+size_flags_horizontal=3
+text="↑  Move Up"
+[node name="EffectDown" type="Button" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector/EffectStackButtons"]
+unique_name_in_owner=true
+size_flags_horizontal=3
+text="↓  Move Down"
+
+[node name="EffectParamsSep" type="HSeparator" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
+
 [node name="BlurText" type="Label" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
 text="Blur"
 [node name="Blur" type="HSlider" parent="RightPanel/InspectorPanel/InspectorScroll/Inspector"]
