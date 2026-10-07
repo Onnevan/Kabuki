@@ -124,7 +124,8 @@ func _append_pass(effect_name: String, kind: int) -> void:
 	var pass_viewport := SubViewport.new()
 	pass_viewport.name = "_FX_" + effect_name + "_" + str(_passes.size())
 	pass_viewport.disable_3d = true
-	pass_viewport.transparent_bg = true
+	pass_viewport.transparent_bg = false
+	pass_viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
 	pass_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	add_child(pass_viewport)
 
@@ -133,6 +134,7 @@ func _append_pass(effect_name: String, kind: int) -> void:
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	rect.stretch_mode = TextureRect.STRETCH_SCALE
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	var mat := ShaderMaterial.new()
 	mat.shader = EffectPassShader
 	mat.set_shader_parameter("effect_kind",kind)
@@ -184,6 +186,7 @@ func _resize_pipeline() -> void:
 		pass_viewport.size = s
 		rect.position = Vector2.ZERO
 		rect.size = Vector2(s.x,s.y)
+		pass_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 
 func _refresh_pipeline_sources() -> void:
 	if _passes.is_empty():
@@ -194,6 +197,7 @@ func _refresh_pipeline_sources() -> void:
 		_pass_rects[i].texture = previous
 		previous = _passes[i].get_texture()
 	texture = previous
+	queue_redraw()
 
 func _apply_filter_values() -> void:
 	for i in range(_pass_rects.size()):
