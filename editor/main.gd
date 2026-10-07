@@ -5225,21 +5225,26 @@ func _setup_rounded_viewport() -> void:
 	frame_style.content_margin_bottom = 0.0
 	%ViewportFrame.add_theme_stylebox_override("panel",frame_style)
 
-	# Mask every full-frame image layer. The shader provides the actual rounded
-	# pixel cutout; the panel style is only the one-pixel border/background.
+	# Mask the raw viewport/world layers with the lightweight UI shader. The
+	# compositor preview keeps its OWN post-process material; its rounded mask
+	# is integrated into final_postprocess.gdshader so FX remain active.
 	%ViewportContainer.material = _make_rounded_viewport_material()
 	%WorldBackdrop.material = _make_rounded_viewport_material()
-	effects_display.material = _make_rounded_viewport_material()
 	_update_rounded_viewport_materials()
 
 func _update_rounded_viewport_materials() -> void:
 	var display_size: Vector2 = %ViewportFrame.size
 	if display_size.x <= 1.0 or display_size.y <= 1.0:
 		return
-	for item in [%ViewportContainer,%WorldBackdrop,effects_display]:
+	for item in [%ViewportContainer,%WorldBackdrop]:
 		if item != null and item.material is ShaderMaterial:
 			(item.material as ShaderMaterial).set_shader_parameter("control_size",display_size)
 			(item.material as ShaderMaterial).set_shader_parameter("corner_radius",16.0)
+	if effects_display != null and effects_display.has_method("set_viewport_mask"):
+		effects_display.call("set_viewport_mask",true,display_size,16.0)
+	if render_composite != null and render_composite.has_method("set_viewport_mask"):
+		# Never bake editor chrome into exported PNG/video frames.
+		render_composite.call("set_viewport_mask",false,render_compositor.size,0.0)
 
 func _responsive_layout() -> void:
 	var w: float=size.x
