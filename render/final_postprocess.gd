@@ -20,3 +20,15 @@ func set_filters(values: Dictionary) -> void:
 	for key in values:
 		effect_material.set_shader_parameter(StringName(key),values[key])
 	queue_redraw()
+
+func set_viewport_mask(enabled: bool, control_size: Vector2, radius: float = 16.0) -> void:
+	if effect_material == null:
+		return
+	# Re-assert the post-process material in case an older UI setup replaced the
+	# TextureRect material at runtime.
+	if material != effect_material:
+		material = effect_material
+	effect_material.set_shader_parameter("rounded_mask_enabled",1.0 if enabled else 0.0)
+	effect_material.set_shader_parameter("rounded_control_size",control_size)
+	effect_material.set_shader_parameter("rounded_corner_radius",radius)
+	queue_redraw()
