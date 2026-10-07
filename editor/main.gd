@@ -5267,7 +5267,12 @@ func _update_preview_mode() -> void:
 	%PreviewMode.text = "◉  RENDER" if render_preview else "◐  PREVIEW"
 	# PREVIEW bypasses post effects. RENDER shows the postprocessed final
 	# SceneViewport texture, including transparent vector/bitmap drawings.
-	effects_display.visible = render_preview and workspace == "compositor"
+	var compositor_render_view := render_preview and workspace == "compositor"
+	effects_display.visible = compositor_render_view
+	# The rounded compositor output must not reveal the rectangular raw viewport
+	# underneath its transparent corner pixels.
+	%ViewportContainer.visible = not compositor_render_view
+	%WorldBackdrop.visible = (world_mode == "image") and not compositor_render_view
 	%PreviewChip.text = "RENDER" if render_preview else "PREVIEW"
 	for r in runtime_objects:
 		if r.material:
