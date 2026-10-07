@@ -69,6 +69,14 @@ func set_orientation_local(enabled:bool)->void:
 	_sync()
 func axis_vector(a:int)->Vector3:
 	return [Vector3.RIGHT,Vector3.UP,Vector3.BACK][a] if a>=0 and a<3 else Vector3.ZERO
+
+func axis_vector_world(a:int)->Vector3:
+	var axis:=axis_vector(a)
+	if axis==Vector3.ZERO:return axis
+	if orientation_local and target!=null and is_instance_valid(target):
+		return (target.global_basis.orthonormalized()*axis).normalized()
+	return axis
+
 func pick_axis(mouse:Vector2,camera:Camera3D)->int:
 	if target==null:return Axis.NONE
 	var origin:=camera.unproject_position(global_position)
@@ -79,17 +87,22 @@ func pick_axis(mouse:Vector2,camera:Camera3D)->int:
 	if mode==Mode.ROTATE:
 		var radius_world:=.5*scale.x
 		for a in 3:
+			var u:Vector3
+			var v:Vector3
+			if a==0:
+				u=axis_vector_world(Axis.Y);v=axis_vector_world(Axis.Z)
+			elif a==1:
+				u=axis_vector_world(Axis.X);v=axis_vector_world(Axis.Z)
+			else:
+				u=axis_vector_world(Axis.X);v=axis_vector_world(Axis.Y)
 			for j in 48:
 				var ang:=TAU*float(j)/48.0
-				var p:=global_position
-				if a==0:p+=Vector3(0,cos(ang),sin(ang))*radius_world
-				elif a==1:p+=Vector3(cos(ang),0,sin(ang))*radius_world
-				else:p+=Vector3(cos(ang),sin(ang),0)*radius_world
+				var p:=global_position+(u*cos(ang)+v*sin(ang))*radius_world
 				var d:=camera.unproject_position(p).distance_to(mouse)
 				if d<best_d:best_d=d;best=a
 	else:
 		for a in 3:
-			var end:=camera.unproject_position(global_position+axis_vector(a)*.82*scale.x)
+			var end:=camera.unproject_position(global_position+axis_vector_world(a)*.82*scale.x)
 			var d:=_point_segment_distance(mouse,origin,end)
 			if d<best_d:best_d=d;best=a
 	active_axis=best;return best
