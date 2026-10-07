@@ -1304,9 +1304,9 @@ func _clear_selection_pulse() -> void:
 		selection_pulse_root.queue_free()
 	selection_pulse_root = null
 
-func _set_selection_pulse_color(material: StandardMaterial3D, alpha: float) -> void:
-	var color := Color("#55B9F3")
-	color.a = clampf(alpha,0.0,0.65)
+func _set_selection_pulse_color(alpha: float, material: StandardMaterial3D) -> void:
+	var color := Color("#62C8FF")
+	color.a = clampf(alpha,0.0,0.85)
 	material.albedo_color = color
 
 func _pulse_selection(node: Node3D) -> void:
@@ -1354,10 +1354,10 @@ func _pulse_selection(node: Node3D) -> void:
 	selection_pulse_tween = create_tween()
 	selection_pulse_tween.set_trans(Tween.TRANS_SINE)
 	selection_pulse_tween.set_ease(Tween.EASE_IN_OUT)
-	selection_pulse_tween.tween_method(_set_selection_pulse_color.bind(pulse_material),0.0,0.38,0.16)
-	selection_pulse_tween.tween_method(_set_selection_pulse_color.bind(pulse_material),0.38,0.07,0.20)
-	selection_pulse_tween.tween_method(_set_selection_pulse_color.bind(pulse_material),0.07,0.30,0.16)
-	selection_pulse_tween.tween_method(_set_selection_pulse_color.bind(pulse_material),0.30,0.0,0.24)
+	selection_pulse_tween.tween_method(_set_selection_pulse_color.bind(pulse_material),0.0,0.72,0.14)
+	selection_pulse_tween.tween_method(_set_selection_pulse_color.bind(pulse_material),0.72,0.12,0.18)
+	selection_pulse_tween.tween_method(_set_selection_pulse_color.bind(pulse_material),0.12,0.58,0.14)
+	selection_pulse_tween.tween_method(_set_selection_pulse_color.bind(pulse_material),0.58,0.0,0.26)
 	selection_pulse_tween.tween_callback(_clear_selection_pulse)
 
 func _select(obj: RuntimeObject) -> void:
