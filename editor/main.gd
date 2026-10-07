@@ -52,6 +52,7 @@ var orbiting := false
 var active_tool := TransformGizmo.Mode.MOVE
 var gizmo_axis := TransformGizmo.Axis.NONE
 var transform_start := Transform3D.IDENTITY
+var transform_start_global := Transform3D.IDENTITY
 var drag_start_mouse := Vector2.ZERO
 var workspace := "scene"
 var render_preview := false
@@ -328,7 +329,7 @@ func _on_transform_space_selected(index: int) -> void:
 	transform_space = index
 	status.text = "Local transform orientation" if transform_space == 1 else "Global transform orientation"
 	if selected_scene_node != null and is_instance_valid(selected_scene_node):
-		gizmo.attach(selected_scene_node if transform_space == 1 else selected_scene_node)
+		gizmo.attach(selected_scene_node)
 	# TransformGizmo reads this flag when drawing and dragging axes.
 	gizmo.set_orientation_local(transform_space == 1)
 
@@ -1716,7 +1717,10 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 						return
 				gizmo_axis = gizmo.pick_axis(event.position, camera) if selected_scene_node else TransformGizmo.Axis.NONE
 				if gizmo_axis != TransformGizmo.Axis.NONE:
-					dragging = true; transform_start = selected_scene_node.transform; drag_start_mouse = event.position
+					dragging = true
+					transform_start = selected_scene_node.transform
+					transform_start_global = selected_scene_node.global_transform
+					drag_start_mouse = event.position
 					return
 				var hit := _pick(event.position)
 				if hit != null:
@@ -1730,6 +1734,7 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 						_select_scene_node(scene_hit_id, scene_hit)
 						dragging = true
 						transform_start = scene_hit.transform
+						transform_start_global = scene_hit.global_transform
 						drag_start_mouse = event.position
 						return
 					var canvas_hit := _pick_reference_canvas(event.position)
@@ -1874,31 +1879,54 @@ func _apply_drag(relative: Vector2, mouse_pos: Vector2) -> void:
 		var total := mouse_pos - drag_start_mouse
 		if gizmo_axis == TransformGizmo.Axis.ALL:
 			if active_tool == TransformGizmo.Mode.MOVE:
-				target.global_position = _screen_to_view_plane(mouse_pos, transform_start.origin)
+				target.global_position = _screen_to_view_plane(mouse_pos, transform_start_global.origin)
 			elif active_tool == TransformGizmo.Mode.ROTATE:
-				target.transform = transform_start
-				target.rotate(camera.global_transform.basis.z.normalized(), total.x * 0.012)
+				var view_axis: Vector3 = camera.global_transform.basis.z.normalized()
+				var view_rotation := Basis(view_axis,total.x*0.012)
+				target.global_transform = Transform3D(view_rotation*transform_start_global.basis,transform_start_global.origin)
 			elif active_tool == TransformGizmo.Mode.SCALE:
 				target.transform = transform_start
 				target.scale = transform_start.basis.get_scale() * maxf(0.03, 1.0 + (total.x - total.y) * 0.01)
 			_refresh_transform_readout()
 			_sync_selected_scene_transform()
 			return
-		var axis := gizmo.axis_vector(gizmo_axis)
-		var amount := (total.x - total.y) * 0.006 * camera_rig.distance
+
+		var local_axis: Vector3 = gizmo.axis_vector(gizmo_axis)
+		var world_axis: Vector3 = local_axis
+		if transform_space == 1:
+			world_axis = (transform_start_global.basis.orthonormalized()*local_axis).normalized()
+		var amount := (total.x-total.y)*0.006*camera_rig.distance
+
 		if active_tool == TransformGizmo.Mode.MOVE:
-			target.position = transform_start.origin + axis * amount
+			target.global_position = transform_start_global.origin+world_axis*amount
 		elif active_tool == TransformGizmo.Mode.ROTATE:
-			target.transform = transform_start
-			target.rotate(axis, (total.x - total.y) * 0.012)
+			var angle := (total.x-total.y)*0.012
+			var rotation_basis: Basis
+			if transform_space == 1:
+				rotation_basis = transform_start_global.basis*Basis(local_axis,angle)
+			else:
+				rotation_basis = Basis(world_axis,angle)*transform_start_global.basis
+			target.global_transform = Transform3D(rotation_basis,transform_start_global.origin)
 		elif active_tool == TransformGizmo.Mode.SCALE:
-			target.transform = transform_start
-			var sc := target.scale
-			var factor := maxf(0.03, 1.0 + (total.x - total.y) * 0.01)
-			if gizmo_axis == 0: sc.x *= factor
-			elif gizmo_axis == 1: sc.y *= factor
-			else: sc.z *= factor
-			target.scale = sc
+			var factor := maxf(0.03,1.0+(total.x-total.y)*0.01)
+			if transform_space == 1:
+				target.transform = transform_start
+				var sc := transform_start.basis.get_scale()
+				if gizmo_axis == TransformGizmo.Axis.X: sc.x *= factor
+				elif gizmo_axis == TransformGizmo.Axis.Y: sc.y *= factor
+				else: sc.z *= factor
+				target.scale = sc
+			else:
+				var world_scale := Vector3.ONE
+				if gizmo_axis == TransformGizmo.Axis.X: world_scale.x = factor
+				elif gizmo_axis == TransformGizmo.Axis.Y: world_scale.y = factor
+				else: world_scale.z = factor
+				var scale_basis := Basis(
+					Vector3(world_scale.x,0,0),
+					Vector3(0,world_scale.y,0),
+					Vector3(0,0,world_scale.z)
+				)
+				target.global_transform = Transform3D(scale_basis*transform_start_global.basis,transform_start_global.origin)
 		_refresh_transform_readout()
 		_sync_selected_scene_transform()
 
