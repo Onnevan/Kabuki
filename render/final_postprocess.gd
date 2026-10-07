@@ -81,6 +81,8 @@ func set_effect_order(order: Array) -> void:
 	for fallback in ["lens_aberration","blur","glow","color","vignette","monochrome","noise"]:
 		if not cleaned.has(fallback):
 			cleaned.append(fallback)
+	if cleaned == effect_order and not _pipeline_dirty:
+		return
 	effect_order = cleaned
 	_pipeline_dirty = true
 	_rebuild_pipeline()
