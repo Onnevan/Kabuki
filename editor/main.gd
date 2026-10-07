@@ -1330,7 +1330,7 @@ func _pulse_selection(node: Node3D) -> void:
 	pulse_material.no_depth_test = true
 	pulse_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	pulse_material.render_priority = 126
-	_set_selection_pulse_color(pulse_material,0.0)
+	_set_selection_pulse_color(0.0,pulse_material)
 
 	for source in source_meshes:
 		if source == null or not is_instance_valid(source) or source.mesh == null:
