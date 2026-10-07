@@ -4124,6 +4124,22 @@ func _apply_drawing_view_policy() -> void:
 	else:
 		_lock_drawing_view_to_canvas()
 
+func _apply_compositor_view_policy() -> void:
+	if workspace != "compositor":
+		return
+	# Compositor is a clean final-image workspace: scene geometry remains visible
+	# but no editor gizmo/helper is meaningful here.
+	world_grid.visible = false
+	gizmo.visible = false
+	%ViewGizmo.visible = false
+	%CameraFrame.visible = false
+	%IKGuide.visible = false
+	%GradientGuide.visible = false
+	_set_editor_helper_meshes_visible(false)
+	for reference_canvas in drawing_planes:
+		if is_instance_valid(reference_canvas):
+			reference_canvas.set_guide_visible(false)
+
 func _on_workspace_tab_changed(tab: int) -> void:
 	var next_workspace: String = ["scene","animation","drawing","rigging","compositor"][tab]
 	# Workspaces may have different overlays/panel geometry, but changing editor
@@ -4147,6 +4163,8 @@ func _on_workspace_tab_changed(tab: int) -> void:
 		workspace_camera_states[workspace] = camera_rig.get_state()
 	if workspace == "drawing":
 		_apply_drawing_view_policy()
+	elif workspace == "compositor":
+		_apply_compositor_view_policy()
 	else:
 		# Orthographic projection belongs only to the 2D Drawing editor.
 		# Scene/Animation/Rigging must use perspective so camera dolly changes
@@ -4158,7 +4176,7 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	%DrawingToolSurface.visible = workspace == "drawing"
 	%DrawingToolRail.visible = workspace == "drawing"
 	%DrawingPlaneSurface.visible = workspace == "drawing"
-	gizmo.visible = workspace != "drawing" and workspace != "rigging" and workspace != "animation" and selected_scene_node != null
+	gizmo.visible = workspace == "scene" and selected_scene_node != null
 	# Drawing manipulators are editor overlays, never scene content. Scene and
 	# every other workspace expose only their own gizmos/overlays.
 	var drawing_overlay_visible: bool = workspace == "drawing"
@@ -4174,12 +4192,12 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	%RiggingPanel.visible = workspace == "rigging"
 	if workspace == "rigging": _refresh_rig_parent_choices()
 	%DrawingCanvas.visible = workspace == "drawing" and %DrawingCanvas.bitmap_mode
-	%ViewportTop.visible = workspace != "drawing"
+	%ViewportTop.visible = workspace != "drawing" and workspace != "compositor"
 	# The axis/camera view gizmo belongs to spatial scene navigation. Drawing is
 	# canvas-locked 2D, and Animation should focus on posing/timing rather than
 	# exposing scene-view orientation controls.
-	%ViewGizmo.visible = workspace != "drawing" and workspace != "animation"
-	%ToolRail.visible = workspace != "drawing"
+	%ViewGizmo.visible = workspace != "drawing" and workspace != "animation" and workspace != "compositor"
+	%ToolRail.visible = workspace != "drawing" and workspace != "compositor"
 	%Title.text = "OBJECTS" if workspace == "drawing" else ("ANIMATABLES" if workspace == "animation" else "OBJECTS")
 	%Status.text = workspace.to_upper() + " workspace"
 	%EditorTitle.text = workspace.to_upper() + " EDITOR"
@@ -4205,6 +4223,8 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	_apply_drawing_frame(ProjectStore.current_frame)
 	if workspace == "drawing":
 		_apply_drawing_view_policy()
+	elif workspace == "compositor":
+		_apply_compositor_view_policy()
 	if workspace == "drawing" and active_drawing_group != null:
 		_select_scene_node(active_drawing_id, active_drawing_group)
 	if workspace == "compositor":
@@ -5128,14 +5148,16 @@ func _update_preview_mode() -> void:
 				reference_canvas.set_guide_visible(false)
 		_set_render_camera_gizmo_visible(false)
 	else:
-		world_grid.visible = %GridToggle.button_pressed and workspace != "drawing"
-		gizmo.visible = workspace != "drawing" and workspace != "rigging" and workspace != "animation" and selected_scene_node != null
-		%ViewGizmo.visible = workspace != "drawing" and workspace != "animation"
+		world_grid.visible = %GridToggle.button_pressed and workspace != "drawing" and workspace != "compositor"
+		gizmo.visible = workspace == "scene" and selected_scene_node != null
+		%ViewGizmo.visible = workspace != "drawing" and workspace != "animation" and workspace != "compositor"
 		for reference_canvas in drawing_planes:
 			if is_instance_valid(reference_canvas):
 				reference_canvas.set_guide_visible(workspace == "scene")
 		if workspace == "drawing":
 			_apply_drawing_view_policy()
+		elif workspace == "compositor":
+			_apply_compositor_view_policy()
 		elif camera_view_active:
 			_update_camera_frame_overlay()
 			_set_render_camera_gizmo_visible(false)
