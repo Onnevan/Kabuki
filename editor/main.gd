@@ -482,6 +482,10 @@ func _set_object_visible(object_id: String, visible_state: bool) -> void:
 	# while each child keeps its own visibility toggle for later restoration.
 	for affected_id in scene_nodes.keys():
 		_apply_object_visibility(String(affected_id))
+	if workspace == "drawing":
+		# Showing a camera/rig from the Outliner must never resurrect its editor
+		# helper geometry inside the clean Drawing viewport.
+		_apply_drawing_view_policy()
 	ProjectStore.project_changed.emit()
 	_refresh_scene_object_list()
 	_refresh_drawing_planes()
@@ -1998,7 +2002,10 @@ func _set_active_canvas_axis(axis_name: String) -> void:
 	var origin := active_drawing_group.global_position
 	active_drawing_group.global_transform = Transform3D(_canvas_basis_for_axis(axis_name),origin)
 	_sync_canvas_axis_buttons()
-	_lock_drawing_view_to_canvas()
+	if workspace == "drawing":
+		_apply_drawing_view_policy()
+	else:
+		_lock_drawing_view_to_canvas()
 	status.text = "Canvas plane · normal " + axis_name
 
 func _lock_drawing_view_to_canvas() -> void:
@@ -3986,6 +3993,10 @@ func _set_editor_helper_meshes_visible_recursive(node: Node, visible_state: bool
 func _apply_drawing_view_policy() -> void:
 	if workspace != "drawing":
 		return
+	# Camera-view mode is a Scene concern. Drawing always owns its editor view.
+	if camera_view_active:
+		camera_view_active = false
+		%ViewCamera.text = "▣ CAM"
 	# Drawing never shows scene/editor overlays. Renderable scene geometry stays
 	# visible and keeps obeying the Outliner visibility flags.
 	world_grid.visible = false
@@ -4216,6 +4227,7 @@ func _on_draw_eraser_pressed() -> void:
 	drawing_erase_active = true
 	%DrawingCanvas.bitmap_mode = false
 	%DrawingCanvas.visible = false
+	_apply_drawing_view_policy()
 	_update_drawing_tool_ui()
 	status.text = "Stroke eraser · drag across spatial strokes"
 
