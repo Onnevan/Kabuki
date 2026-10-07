@@ -62,6 +62,8 @@ var local_play_direction := 1
 var local_hold_counter := 0
 var render_in_progress := false
 var render_cancel_requested := false
+var selection_pulse_root: Node3D
+var selection_pulse_tween: Tween
 var drag_offset := Vector3.ZERO
 var last_mouse := Vector2.ZERO
 var scene_object_controller: RefCounted = SceneObjectControllerClass.new()
@@ -1274,6 +1276,90 @@ func _on_file_selected(path: String) -> void:
 	status.text = "Imported %s" % obj.name
 	if %ShadingMode.selected == 1: _set_wireframe_overlays(true)
 
+func _selection_pulse_mesh_allowed(mesh_node: MeshInstance3D) -> bool:
+	if mesh_node.mesh == null or not mesh_node.visible:
+		return false
+	var helper_name := String(mesh_node.name)
+	if helper_name == "_ReferenceCanvasGuide":
+		return false
+	if helper_name == "_CameraGizmo" or helper_name.begins_with("_BoneGizmo_") or helper_name.begins_with("_WeightDebug"):
+		return false
+	if helper_name.begins_with("_SelectionPulse"):
+		return false
+	return true
+
+func _collect_selection_pulse_meshes(node: Node, result: Array[MeshInstance3D]) -> void:
+	if node is MeshInstance3D:
+		var mesh_node := node as MeshInstance3D
+		if _selection_pulse_mesh_allowed(mesh_node):
+			result.append(mesh_node)
+	for child in node.get_children():
+		_collect_selection_pulse_meshes(child,result)
+
+func _clear_selection_pulse() -> void:
+	if selection_pulse_tween != null and selection_pulse_tween.is_valid():
+		selection_pulse_tween.kill()
+	selection_pulse_tween = null
+	if selection_pulse_root != null and is_instance_valid(selection_pulse_root):
+		selection_pulse_root.queue_free()
+	selection_pulse_root = null
+
+func _set_selection_pulse_color(material: StandardMaterial3D, alpha: float) -> void:
+	var color := Color("#55B9F3")
+	color.a = clampf(alpha,0.0,0.65)
+	material.albedo_color = color
+
+func _pulse_selection(node: Node3D) -> void:
+	_clear_selection_pulse()
+	if node == null or not is_instance_valid(node):
+		return
+
+	var source_meshes: Array[MeshInstance3D] = []
+	_collect_selection_pulse_meshes(node,source_meshes)
+	if source_meshes.is_empty():
+		return
+
+	var pulse_root := Node3D.new()
+	pulse_root.name = "_SelectionPulse"
+	world_root.add_child(pulse_root)
+	selection_pulse_root = pulse_root
+
+	var pulse_material := StandardMaterial3D.new()
+	pulse_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	pulse_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	pulse_material.no_depth_test = true
+	pulse_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	pulse_material.render_priority = 126
+	_set_selection_pulse_color(pulse_material,0.0)
+
+	for source in source_meshes:
+		if source == null or not is_instance_valid(source) or source.mesh == null:
+			continue
+		var overlay := MeshInstance3D.new()
+		overlay.name = "_SelectionPulseMesh"
+		overlay.mesh = source.mesh
+		overlay.material_override = pulse_material
+		overlay.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		pulse_root.add_child(overlay)
+		overlay.global_transform = source.global_transform
+
+		# Preserve live skinning where possible, so rigged artwork pulses in its
+		# current posed shape rather than snapping to the bind/rest geometry.
+		if source.skin != null:
+			var skeleton_node: Node = source.get_node_or_null(source.skeleton)
+			if skeleton_node != null:
+				overlay.skin = source.skin
+				overlay.skeleton = overlay.get_path_to(skeleton_node)
+
+	selection_pulse_tween = create_tween()
+	selection_pulse_tween.set_trans(Tween.TRANS_SINE)
+	selection_pulse_tween.set_ease(Tween.EASE_IN_OUT)
+	selection_pulse_tween.tween_method(_set_selection_pulse_color.bind(pulse_material),0.0,0.38,0.16)
+	selection_pulse_tween.tween_method(_set_selection_pulse_color.bind(pulse_material),0.38,0.07,0.20)
+	selection_pulse_tween.tween_method(_set_selection_pulse_color.bind(pulse_material),0.07,0.30,0.16)
+	selection_pulse_tween.tween_method(_set_selection_pulse_color.bind(pulse_material),0.30,0.0,0.24)
+	selection_pulse_tween.tween_callback(_clear_selection_pulse)
+
 func _select(obj: RuntimeObject) -> void:
 	selected = obj
 	selected_scene_node = obj
@@ -1292,6 +1378,7 @@ func _select(obj: RuntimeObject) -> void:
 	gizmo.attach(obj)
 	timeline.set_object(obj.model.id)
 	_sync_animation_canvas_editor()
+	_pulse_selection(obj)
 
 func _select_scene_node(id: String, node: Node3D) -> void:
 	if workspace == "rigging" and not pending_parent_child_id.is_empty() and id != pending_parent_child_id:
@@ -1332,6 +1419,7 @@ func _select_scene_node(id: String, node: Node3D) -> void:
 		%LightShadow.button_pressed = light.shadow_enabled
 		%LightType.select(0 if light is DirectionalLight3D else (1 if light is OmniLight3D else 2))
 	_sync_animation_canvas_editor()
+	_pulse_selection(node)
 
 func _selected_is_reference_canvas() -> bool:
 	return not selected_object_id.is_empty() and scene_nodes.has(selected_object_id) and scene_nodes[selected_object_id] is ReferenceCanvas and drawing_data_by_object.has(selected_object_id)
@@ -2728,6 +2816,7 @@ func _on_render_frame_file_selected(path: String) -> void:
 
 func _render_current_frame_png(output_path: String) -> void:
 	if render_in_progress: return
+	_clear_selection_pulse()
 	if render_camera_id.is_empty() or not scene_nodes.has(render_camera_id): return
 	var render_cam := _scene_camera_node(render_camera_id)
 	if render_cam == null:
@@ -2845,6 +2934,7 @@ func _on_render_video_file_selected(path: String) -> void:
 func _render_animation_avi(output_path: String) -> void:
 	if render_in_progress:
 		return
+	_clear_selection_pulse()
 	if render_camera_id.is_empty() or not scene_nodes.has(render_camera_id):
 		return
 	var render_cam := _scene_camera_node(render_camera_id)
@@ -2998,6 +3088,7 @@ func _on_render_output_dir_selected(path: String) -> void:
 
 func _render_animation_png_sequence(output_dir: String) -> void:
 	if render_in_progress: return
+	_clear_selection_pulse()
 	if render_camera_id.is_empty() or not scene_nodes.has(render_camera_id): return
 	var render_cam := _scene_camera_node(render_camera_id)
 	if render_cam == null:
