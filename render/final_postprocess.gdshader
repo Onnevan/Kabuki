@@ -16,6 +16,10 @@ uniform float noise_amount : hint_range(0.0, 1.0) = 0.0;
 uniform float noise_seed = 0.0;
 uniform float noise_colored : hint_range(0.0, 1.0) = 0.0;
 
+uniform float rounded_mask_enabled : hint_range(0.0, 1.0) = 0.0;
+uniform vec2 rounded_control_size = vec2(800.0, 600.0);
+uniform float rounded_corner_radius = 16.0;
+
 float luminance_of(vec3 c) {
 	return dot(c, vec3(0.2126, 0.7152, 0.0722));
 }
@@ -109,5 +113,15 @@ void fragment() {
 		color += grain_rgb(pixel) * noise_amount;
 	}
 
-	COLOR = vec4(max(color, vec3(0.0)), 1.0);
+	float output_alpha = 1.0;
+	if (rounded_mask_enabled > 0.5) {
+		vec2 screen_px = UV * rounded_control_size;
+		vec2 half_size = rounded_control_size * 0.5;
+		vec2 p = abs(screen_px - half_size) - (half_size - vec2(rounded_corner_radius));
+		float corner_distance = length(max(p, vec2(0.0))) + min(max(p.x, p.y), 0.0) - rounded_corner_radius;
+		float aa = max(fwidth(corner_distance), 0.75);
+		output_alpha *= 1.0 - smoothstep(-aa, aa, corner_distance);
+	}
+
+	COLOR = vec4(max(color, vec3(0.0)), output_alpha);
 }
