@@ -57,19 +57,28 @@ void fragment() {
 		b += sample_rgb(uv - d * 3.2307692308) * 0.0702702703;
 		color = b;
 	}
-	// 2: glow/bloom.
+	// 2: glow/bloom. Explicit taps keep this shader compatible with Mobile.
 	else if (effect_kind == 2) {
 		vec2 g = px * max(0.5, glow_radius);
+		vec3 s0 = sample_rgb(uv);
+		vec3 s1 = sample_rgb(uv + vec2( g.x,0.0));
+		vec3 s2 = sample_rgb(uv + vec2(-g.x,0.0));
+		vec3 s3 = sample_rgb(uv + vec2(0.0, g.y));
+		vec3 s4 = sample_rgb(uv + vec2(0.0,-g.y));
+		vec3 s5 = sample_rgb(uv + vec2( g.x, g.y));
+		vec3 s6 = sample_rgb(uv + vec2(-g.x, g.y));
+		vec3 s7 = sample_rgb(uv + vec2( g.x,-g.y));
+		vec3 s8 = sample_rgb(uv + vec2(-g.x,-g.y));
 		vec3 bloom = vec3(0.0);
-		vec2 offsets[9] = vec2[](
-			vec2(0.0,0.0),vec2(1.0,0.0),vec2(-1.0,0.0),vec2(0.0,1.0),vec2(0.0,-1.0),
-			vec2(1.0,1.0),vec2(-1.0,1.0),vec2(1.0,-1.0),vec2(-1.0,-1.0)
-		);
-		for (int i=0;i<9;i++) {
-			vec3 s = sample_rgb(uv + offsets[i]*g);
-			float mask = smoothstep(glow_threshold, glow_threshold+0.08, luminance_of(s));
-			bloom += s * mask;
-		}
+		bloom += s0 * smoothstep(glow_threshold,glow_threshold+0.08,luminance_of(s0));
+		bloom += s1 * smoothstep(glow_threshold,glow_threshold+0.08,luminance_of(s1));
+		bloom += s2 * smoothstep(glow_threshold,glow_threshold+0.08,luminance_of(s2));
+		bloom += s3 * smoothstep(glow_threshold,glow_threshold+0.08,luminance_of(s3));
+		bloom += s4 * smoothstep(glow_threshold,glow_threshold+0.08,luminance_of(s4));
+		bloom += s5 * smoothstep(glow_threshold,glow_threshold+0.08,luminance_of(s5));
+		bloom += s6 * smoothstep(glow_threshold,glow_threshold+0.08,luminance_of(s6));
+		bloom += s7 * smoothstep(glow_threshold,glow_threshold+0.08,luminance_of(s7));
+		bloom += s8 * smoothstep(glow_threshold,glow_threshold+0.08,luminance_of(s8));
 		color += bloom * (glow_strength/9.0);
 	}
 	// 3: color correction.
