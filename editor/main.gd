@@ -132,6 +132,7 @@ var render_camera_id := ""
 var camera_view_active := false
 var editor_view_before_camera: Dictionary = {}
 var transform_space: int = 0 # 0 global, 1 local
+var compositor_effect_order: Array[String] = ["lens_aberration","blur","glow","color","vignette","monochrome","noise"]
 var active_color_target := "line"
 var gp_line_color := Color(0.08,0.08,0.08,1.0)
 var gp_fill_color := Color(0.8,0.25,0.18,0.55)
@@ -263,6 +264,7 @@ func _ready() -> void:
 	%SculptMode.select(0)
 	%SculptMode.item_selected.connect(_on_sculpt_mode_selected)
 	_setup_antialiasing_controls()
+	_setup_effect_stack()
 	_setup_rounded_viewport()
 	effects_display.set_source_texture(viewport.get_texture())
 	render_composite.set_source_texture(viewport.get_texture())
@@ -866,7 +868,8 @@ func _serialize_compositor_state() -> Dictionary:
 		"noise_animated": %NoiseAnimated.button_pressed,
 		"noise_colored": %NoiseColored.button_pressed,
 		"antialiasing": %AntialiasingMode.selected,
-		"render_sampling": %RenderSampling.selected
+		"render_sampling": %RenderSampling.selected,
+		"effect_order": compositor_effect_order.duplicate()
 	}
 
 func _restore_compositor_state(data: Dictionary) -> void:
@@ -887,6 +890,8 @@ func _restore_compositor_state(data: Dictionary) -> void:
 	%NoiseColored.set_pressed_no_signal(bool(data.get("noise_colored",false)))
 	%AntialiasingMode.select(clampi(int(data.get("antialiasing",2)),0,3))
 	%RenderSampling.select(clampi(int(data.get("render_sampling",1)),0,2))
+	var saved_order: Array = data.get("effect_order",compositor_effect_order)
+	_set_effect_order(saved_order)
 	_apply_antialiasing(%AntialiasingMode.selected)
 	_apply_global_filters()
 
@@ -3278,6 +3283,86 @@ func _on_light_type_selected(index: int) -> void:
 	_show_transform(replacement)
 	status.text = "Light type: " + ["Directional", "Point", "Spot"][index]
 
+func _effect_display_name(effect_id: String) -> String:
+	match effect_id:
+		"lens_aberration": return "Lens Aberration"
+		"blur": return "Blur"
+		"glow": return "Glow"
+		"color": return "Color Correction"
+		"vignette": return "Vignette"
+		"monochrome": return "Black & White"
+		"noise": return "Noise / Grain"
+		_: return effect_id
+
+func _setup_effect_stack() -> void:
+	%EffectUp.pressed.connect(func(): _move_selected_effect(-1))
+	%EffectDown.pressed.connect(func(): _move_selected_effect(1))
+	_refresh_effect_stack_ui()
+	_set_effect_order(compositor_effect_order)
+	_set_compositor_controls_visible(workspace == "compositor")
+
+func _refresh_effect_stack_ui(selected_index: int = -1) -> void:
+	%EffectStack.clear()
+	for effect_id in compositor_effect_order:
+		%EffectStack.add_item(_effect_display_name(effect_id))
+		%EffectStack.set_item_metadata(%EffectStack.item_count-1,effect_id)
+	if compositor_effect_order.is_empty():
+		return
+	var index := selected_index
+	if index < 0:
+		index = 0
+	index = clampi(index,0,compositor_effect_order.size()-1)
+	%EffectStack.select(index)
+
+func _set_effect_order(order: Array) -> void:
+	var cleaned: Array[String] = []
+	for value in order:
+		var effect_id := String(value)
+		if ["lens_aberration","blur","glow","color","vignette","monochrome","noise"].has(effect_id) and not cleaned.has(effect_id):
+			cleaned.append(effect_id)
+	for fallback in ["lens_aberration","blur","glow","color","vignette","monochrome","noise"]:
+		if not cleaned.has(fallback):
+			cleaned.append(fallback)
+	compositor_effect_order = cleaned
+	_refresh_effect_stack_ui()
+	if effects_display != null and effects_display.has_method("set_effect_order"):
+		effects_display.call("set_effect_order",compositor_effect_order)
+	if render_composite != null and render_composite.has_method("set_effect_order"):
+		render_composite.call("set_effect_order",compositor_effect_order)
+
+func _move_selected_effect(direction: int) -> void:
+	var selected_items: PackedInt32Array = %EffectStack.get_selected_items()
+	if selected_items.is_empty():
+		return
+	var from_index := int(selected_items[0])
+	var to_index := clampi(from_index+direction,0,compositor_effect_order.size()-1)
+	if from_index == to_index:
+		return
+	var moved: String = compositor_effect_order[from_index]
+	compositor_effect_order.remove_at(from_index)
+	compositor_effect_order.insert(to_index,moved)
+	_refresh_effect_stack_ui(to_index)
+	if effects_display.has_method("set_effect_order"):
+		effects_display.call("set_effect_order",compositor_effect_order)
+	if render_composite.has_method("set_effect_order"):
+		render_composite.call("set_effect_order",compositor_effect_order)
+	_apply_global_filters()
+	ProjectStore.project_changed.emit()
+	status.text = "Effect order · " + _effect_display_name(moved)
+
+func _set_compositor_controls_visible(visible_state: bool) -> void:
+	var controls: Array[Control] = [
+		%Sep1,%LookTitle,%EffectStackHint,%EffectStack,%EffectStackButtons,%EffectParamsSep,
+		%BlurText,%Blur,%GlowText,%Glow,%GlowThresholdText,%GlowThreshold,%GlowRadiusText,%GlowRadius,
+		%ExposureText,%Exposure,%SaturationText,%Saturation,%ContrastText,%Contrast,
+		%TemperatureText,%Temperature,%TintText,%Tint,%VignetteText,%Vignette,
+		%ChromaticAberrationText,%ChromaticAberration,%Monochrome,%NoiseText,%Noise,%NoiseAnimated,%NoiseColored,
+		%AASep,%AALabel,%AntialiasingMode,%RenderSamplingLabel,%RenderSampling,%ResetFilters
+	]
+	for control in controls:
+		if control != null:
+			control.visible = visible_state
+
 func _setup_antialiasing_controls() -> void:
 	%AntialiasingMode.clear()
 	for label in ["Off","MSAA 2x","MSAA 4x","MSAA 8x"]:
@@ -3338,6 +3423,10 @@ func _apply_global_filters() -> void:
 		"noise_seed": float(ProjectStore.current_frame) if %NoiseAnimated.button_pressed else 0.0,
 		"noise_colored": 1.0 if %NoiseColored.button_pressed else 0.0
 	}
+	if effects_display.has_method("set_effect_order"):
+		effects_display.call("set_effect_order",compositor_effect_order)
+	if render_composite.has_method("set_effect_order"):
+		render_composite.call("set_effect_order",compositor_effect_order)
 	effects_display.set_filters(values)
 	render_composite.set_filters(values)
 
@@ -4172,6 +4261,7 @@ func _on_workspace_tab_changed(tab: int) -> void:
 		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 		_set_editor_helper_meshes_visible(true)
 	%RightPanel.visible = workspace == "scene" or workspace == "drawing" or workspace == "rigging" or workspace == "compositor"
+	_set_compositor_controls_visible(workspace == "compositor")
 	_sync_animation_canvas_editor()
 	%DrawingToolSurface.visible = workspace == "drawing"
 	%DrawingToolRail.visible = workspace == "drawing"
