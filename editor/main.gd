@@ -473,6 +473,10 @@ func _apply_object_visibility(object_id: String) -> void:
 		_apply_drawing_frame(ProjectStore.current_frame)
 	else:
 		_set_visual_visibility_recursive(node,true)
+		# Restoring an object's render visibility must not restore editor-only
+		# helper meshes while Drawing owns the viewport.
+		if workspace == "drawing":
+			_set_editor_helper_meshes_visible_recursive(node,false)
 
 func _set_object_visible(object_id: String, visible_state: bool) -> void:
 	if not ProjectStore.objects.has(object_id): return
@@ -1303,8 +1307,10 @@ func _select_scene_node(id: String, node: Node3D) -> void:
 	_show_transform(node)
 	gizmo.attach(node)
 	# Drawing is a canvas-locked 2D editor: keep the canvas selected internally
-	# but never show its 3D transform manipulator over the artwork.
+	# but never show its 3D transform manipulator or object helper overlays.
 	gizmo.visible = workspace != "drawing" and workspace != "rigging" and workspace != "animation"
+	if workspace == "drawing":
+		_set_editor_helper_meshes_visible_recursive(node,false)
 	timeline.set_object(id)
 	%ObjectProperties.visible = node is MeshInstance3D
 	%LightProperties.visible = node is Light3D
@@ -4106,6 +4112,8 @@ func _on_workspace_tab_changed(tab: int) -> void:
 			reference_canvas.set_guide_visible(workspace == "scene")
 	_refresh_scene_object_list()
 	_apply_drawing_frame(ProjectStore.current_frame)
+	if workspace == "drawing":
+		_apply_drawing_view_policy()
 	if workspace == "drawing" and active_drawing_group != null:
 		_select_scene_node(active_drawing_id, active_drawing_group)
 	if workspace == "compositor":
