@@ -3297,6 +3297,7 @@ func _effect_display_name(effect_id: String) -> String:
 func _setup_effect_stack() -> void:
 	%EffectUp.pressed.connect(func(): _move_selected_effect(-1))
 	%EffectDown.pressed.connect(func(): _move_selected_effect(1))
+	%EffectStack.item_selected.connect(_on_effect_stack_selected)
 	_refresh_effect_stack_ui()
 	_set_effect_order(compositor_effect_order)
 	_set_compositor_controls_visible(workspace == "compositor")
@@ -3313,6 +3314,48 @@ func _refresh_effect_stack_ui(selected_index: int = -1) -> void:
 		index = 0
 	index = clampi(index,0,compositor_effect_order.size()-1)
 	%EffectStack.select(index)
+	if workspace == "compositor":
+		_show_effect_parameters(compositor_effect_order[index])
+
+func _effect_parameter_controls(effect_id: String) -> Array[Control]:
+	match effect_id:
+		"blur":
+			return [%BlurText,%Blur]
+		"glow":
+			return [%GlowText,%Glow,%GlowThresholdText,%GlowThreshold,%GlowRadiusText,%GlowRadius]
+		"color":
+			return [%ExposureText,%Exposure,%SaturationText,%Saturation,%ContrastText,%Contrast,%TemperatureText,%Temperature,%TintText,%Tint]
+		"vignette":
+			return [%VignetteText,%Vignette]
+		"lens_aberration":
+			return [%ChromaticAberrationText,%ChromaticAberration]
+		"monochrome":
+			return [%Monochrome]
+		"noise":
+			return [%NoiseText,%Noise,%NoiseAnimated,%NoiseColored]
+		_:
+			return []
+
+func _all_effect_parameter_controls() -> Array[Control]:
+	return [
+		%BlurText,%Blur,%GlowText,%Glow,%GlowThresholdText,%GlowThreshold,%GlowRadiusText,%GlowRadius,
+		%ExposureText,%Exposure,%SaturationText,%Saturation,%ContrastText,%Contrast,
+		%TemperatureText,%Temperature,%TintText,%Tint,%VignetteText,%Vignette,
+		%ChromaticAberrationText,%ChromaticAberration,%Monochrome,%NoiseText,%Noise,%NoiseAnimated,%NoiseColored
+	]
+
+func _show_effect_parameters(effect_id: String) -> void:
+	for control in _all_effect_parameter_controls():
+		control.visible = false
+	if workspace != "compositor":
+		return
+	for control in _effect_parameter_controls(effect_id):
+		control.visible = true
+
+func _on_effect_stack_selected(index: int) -> void:
+	if index < 0 or index >= compositor_effect_order.size():
+		return
+	_show_effect_parameters(compositor_effect_order[index])
 
 func _set_effect_order(order: Array) -> void:
 	var cleaned: Array[String] = []
@@ -3351,17 +3394,20 @@ func _move_selected_effect(direction: int) -> void:
 	status.text = "Effect order · " + _effect_display_name(moved)
 
 func _set_compositor_controls_visible(visible_state: bool) -> void:
-	var controls: Array[Control] = [
+	var structural_controls: Array[Control] = [
 		%Sep1,%LookTitle,%EffectStackHint,%EffectStack,%EffectStackButtons,%EffectParamsSep,
-		%BlurText,%Blur,%GlowText,%Glow,%GlowThresholdText,%GlowThreshold,%GlowRadiusText,%GlowRadius,
-		%ExposureText,%Exposure,%SaturationText,%Saturation,%ContrastText,%Contrast,
-		%TemperatureText,%Temperature,%TintText,%Tint,%VignetteText,%Vignette,
-		%ChromaticAberrationText,%ChromaticAberration,%Monochrome,%NoiseText,%Noise,%NoiseAnimated,%NoiseColored,
 		%AASep,%AALabel,%AntialiasingMode,%RenderSamplingLabel,%RenderSampling,%ResetFilters
 	]
-	for control in controls:
+	for control in structural_controls:
 		if control != null:
 			control.visible = visible_state
+	for control in _all_effect_parameter_controls():
+		control.visible = false
+	if visible_state and not compositor_effect_order.is_empty():
+		var selected_items: PackedInt32Array = %EffectStack.get_selected_items()
+		var selected_index := int(selected_items[0]) if not selected_items.is_empty() else 0
+		selected_index = clampi(selected_index,0,compositor_effect_order.size()-1)
+		_show_effect_parameters(compositor_effect_order[selected_index])
 
 func _setup_antialiasing_controls() -> void:
 	%AntialiasingMode.clear()
