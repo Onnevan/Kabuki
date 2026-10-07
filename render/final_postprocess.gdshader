@@ -53,17 +53,41 @@ void fragment() {
 	vec3 color = center;
 
 	if (blur > 0.001) {
-		vec2 d = px * blur;
-		vec3 b = center * 0.24;
-		b += texture(TEXTURE, clamp(uv + vec2( d.x, 0.0), vec2(0.0), vec2(1.0))).rgb * 0.12;
-		b += texture(TEXTURE, clamp(uv + vec2(-d.x, 0.0), vec2(0.0), vec2(1.0))).rgb * 0.12;
-		b += texture(TEXTURE, clamp(uv + vec2(0.0,  d.y), vec2(0.0), vec2(1.0))).rgb * 0.12;
-		b += texture(TEXTURE, clamp(uv + vec2(0.0, -d.y), vec2(0.0), vec2(1.0))).rgb * 0.12;
-		b += texture(TEXTURE, clamp(uv + vec2( d.x,  d.y), vec2(0.0), vec2(1.0))).rgb * 0.07;
-		b += texture(TEXTURE, clamp(uv + vec2(-d.x,  d.y), vec2(0.0), vec2(1.0))).rgb * 0.07;
-		b += texture(TEXTURE, clamp(uv + vec2( d.x, -d.y), vec2(0.0), vec2(1.0))).rgb * 0.07;
-		b += texture(TEXTURE, clamp(uv + vec2(-d.x, -d.y), vec2(0.0), vec2(1.0))).rgb * 0.07;
-		color = mix(center, b, clamp(blur / 8.0, 0.0, 1.0));
+		// 5x5 separable Gaussian kernel using Pascal weights [1 4 6 4 1].
+		// The previous sparse 3x3 taps produced visibly square/diamond-shaped
+		// bokeh around high-contrast strokes. This is a true Gaussian kernel.
+		vec2 d = px * max(0.25, blur * 0.5);
+		vec3 b = vec3(0.0);
+		b += texture(TEXTURE, clamp(uv + vec2(-2.0*d.x,-2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 1.0;
+		b += texture(TEXTURE, clamp(uv + vec2(-1.0*d.x,-2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 4.0;
+		b += texture(TEXTURE, clamp(uv + vec2( 0.0,     -2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 6.0;
+		b += texture(TEXTURE, clamp(uv + vec2( 1.0*d.x,-2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 4.0;
+		b += texture(TEXTURE, clamp(uv + vec2( 2.0*d.x,-2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 1.0;
+
+		b += texture(TEXTURE, clamp(uv + vec2(-2.0*d.x,-1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 4.0;
+		b += texture(TEXTURE, clamp(uv + vec2(-1.0*d.x,-1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 16.0;
+		b += texture(TEXTURE, clamp(uv + vec2( 0.0,     -1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 24.0;
+		b += texture(TEXTURE, clamp(uv + vec2( 1.0*d.x,-1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 16.0;
+		b += texture(TEXTURE, clamp(uv + vec2( 2.0*d.x,-1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 4.0;
+
+		b += texture(TEXTURE, clamp(uv + vec2(-2.0*d.x,0.0), vec2(0.0), vec2(1.0))).rgb * 6.0;
+		b += texture(TEXTURE, clamp(uv + vec2(-1.0*d.x,0.0), vec2(0.0), vec2(1.0))).rgb * 24.0;
+		b += center * 36.0;
+		b += texture(TEXTURE, clamp(uv + vec2( 1.0*d.x,0.0), vec2(0.0), vec2(1.0))).rgb * 24.0;
+		b += texture(TEXTURE, clamp(uv + vec2( 2.0*d.x,0.0), vec2(0.0), vec2(1.0))).rgb * 6.0;
+
+		b += texture(TEXTURE, clamp(uv + vec2(-2.0*d.x, 1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 4.0;
+		b += texture(TEXTURE, clamp(uv + vec2(-1.0*d.x, 1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 16.0;
+		b += texture(TEXTURE, clamp(uv + vec2( 0.0,       1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 24.0;
+		b += texture(TEXTURE, clamp(uv + vec2( 1.0*d.x, 1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 16.0;
+		b += texture(TEXTURE, clamp(uv + vec2( 2.0*d.x, 1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 4.0;
+
+		b += texture(TEXTURE, clamp(uv + vec2(-2.0*d.x, 2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 1.0;
+		b += texture(TEXTURE, clamp(uv + vec2(-1.0*d.x, 2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 4.0;
+		b += texture(TEXTURE, clamp(uv + vec2( 0.0,       2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 6.0;
+		b += texture(TEXTURE, clamp(uv + vec2( 1.0*d.x, 2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 4.0;
+		b += texture(TEXTURE, clamp(uv + vec2( 2.0*d.x, 2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 1.0;
+		color = b / 256.0;
 	}
 
 	if (chromatic_aberration > 0.001) {
