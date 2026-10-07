@@ -3346,11 +3346,13 @@ func _all_effect_parameter_controls() -> Array[Control]:
 
 func _show_effect_parameters(effect_id: String) -> void:
 	for control in _all_effect_parameter_controls():
-		control.visible = false
+		if control != null:
+			control.visible = false
 	if workspace != "compositor":
 		return
 	for control in _effect_parameter_controls(effect_id):
-		control.visible = true
+		if control != null:
+			control.visible = true
 
 func _on_effect_stack_selected(index: int) -> void:
 	if index < 0 or index >= compositor_effect_order.size():
