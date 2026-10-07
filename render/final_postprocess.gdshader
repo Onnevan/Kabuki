@@ -46,10 +46,22 @@ vec3 bright_part(vec3 c) {
 	return c * mask;
 }
 
+vec3 sample_compositor_source(vec2 uv) {
+	vec2 safe_uv = clamp(uv, vec2(0.0), vec2(1.0));
+	vec3 sampled = texture(TEXTURE, safe_uv).rgb;
+	if (chromatic_aberration > 0.001) {
+		vec2 radial = safe_uv - vec2(0.5);
+		vec2 shift = radial * chromatic_aberration * 0.02;
+		sampled.r = texture(TEXTURE, clamp(safe_uv + shift, vec2(0.0), vec2(1.0))).r;
+		sampled.b = texture(TEXTURE, clamp(safe_uv - shift, vec2(0.0), vec2(1.0))).b;
+	}
+	return sampled;
+}
+
 void fragment() {
 	vec2 uv = clamp(UV, vec2(0.0), vec2(1.0));
 	vec2 px = TEXTURE_PIXEL_SIZE;
-	vec3 center = texture(TEXTURE, uv).rgb;
+	vec3 center = sample_compositor_source(uv);
 	vec3 color = center;
 
 	if (blur > 0.001) {
@@ -58,43 +70,36 @@ void fragment() {
 		// bokeh around high-contrast strokes. This is a true Gaussian kernel.
 		vec2 d = px * max(0.25, blur * 0.5);
 		vec3 b = vec3(0.0);
-		b += texture(TEXTURE, clamp(uv + vec2(-2.0*d.x,-2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 1.0;
-		b += texture(TEXTURE, clamp(uv + vec2(-1.0*d.x,-2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 4.0;
-		b += texture(TEXTURE, clamp(uv + vec2( 0.0,     -2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 6.0;
-		b += texture(TEXTURE, clamp(uv + vec2( 1.0*d.x,-2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 4.0;
-		b += texture(TEXTURE, clamp(uv + vec2( 2.0*d.x,-2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 1.0;
+		b += sample_compositor_source(clamp(uv + vec2(-2.0*d.x,-2.0*d.y), vec2(0.0), vec2(1.0))) * 1.0;
+		b += sample_compositor_source(clamp(uv + vec2(-1.0*d.x,-2.0*d.y), vec2(0.0), vec2(1.0))) * 4.0;
+		b += sample_compositor_source(clamp(uv + vec2( 0.0,     -2.0*d.y), vec2(0.0), vec2(1.0))) * 6.0;
+		b += sample_compositor_source(clamp(uv + vec2( 1.0*d.x,-2.0*d.y), vec2(0.0), vec2(1.0))) * 4.0;
+		b += sample_compositor_source(clamp(uv + vec2( 2.0*d.x,-2.0*d.y), vec2(0.0), vec2(1.0))) * 1.0;
 
-		b += texture(TEXTURE, clamp(uv + vec2(-2.0*d.x,-1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 4.0;
-		b += texture(TEXTURE, clamp(uv + vec2(-1.0*d.x,-1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 16.0;
-		b += texture(TEXTURE, clamp(uv + vec2( 0.0,     -1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 24.0;
-		b += texture(TEXTURE, clamp(uv + vec2( 1.0*d.x,-1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 16.0;
-		b += texture(TEXTURE, clamp(uv + vec2( 2.0*d.x,-1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 4.0;
+		b += sample_compositor_source(clamp(uv + vec2(-2.0*d.x,-1.0*d.y), vec2(0.0), vec2(1.0))) * 4.0;
+		b += sample_compositor_source(clamp(uv + vec2(-1.0*d.x,-1.0*d.y), vec2(0.0), vec2(1.0))) * 16.0;
+		b += sample_compositor_source(clamp(uv + vec2( 0.0,     -1.0*d.y), vec2(0.0), vec2(1.0))) * 24.0;
+		b += sample_compositor_source(clamp(uv + vec2( 1.0*d.x,-1.0*d.y), vec2(0.0), vec2(1.0))) * 16.0;
+		b += sample_compositor_source(clamp(uv + vec2( 2.0*d.x,-1.0*d.y), vec2(0.0), vec2(1.0))) * 4.0;
 
-		b += texture(TEXTURE, clamp(uv + vec2(-2.0*d.x,0.0), vec2(0.0), vec2(1.0))).rgb * 6.0;
-		b += texture(TEXTURE, clamp(uv + vec2(-1.0*d.x,0.0), vec2(0.0), vec2(1.0))).rgb * 24.0;
+		b += sample_compositor_source(clamp(uv + vec2(-2.0*d.x,0.0), vec2(0.0), vec2(1.0))) * 6.0;
+		b += sample_compositor_source(clamp(uv + vec2(-1.0*d.x,0.0), vec2(0.0), vec2(1.0))) * 24.0;
 		b += center * 36.0;
-		b += texture(TEXTURE, clamp(uv + vec2( 1.0*d.x,0.0), vec2(0.0), vec2(1.0))).rgb * 24.0;
-		b += texture(TEXTURE, clamp(uv + vec2( 2.0*d.x,0.0), vec2(0.0), vec2(1.0))).rgb * 6.0;
+		b += sample_compositor_source(clamp(uv + vec2( 1.0*d.x,0.0), vec2(0.0), vec2(1.0))) * 24.0;
+		b += sample_compositor_source(clamp(uv + vec2( 2.0*d.x,0.0), vec2(0.0), vec2(1.0))) * 6.0;
 
-		b += texture(TEXTURE, clamp(uv + vec2(-2.0*d.x, 1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 4.0;
-		b += texture(TEXTURE, clamp(uv + vec2(-1.0*d.x, 1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 16.0;
-		b += texture(TEXTURE, clamp(uv + vec2( 0.0,       1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 24.0;
-		b += texture(TEXTURE, clamp(uv + vec2( 1.0*d.x, 1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 16.0;
-		b += texture(TEXTURE, clamp(uv + vec2( 2.0*d.x, 1.0*d.y), vec2(0.0), vec2(1.0))).rgb * 4.0;
+		b += sample_compositor_source(clamp(uv + vec2(-2.0*d.x, 1.0*d.y), vec2(0.0), vec2(1.0))) * 4.0;
+		b += sample_compositor_source(clamp(uv + vec2(-1.0*d.x, 1.0*d.y), vec2(0.0), vec2(1.0))) * 16.0;
+		b += sample_compositor_source(clamp(uv + vec2( 0.0,       1.0*d.y), vec2(0.0), vec2(1.0))) * 24.0;
+		b += sample_compositor_source(clamp(uv + vec2( 1.0*d.x, 1.0*d.y), vec2(0.0), vec2(1.0))) * 16.0;
+		b += sample_compositor_source(clamp(uv + vec2( 2.0*d.x, 1.0*d.y), vec2(0.0), vec2(1.0))) * 4.0;
 
-		b += texture(TEXTURE, clamp(uv + vec2(-2.0*d.x, 2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 1.0;
-		b += texture(TEXTURE, clamp(uv + vec2(-1.0*d.x, 2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 4.0;
-		b += texture(TEXTURE, clamp(uv + vec2( 0.0,       2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 6.0;
-		b += texture(TEXTURE, clamp(uv + vec2( 1.0*d.x, 2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 4.0;
-		b += texture(TEXTURE, clamp(uv + vec2( 2.0*d.x, 2.0*d.y), vec2(0.0), vec2(1.0))).rgb * 1.0;
+		b += sample_compositor_source(clamp(uv + vec2(-2.0*d.x, 2.0*d.y), vec2(0.0), vec2(1.0))) * 1.0;
+		b += sample_compositor_source(clamp(uv + vec2(-1.0*d.x, 2.0*d.y), vec2(0.0), vec2(1.0))) * 4.0;
+		b += sample_compositor_source(clamp(uv + vec2( 0.0,       2.0*d.y), vec2(0.0), vec2(1.0))) * 6.0;
+		b += sample_compositor_source(clamp(uv + vec2( 1.0*d.x, 2.0*d.y), vec2(0.0), vec2(1.0))) * 4.0;
+		b += sample_compositor_source(clamp(uv + vec2( 2.0*d.x, 2.0*d.y), vec2(0.0), vec2(1.0))) * 1.0;
 		color = b / 256.0;
-	}
-
-	if (chromatic_aberration > 0.001) {
-		vec2 radial = uv - vec2(0.5);
-		vec2 shift = radial * chromatic_aberration * 0.02;
-		color.r = texture(TEXTURE, clamp(uv + shift, vec2(0.0), vec2(1.0))).r;
-		color.b = texture(TEXTURE, clamp(uv - shift, vec2(0.0), vec2(1.0))).b;
 	}
 
 	color *= exp2(exposure);
@@ -115,14 +120,14 @@ void fragment() {
 	if (glow_strength > 0.001) {
 		vec2 g = px * glow_radius;
 		vec3 bloom = bright_part(center);
-		bloom += bright_part(texture(TEXTURE, clamp(uv + vec2( g.x, 0.0), vec2(0.0), vec2(1.0))).rgb);
-		bloom += bright_part(texture(TEXTURE, clamp(uv + vec2(-g.x, 0.0), vec2(0.0), vec2(1.0))).rgb);
-		bloom += bright_part(texture(TEXTURE, clamp(uv + vec2(0.0,  g.y), vec2(0.0), vec2(1.0))).rgb);
-		bloom += bright_part(texture(TEXTURE, clamp(uv + vec2(0.0, -g.y), vec2(0.0), vec2(1.0))).rgb);
-		bloom += bright_part(texture(TEXTURE, clamp(uv + vec2( g.x,  g.y), vec2(0.0), vec2(1.0))).rgb);
-		bloom += bright_part(texture(TEXTURE, clamp(uv + vec2(-g.x,  g.y), vec2(0.0), vec2(1.0))).rgb);
-		bloom += bright_part(texture(TEXTURE, clamp(uv + vec2( g.x, -g.y), vec2(0.0), vec2(1.0))).rgb);
-		bloom += bright_part(texture(TEXTURE, clamp(uv + vec2(-g.x, -g.y), vec2(0.0), vec2(1.0))).rgb);
+		bloom += bright_part(sample_compositor_source(clamp(uv + vec2( g.x, 0.0), vec2(0.0), vec2(1.0))));
+		bloom += bright_part(sample_compositor_source(clamp(uv + vec2(-g.x, 0.0), vec2(0.0), vec2(1.0))));
+		bloom += bright_part(sample_compositor_source(clamp(uv + vec2(0.0,  g.y), vec2(0.0), vec2(1.0))));
+		bloom += bright_part(sample_compositor_source(clamp(uv + vec2(0.0, -g.y), vec2(0.0), vec2(1.0))));
+		bloom += bright_part(sample_compositor_source(clamp(uv + vec2( g.x,  g.y), vec2(0.0), vec2(1.0))));
+		bloom += bright_part(sample_compositor_source(clamp(uv + vec2(-g.x,  g.y), vec2(0.0), vec2(1.0))));
+		bloom += bright_part(sample_compositor_source(clamp(uv + vec2( g.x, -g.y), vec2(0.0), vec2(1.0))));
+		bloom += bright_part(sample_compositor_source(clamp(uv + vec2(-g.x, -g.y), vec2(0.0), vec2(1.0))));
 		color += bloom * (glow_strength / 9.0);
 	}
 
