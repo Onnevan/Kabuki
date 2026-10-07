@@ -223,9 +223,9 @@ func _ready() -> void:
 	%ViewY.pressed.connect(func(): _align_view_axis(Vector3.UP, "Y"))
 	%ViewZ.pressed.connect(func(): _align_view_axis(Vector3.BACK, "Z"))
 	%ViewCamera.pressed.connect(_toggle_render_camera_view)
-	%CanvasAxisX.pressed.connect(func(): _set_active_canvas_axis("X"))
-	%CanvasAxisY.pressed.connect(func(): _set_active_canvas_axis("Y"))
-	%CanvasAxisZ.pressed.connect(func(): _set_active_canvas_axis("Z"))
+	%CanvasAxisZ.pressed.connect(func(): _set_active_canvas_view("Front"))
+	%CanvasAxisX.pressed.connect(func(): _set_active_canvas_view("Left"))
+	%CanvasAxisY.pressed.connect(func(): _set_active_canvas_view("Top"))
 	%CameraFov.value_changed.connect(_on_camera_fov_changed)
 	%CameraResX.value_changed.connect(_on_camera_resolution_changed)
 	%CameraResY.value_changed.connect(_on_camera_resolution_changed)
@@ -1996,6 +1996,14 @@ func _sync_canvas_axis_buttons() -> void:
 	%CanvasAxisX.set_pressed_no_signal(axis_name == "X")
 	%CanvasAxisY.set_pressed_no_signal(axis_name == "Y")
 	%CanvasAxisZ.set_pressed_no_signal(axis_name == "Z")
+
+func _set_active_canvas_view(view_name: String) -> void:
+	match view_name:
+		"Front": _set_active_canvas_axis("Z")
+		"Left": _set_active_canvas_axis("X")
+		"Top": _set_active_canvas_axis("Y")
+		_: return
+	status.text = "Canvas · " + view_name
 
 func _set_active_canvas_axis(axis_name: String) -> void:
 	if active_drawing_group == null or not is_instance_valid(active_drawing_group): return
