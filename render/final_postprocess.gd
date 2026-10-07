@@ -1,8 +1,6 @@
 class_name FinalPostProcess
 extends TextureRect
 
-const EffectPassShader = preload("res://render/effect_pass.gdshader")
-
 var effect_material: ShaderMaterial
 var source_texture: Texture2D
 var filter_values: Dictionary = {}
@@ -15,65 +13,26 @@ var effect_order: Array[String] = [
 	"monochrome",
 	"noise"
 ]
-var _passes: Array[SubViewport] = []
-var _pass_rects: Array[TextureRect] = []
-var _pass_effects: Array[String] = []
-var _pass_kinds: Array[int] = []
-var _pipeline_dirty := true
-var _pipeline_host: Node
-
-func _exit_tree() -> void:
-	_clear_pipeline()
+var rounded_mask_enabled := false
+var rounded_control_size := Vector2(800.0,600.0)
+var rounded_corner_radius := 16.0
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	stretch_mode = TextureRect.STRETCH_SCALE
 	effect_material = ShaderMaterial.new()
-	effect_material.shader = load("res://render/final_postprocess.gdshader")
-	# The display shader is now only the final presentation/mask stage. Actual
-	# effects are processed as independent passes in the ordered stack.
-	_neutralize_display_material()
 	material = effect_material
-	call_deferred("_rebuild_pipeline")
-
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_RESIZED and is_inside_tree():
-		_resize_pipeline()
-
-func _neutralize_display_material() -> void:
-	if effect_material == null:
-		return
-	var neutral := {
-		"blur": 0.0,
-		"glow_strength": 0.0,
-		"glow_threshold": 0.7,
-		"glow_radius": 3.0,
-		"exposure": 0.0,
-		"saturation": 1.0,
-		"contrast": 1.0,
-		"temperature": 0.0,
-		"color_tint": 0.0,
-		"vignette": 0.0,
-		"chromatic_aberration": 0.0,
-		"monochrome": 0.0,
-		"noise_amount": 0.0,
-		"noise_seed": 0.0,
-		"noise_colored": 0.0
-	}
-	for key in neutral:
-		effect_material.set_shader_parameter(StringName(key),neutral[key])
+	_rebuild_effect_shader()
 
 func set_source_texture(source: Texture2D) -> void:
 	source_texture = source
-	if _pipeline_dirty or _passes.is_empty():
-		_rebuild_pipeline()
-	else:
-		_refresh_pipeline_sources()
+	texture = source
+	queue_redraw()
 
 func set_filters(values: Dictionary) -> void:
 	filter_values = values.duplicate(true)
-	_apply_filter_values()
+	_apply_uniforms()
 	queue_redraw()
 
 func set_effect_order(order: Array) -> void:
@@ -85,138 +44,217 @@ func set_effect_order(order: Array) -> void:
 	for fallback in ["lens_aberration","blur","glow","color","vignette","monochrome","noise"]:
 		if not cleaned.has(fallback):
 			cleaned.append(fallback)
-	if cleaned == effect_order and not _pipeline_dirty:
+	if cleaned == effect_order and effect_material != null and effect_material.shader != null:
 		return
 	effect_order = cleaned
-	_pipeline_dirty = true
-	_rebuild_pipeline()
+	_rebuild_effect_shader()
 
 func get_effect_order() -> Array[String]:
 	return effect_order.duplicate()
 
 func set_viewport_mask(enabled: bool, control_size: Vector2, radius: float = 16.0) -> void:
+	rounded_mask_enabled = enabled
+	rounded_control_size = control_size
+	rounded_corner_radius = radius
+	_apply_uniforms()
+	queue_redraw()
+
+func _shader_header() -> String:
+	return """shader_type canvas_item;
+
+uniform float blur = 0.0;
+uniform float glow_strength = 0.0;
+uniform float glow_threshold = 0.7;
+uniform float glow_radius = 3.0;
+uniform float exposure = 0.0;
+uniform float saturation = 1.0;
+uniform float contrast = 1.0;
+uniform float temperature = 0.0;
+uniform float color_tint = 0.0;
+uniform float vignette = 0.0;
+uniform float chromatic_aberration = 0.0;
+uniform float monochrome = 0.0;
+uniform float noise_amount = 0.0;
+uniform float noise_seed = 0.0;
+uniform float noise_colored = 0.0;
+
+uniform float rounded_mask_enabled = 0.0;
+uniform vec2 rounded_control_size = vec2(800.0,600.0);
+uniform float rounded_corner_radius = 16.0;
+
+float luminance_of(vec3 c) {
+	return dot(c,vec3(0.2126,0.7152,0.0722));
+}
+
+float grain_hash(vec2 p) {
+	vec3 p3 = fract(vec3(p.xyx)*0.1031);
+	p3 += dot(p3,p3.yzx+33.33+noise_seed);
+	return fract((p3.x+p3.y)*p3.z);
+}
+
+vec3 grain_rgb(vec2 pixel) {
+	float n1 = grain_hash(pixel)-0.5;
+	if (noise_colored < 0.5) return vec3(n1);
+	float n2 = grain_hash(pixel+vec2(17.23,9.71))-0.5;
+	float n3 = grain_hash(pixel+vec2(41.11,27.59))-0.5;
+	return vec3(n1,n2,n3);
+}
+
+vec3 fx0(vec2 uv) {
+	return texture(TEXTURE,clamp(uv,vec2(0.0),vec2(1.0))).rgb;
+}
+
+"""
+
+func _stage_source(effect_id: String, stage: int) -> String:
+	var prev := "fx%d" % (stage-1)
+	var fn := "fx%d" % stage
+	match effect_id:
+		"lens_aberration":
+			return """vec3 %s(vec2 uv) {
+	vec2 safe_uv = clamp(uv,vec2(0.0),vec2(1.0));
+	vec2 radial = safe_uv-vec2(0.5);
+	vec2 shift = radial*chromatic_aberration*0.02;
+	vec3 c = %s(safe_uv);
+	c.r = %s(safe_uv+shift).r;
+	c.b = %s(safe_uv-shift).b;
+	return c;
+}
+
+""" % [fn,prev,prev,prev]
+		"blur":
+			# Isotropic 13-tap Gaussian-like kernel. Because every tap calls the
+			# previous stack stage, effects above Blur are blurred too.
+			return """vec3 %s(vec2 uv) {
+	vec2 px = TEXTURE_PIXEL_SIZE*max(0.25,blur*0.55);
+	vec3 c = %s(uv)*0.20;
+	c += %s(uv+vec2( px.x,0.0))*0.10;
+	c += %s(uv+vec2(-px.x,0.0))*0.10;
+	c += %s(uv+vec2(0.0, px.y))*0.10;
+	c += %s(uv+vec2(0.0,-px.y))*0.10;
+	c += %s(uv+vec2( px.x, px.y))*0.075;
+	c += %s(uv+vec2(-px.x, px.y))*0.075;
+	c += %s(uv+vec2( px.x,-px.y))*0.075;
+	c += %s(uv+vec2(-px.x,-px.y))*0.075;
+	c += %s(uv+vec2(2.0*px.x,0.0))*0.025;
+	c += %s(uv+vec2(-2.0*px.x,0.0))*0.025;
+	c += %s(uv+vec2(0.0,2.0*px.y))*0.025;
+	c += %s(uv+vec2(0.0,-2.0*px.y))*0.025;
+	return c;
+}
+
+""" % [fn,prev,prev,prev,prev,prev,prev,prev,prev,prev,prev,prev,prev,prev]
+		"glow":
+			return """vec3 %s(vec2 uv) {
+	vec2 g = TEXTURE_PIXEL_SIZE*max(0.5,glow_radius);
+	vec3 base = %s(uv);
+	vec3 bloom = vec3(0.0);
+	vec3 s0 = base;
+	vec3 s1 = %s(uv+vec2( g.x,0.0));
+	vec3 s2 = %s(uv+vec2(-g.x,0.0));
+	vec3 s3 = %s(uv+vec2(0.0, g.y));
+	vec3 s4 = %s(uv+vec2(0.0,-g.y));
+	vec3 s5 = %s(uv+vec2( g.x, g.y));
+	vec3 s6 = %s(uv+vec2(-g.x, g.y));
+	vec3 s7 = %s(uv+vec2( g.x,-g.y));
+	vec3 s8 = %s(uv+vec2(-g.x,-g.y));
+	bloom += s0*smoothstep(glow_threshold,glow_threshold+0.08,luminance_of(s0));
+	bloom += s1*smoothstep(glow_threshold,glow_threshold+0.08,luminance_of(s1));
+	bloom += s2*smoothstep(glow_threshold,glow_threshold+0.08,luminance_of(s2));
+	bloom += s3*smoothstep(glow_threshold,glow_threshold+0.08,luminance_of(s3));
+	bloom += s4*smoothstep(glow_threshold,glow_threshold+0.08,luminance_of(s4));
+	bloom += s5*smoothstep(glow_threshold,glow_threshold+0.08,luminance_of(s5));
+	bloom += s6*smoothstep(glow_threshold,glow_threshold+0.08,luminance_of(s6));
+	bloom += s7*smoothstep(glow_threshold,glow_threshold+0.08,luminance_of(s7));
+	bloom += s8*smoothstep(glow_threshold,glow_threshold+0.08,luminance_of(s8));
+	return base+bloom*(glow_strength/9.0);
+}
+
+""" % [fn,prev,prev,prev,prev,prev,prev,prev,prev,prev]
+		"color":
+			return """vec3 %s(vec2 uv) {
+	vec3 c = %s(uv);
+	c *= exp2(exposure);
+	float y = luminance_of(c);
+	c = mix(vec3(y),c,saturation);
+	c = (c-vec3(0.5))*contrast+vec3(0.5);
+	c.r += temperature*0.15;
+	c.b -= temperature*0.15;
+	c.g += color_tint*0.10;
+	c.r -= color_tint*0.04;
+	c.b -= color_tint*0.04;
+	return c;
+}
+
+""" % [fn,prev]
+		"vignette":
+			return """vec3 %s(vec2 uv) {
+	vec3 c = %s(uv);
+	vec2 q = (uv-vec2(0.5))*vec2(1.0,0.82);
+	float v = smoothstep(0.30,0.72,length(q));
+	return c*(1.0-v*vignette);
+}
+
+""" % [fn,prev]
+		"monochrome":
+			return """vec3 %s(vec2 uv) {
+	vec3 c = %s(uv);
+	float gray = luminance_of(c);
+	return mix(c,vec3(gray),monochrome);
+}
+
+""" % [fn,prev]
+		"noise":
+			return """vec3 %s(vec2 uv) {
+	vec3 c = %s(uv);
+	vec2 pixel = floor(uv/max(TEXTURE_PIXEL_SIZE,vec2(0.000001)));
+	return c+grain_rgb(pixel)*noise_amount;
+}
+
+""" % [fn,prev]
+		_:
+			return """vec3 %s(vec2 uv) { return %s(uv); }
+
+""" % [fn,prev]
+
+func _shader_footer(last_stage: int) -> String:
+	return """void fragment() {
+	vec2 uv = clamp(UV,vec2(0.0),vec2(1.0));
+	vec3 color = fx%d(uv);
+	float output_alpha = texture(TEXTURE,uv).a;
+	if (rounded_mask_enabled > 0.5) {
+		vec2 screen_px = UV*rounded_control_size;
+		vec2 half_size = rounded_control_size*0.5;
+		vec2 p = abs(screen_px-half_size)-(half_size-vec2(rounded_corner_radius));
+		float corner_distance = length(max(p,vec2(0.0)))+min(max(p.x,p.y),0.0)-rounded_corner_radius;
+		float aa = max(fwidth(corner_distance),0.75);
+		output_alpha *= 1.0-smoothstep(-aa,aa,corner_distance);
+	}
+	COLOR = vec4(max(color,vec3(0.0)),output_alpha);
+}
+""" % last_stage
+
+func _rebuild_effect_shader() -> void:
 	if effect_material == null:
 		return
-	if material != effect_material:
-		material = effect_material
-	effect_material.set_shader_parameter("rounded_mask_enabled",1.0 if enabled else 0.0)
-	effect_material.set_shader_parameter("rounded_control_size",control_size)
-	effect_material.set_shader_parameter("rounded_corner_radius",radius)
+	var source := _shader_header()
+	var stage := 1
+	for effect_id in effect_order:
+		source += _stage_source(effect_id,stage)
+		stage += 1
+	source += _shader_footer(stage-1)
+	var shader := Shader.new()
+	shader.code = source
+	effect_material.shader = shader
+	material = effect_material
+	_apply_uniforms()
 	queue_redraw()
 
-func _effect_kind(effect_name: String, blur_vertical: bool = false) -> int:
-	match effect_name:
-		"blur": return 1 if blur_vertical else 0
-		"glow": return 2
-		"color": return 3
-		"vignette": return 4
-		"lens_aberration": return 5
-		"monochrome": return 6
-		"noise": return 7
-		_: return 8
-
-func _clear_pipeline() -> void:
-	for pass_viewport in _passes:
-		if pass_viewport != null and is_instance_valid(pass_viewport):
-			pass_viewport.queue_free()
-	_passes.clear()
-	_pass_rects.clear()
-	_pass_effects.clear()
-	_pass_kinds.clear()
-
-func _append_pass(effect_name: String, kind: int) -> void:
-	var pass_viewport := SubViewport.new()
-	pass_viewport.name = "_FX_" + effect_name + "_" + str(_passes.size())
-	pass_viewport.disable_3d = true
-	pass_viewport.handle_input_locally = false
-	pass_viewport.transparent_bg = false
-	pass_viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
-	pass_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	# Keep render targets OUTSIDE this TextureRect. Making a viewport whose
-	# texture feeds a CanvasItem a child of that same CanvasItem creates a fragile
-	# dependency/visibility cycle and can leave the pass texture blank.
-	_pipeline_host = get_parent()
-	if _pipeline_host == null:
-		_pipeline_host = get_tree().current_scene
-	_pipeline_host.add_child(pass_viewport)
-
-	var rect := TextureRect.new()
-	rect.name = "_Pass"
-	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	rect.stretch_mode = TextureRect.STRETCH_SCALE
-	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-	var mat := ShaderMaterial.new()
-	mat.shader = EffectPassShader
-	mat.set_shader_parameter("effect_kind",kind)
-	if kind == 0:
-		mat.set_shader_parameter("blur_direction",Vector2(1.0,0.0))
-	elif kind == 1:
-		mat.set_shader_parameter("blur_direction",Vector2(0.0,1.0))
-	rect.material = mat
-	pass_viewport.add_child(rect)
-
-	_passes.append(pass_viewport)
-	_pass_rects.append(rect)
-	_pass_effects.append(effect_name)
-	_pass_kinds.append(kind)
-
-func _rebuild_pipeline() -> void:
-	if not is_inside_tree():
-		_pipeline_dirty = true
+func _apply_uniforms() -> void:
+	if effect_material == null or effect_material.shader == null:
 		return
-	_clear_pipeline()
-	for effect_name in effect_order:
-		if effect_name == "blur":
-			_append_pass("blur",0)
-			_append_pass("blur",1)
-		else:
-			_append_pass(effect_name,_effect_kind(effect_name))
-	_pipeline_dirty = false
-	_resize_pipeline()
-	_refresh_pipeline_sources()
-	_apply_filter_values()
-
-func _pipeline_size() -> Vector2i:
-	var sx := maxi(2,int(round(size.x)))
-	var sy := maxi(2,int(round(size.y)))
-	if source_texture != null:
-		var ts := source_texture.get_size()
-		if ts.x > 1 and ts.y > 1 and (size.x <= 2.0 or size.y <= 2.0):
-			sx = int(ts.x)
-			sy = int(ts.y)
-	return Vector2i(sx,sy)
-
-func _resize_pipeline() -> void:
-	var s := _pipeline_size()
-	for i in range(_passes.size()):
-		var pass_viewport := _passes[i]
-		var rect := _pass_rects[i]
-		if pass_viewport == null or rect == null:
-			continue
-		pass_viewport.size = s
-		rect.position = Vector2.ZERO
-		rect.size = Vector2(s.x,s.y)
-		pass_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-
-func _refresh_pipeline_sources() -> void:
-	if _passes.is_empty():
-		texture = source_texture
-		return
-	var previous: Texture2D = source_texture
-	for i in range(_pass_rects.size()):
-		_pass_rects[i].texture = previous
-		_passes[i].render_target_update_mode = SubViewport.UPDATE_ALWAYS
-		previous = _passes[i].get_texture()
-	texture = previous
-	queue_redraw()
-
-func _apply_filter_values() -> void:
-	for i in range(_pass_rects.size()):
-		var rect := _pass_rects[i]
-		if rect == null or not rect.material is ShaderMaterial:
-			continue
-		var mat := rect.material as ShaderMaterial
-		for key in filter_values:
-			mat.set_shader_parameter(StringName(key),filter_values[key])
-	queue_redraw()
+	for key in filter_values:
+		effect_material.set_shader_parameter(StringName(key),filter_values[key])
+	effect_material.set_shader_parameter("rounded_mask_enabled",1.0 if rounded_mask_enabled else 0.0)
+	effect_material.set_shader_parameter("rounded_control_size",rounded_control_size)
+	effect_material.set_shader_parameter("rounded_corner_radius",rounded_corner_radius)
