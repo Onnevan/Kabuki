@@ -3965,6 +3965,49 @@ func _on_drawing_cel_menu(id: int) -> void:
 		3: _on_drawing_hold_cel()
 		4: _on_drawing_morph_cel()
 
+func _drawing_uses_free_3d_view() -> bool:
+	return workspace == "drawing" and (drawing_sculpt_active or (drawing_3d_active and gp_projection_mode == "surface"))
+
+func _set_editor_helper_meshes_visible(visible_state: bool) -> void:
+	for object_id_value in scene_nodes.keys():
+		var object_id := String(object_id_value)
+		var root: Node = scene_nodes[object_id]
+		var object_visible := _object_effectively_visible(object_id)
+		_set_editor_helper_meshes_visible_recursive(root,visible_state and object_visible)
+
+func _set_editor_helper_meshes_visible_recursive(node: Node, visible_state: bool) -> void:
+	if node is VisualInstance3D:
+		var helper_name := String(node.name)
+		if helper_name == "_CameraGizmo" or helper_name.begins_with("_BoneGizmo_") or helper_name.begins_with("_WeightDebug"):
+			(node as VisualInstance3D).visible = visible_state
+	for child in node.get_children():
+		_set_editor_helper_meshes_visible_recursive(child,visible_state)
+
+func _apply_drawing_view_policy() -> void:
+	if workspace != "drawing":
+		return
+	# Drawing never shows scene/editor overlays. Renderable scene geometry stays
+	# visible and keeps obeying the Outliner visibility flags.
+	world_grid.visible = false
+	gizmo.visible = false
+	%ViewGizmo.visible = false
+	%CameraFrame.visible = false
+	%IKGuide.visible = false
+	_set_editor_helper_meshes_visible(false)
+	for reference_canvas in drawing_planes:
+		if is_instance_valid(reference_canvas):
+			reference_canvas.set_guide_visible(false)
+	if active_rig_runtime != null and is_instance_valid(active_rig_runtime) and active_rig_runtime.has_method("clear_weight_debug"):
+		active_rig_runtime.clear_weight_debug()
+
+	# Surface projection and Sculpt are the only Drawing tools that intentionally
+	# unlock the spatial view. All other drawing tools are exactly perpendicular
+	# to the selected axis-aligned ReferenceCanvas.
+	if _drawing_uses_free_3d_view():
+		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+	else:
+		_lock_drawing_view_to_canvas()
+
 func _on_workspace_tab_changed(tab: int) -> void:
 	var next_workspace: String = ["scene","animation","drawing","rigging","compositor"][tab]
 	# Workspaces may have different overlays/panel geometry, but changing editor
@@ -3987,16 +4030,13 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	else:
 		workspace_camera_states[workspace] = camera_rig.get_state()
 	if workspace == "drawing":
-		if gp_projection_mode == "surface" and drawing_3d_active:
-			camera.projection = Camera3D.PROJECTION_PERSPECTIVE
-		else:
-			# Canvas drawing is a true 2D editor onto the selected ReferenceCanvas.
-			_lock_drawing_view_to_canvas()
+		_apply_drawing_view_policy()
 	else:
 		# Orthographic projection belongs only to the 2D Drawing editor.
 		# Scene/Animation/Rigging must use perspective so camera dolly changes
 		# the apparent size of actual scene geometry.
 		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+		_set_editor_helper_meshes_visible(true)
 	%RightPanel.visible = workspace == "scene" or workspace == "drawing" or workspace == "rigging" or workspace == "compositor"
 	_sync_animation_canvas_editor()
 	%DrawingToolSurface.visible = workspace == "drawing"
@@ -4012,7 +4052,9 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	%GradientGuide.queue_redraw()
 	_update_drawing_tool_ui()
 	%DrawingPlanes.visible = workspace == "drawing"
-	%ObjectList.visible = workspace != "drawing"
+	# Keep the object Outliner available while drawing so props can be hidden
+	# without leaving the workspace. Canvases retain their dedicated list below.
+	%ObjectList.visible = true
 	%RiggingPanel.visible = workspace == "rigging"
 	if workspace == "rigging": _refresh_rig_parent_choices()
 	%DrawingCanvas.visible = workspace == "drawing" and %DrawingCanvas.bitmap_mode
@@ -4022,7 +4064,7 @@ func _on_workspace_tab_changed(tab: int) -> void:
 	# exposing scene-view orientation controls.
 	%ViewGizmo.visible = workspace != "drawing" and workspace != "animation"
 	%ToolRail.visible = workspace != "drawing"
-	%Title.text = "DRAWINGS" if workspace == "drawing" else ("ANIMATABLES" if workspace == "animation" else "OBJECTS")
+	%Title.text = "OBJECTS" if workspace == "drawing" else ("ANIMATABLES" if workspace == "animation" else "OBJECTS")
 	%Status.text = workspace.to_upper() + " workspace"
 	%EditorTitle.text = workspace.to_upper() + " EDITOR"
 	# Drawing temporarily presents the active canvas' local clip range in the
@@ -4088,19 +4130,14 @@ func _create_companion_canvas_for_engine(engine: String, source: ReferenceCanvas
 
 func _on_gp_projection_mode_selected(index: int) -> void:
 	gp_projection_mode = "surface" if index == 1 else "canvas"
+	_apply_drawing_view_policy()
 	if gp_projection_mode == "surface":
-		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 		status.text = "Grease Pencil · Surface projection · MMB orbit · Shift+MMB pan"
 	else:
-		_lock_drawing_view_to_canvas()
 		status.text = "Grease Pencil · Canvas projection"
 	_update_drawing_tool_ui()
 
 func _on_draw_stroke3d_pressed() -> void:
-	if gp_projection_mode == "canvas":
-		_lock_drawing_view_to_canvas()
-	else:
-		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	var source_canvas: ReferenceCanvas = active_drawing_group
 	var switching_from_bitmap: bool = %DrawingCanvas.bitmap_mode
 	if switching_from_bitmap:
@@ -4112,6 +4149,7 @@ func _on_draw_stroke3d_pressed() -> void:
 	drawing_erase_active = false
 	%DrawingCanvas.bitmap_mode = false
 	%DrawingCanvas.visible = false
+	_apply_drawing_view_policy()
 	_ensure_drawing_content_layer("vector")
 	_apply_drawing_frame(ProjectStore.current_frame)
 	_update_drawing_tool_ui()
@@ -4139,6 +4177,7 @@ func _on_draw_bitmap_pressed() -> void:
 	drawing_3d_active = false
 	drawing_sculpt_active = false
 	drawing_erase_active = false
+	_apply_drawing_view_policy()
 	%DrawingCanvas.brush_color = bitmap_color
 	%DrawingCanvas.opacity = %BrushOpacity.value
 	%DrawingCanvas.brush_size = %BrushSize.value
@@ -4163,9 +4202,8 @@ func _on_draw_sculpt_pressed() -> void:
 	drawing_erase_active = false
 	%DrawingCanvas.bitmap_mode = false
 	%DrawingCanvas.visible = false
-	# Sculpt needs a genuine spatial view. Start from the current frontal canvas
-	# framing, then switch to perspective and let the camera rig orbit freely.
-	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+	# Sculpt is one of the two Drawing modes allowed to unlock the 3D view.
+	_apply_drawing_view_policy()
 	camera_rig.align_transform(camera.global_transform)
 	orbiting = false
 	panning = false
@@ -4738,8 +4776,8 @@ func _on_add_drawing_plane() -> void:
 	_refresh_scene_object_list()
 	_select_scene_node(active_drawing_id, active_drawing_group)
 	_sync_canvas_axis_buttons()
-	if workspace == "drawing" and gp_projection_mode == "canvas":
-		_lock_drawing_view_to_canvas()
+	if workspace == "drawing":
+		_apply_drawing_view_policy()
 	%RightPanel.visible = true
 	status.text = "Reference canvas created · drawing is projected onto its coordinates"
 
@@ -4767,7 +4805,7 @@ func _on_drawing_plane_selected(index: int) -> void:
 	_sync_local_clip_ui()
 	_sync_canvas_axis_buttons()
 	if workspace == "drawing":
-		_lock_drawing_view_to_canvas()
+		_apply_drawing_view_policy()
 	%RightPanel.visible = true
 	_refresh_drawing_timeline()
 	status.text = "Active reference canvas · " + plane.name
@@ -4971,17 +5009,20 @@ func _update_preview_mode() -> void:
 				reference_canvas.set_guide_visible(false)
 		_set_render_camera_gizmo_visible(false)
 	else:
-		world_grid.visible = %GridToggle.button_pressed
+		world_grid.visible = %GridToggle.button_pressed and workspace != "drawing"
 		gizmo.visible = workspace != "drawing" and workspace != "rigging" and workspace != "animation" and selected_scene_node != null
 		%ViewGizmo.visible = workspace != "drawing" and workspace != "animation"
 		for reference_canvas in drawing_planes:
 			if is_instance_valid(reference_canvas):
 				reference_canvas.set_guide_visible(workspace == "scene")
-		if camera_view_active:
+		if workspace == "drawing":
+			_apply_drawing_view_policy()
+		elif camera_view_active:
 			_update_camera_frame_overlay()
 			_set_render_camera_gizmo_visible(false)
 		else:
 			%CameraFrame.visible = false
+			_set_editor_helper_meshes_visible(true)
 
 func _on_auto_key_toggled(enabled: bool) -> void:
 	%AutoKey.text = "● AUTO" if enabled else "○ AUTO"
